@@ -28,6 +28,7 @@ export * as nip59 from './nip59.ts'
 export * as nip77 from './nip77.ts'
 export * as nip98 from './nip98.ts'
 
+export * as marketplace from './marketplace.ts'
 export * as kinds from './kinds.ts'
 export * as fj from './fakejson.ts'
 export * as utils from './utils.ts'

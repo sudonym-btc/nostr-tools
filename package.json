@@ -264,6 +264,12 @@
       "require": "./lib/cjs/nipb7.js",
       "types": "./lib/types/nipb7.d.ts"
     },
+    "./marketplace": {
+      "source": "./marketplace.ts",
+      "import": "./lib/esm/marketplace.js",
+      "require": "./lib/cjs/marketplace.js",
+      "types": "./lib/types/marketplace.d.ts"
+    },
     "./fakejson": {
       "source": "./fakejson.ts",
       "import": "./lib/esm/fakejson.js",

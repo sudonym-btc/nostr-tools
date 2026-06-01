@@ -115,6 +115,8 @@ export function createNostrConnectURI(params: NostrConnectParams): string {
 export type BunkerSignerParams = {
   pool?: AbstractSimplePool
   onauth?: (url: string) => void
+  /** Sign NIP-42 AUTH events for the NIP-46 transport subscription. */
+  relayAuth?: (event: EventTemplate) => Promise<VerifiedEvent>
   /** Skip automatic switchRelays() call in fromURI. Useful when you want to call it manually at your own pace. */
   skipSwitchRelays?: boolean
 }
@@ -231,9 +233,13 @@ export class BunkerSigner implements Signer {
               console.warn('failed to process potential connection event', e)
             }
           },
-          onclose: () => {
-            if (!success) reject(new Error('subscription closed before connection was established.'))
+          onclose: (reasons?: string[]) => {
+            if (!success) {
+              const reason = reasons?.filter(Boolean).join('; ')
+              reject(new Error(`subscription closed before connection was established${reason ? `: ${reason}` : ''}.`))
+            }
           },
+          onauth: bunkerParams.relayAuth,
           maxWait: typeof maxWaitOrAbort === 'number' ? maxWaitOrAbort : undefined,
           abort: typeof maxWaitOrAbort !== 'number' ? maxWaitOrAbort : undefined,
         },
@@ -282,6 +288,7 @@ export class BunkerSigner implements Signer {
         onclose: () => {
           this.subCloser = undefined
         },
+        onauth: this.params.relayAuth,
       },
     )
     this.isOpen = true

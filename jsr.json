@@ -44,6 +44,7 @@
     "./nip98": "./nip98.ts",
     "./nip99": "./nip99.ts",
     "./nipb7": "./nipb7.ts",
+    "./marketplace": "./marketplace.ts",
     "./fakejson": "./fakejson.ts",
     "./utils": "./utils.ts",
     "./signer": "./signer.ts"
