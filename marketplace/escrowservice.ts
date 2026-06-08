@@ -1,7 +1,7 @@
 import type { AbstractSimplePool } from '../abstract-pool.ts'
 import type { Event, EventTemplate } from '../core.ts'
 import type { Filter } from '../filter.ts'
-import { EscrowMethod, EscrowService, EscrowServiceSelection } from '../kinds.ts'
+import { MarketplacePaymentMethod, EscrowService, EscrowServiceSelection } from '../kinds.ts'
 import {
   eventToEscrowContextValue,
   isEvmAddress,
@@ -61,7 +61,7 @@ export type EscrowServiceFindQuery = {
 
 export type EscrowServiceSelectionContent = {
   service: Event
-  sellerMethods: Event
+  paymentMethod: Event
 }
 
 export type ParsedEscrowServiceSelection = {
@@ -75,7 +75,7 @@ export type EscrowServiceSelectionTemplate = {
   tradeId: string
   listingAnchor?: string
   service: Event | string
-  sellerMethods: Event | string
+  paymentMethod: Event | string
   extraTags?: string[][]
   createdAt?: number
 }
@@ -185,10 +185,10 @@ export async function searchEscrowServices(
 export function parseEscrowServiceSelectionContent(content: string): EscrowServiceSelectionContent {
   const json = parseJsonObject(content, 'escrow service selection')
   const service = parseEventJson(json.service, 'selected escrow service')
-  const sellerMethods = parseEventJson(json.sellerMethods, 'selected seller escrow methods')
+  const paymentMethod = parseEventJson(json.paymentMethod, 'selected seller payment methods')
   if (service.kind !== EscrowService) throw new Error('Invalid selected escrow service kind')
-  if (sellerMethods.kind !== EscrowMethod) throw new Error('Invalid selected seller escrow methods kind')
-  return { service, sellerMethods }
+  if (paymentMethod.kind !== MarketplacePaymentMethod) throw new Error('Invalid selected seller payment methods kind')
+  return { service, paymentMethod }
 }
 
 export function validateEscrowServiceSelectionEvent(event: Event): boolean {
@@ -218,7 +218,7 @@ export function generateEscrowServiceSelectionEventTemplate(selection: EscrowSer
     created_at: selection.createdAt ?? now(),
     content: JSON.stringify({
       service: eventToEscrowContextValue(selection.service),
-      sellerMethods: eventToEscrowContextValue(selection.sellerMethods),
+      paymentMethod: eventToEscrowContextValue(selection.paymentMethod),
     }),
     tags: [
       ['d', selection.tradeId],

@@ -101,6 +101,9 @@ export function orderIdentityPubkeys(identity: MarketplaceOrderIdentity = {}): s
     for (const role of identityRoles(identity)) {
       for (let index = 0; index < tempKeyWindow; index += 1) {
         pubkeys.push(deriveMarketplaceTradeMaterial(seed, { index, role }).tradePubkey)
+        if (role === 'buyer') {
+          pubkeys.push(deriveMarketplaceTradeMaterial(seed, { index, role, extra: 'auction-bid' }).tradePubkey)
+        }
       }
     }
   }
@@ -130,7 +133,7 @@ function baseOrderFilter(query: OrderQuery, kinds: number[] = [MarketplaceOrder]
 function filtersForKinds(query: OrderQuery = {}, kinds: number[] = [MarketplaceOrder]): Filter[] {
   const base = baseOrderFilter(query, kinds)
   const identityPubkeys = orderIdentityPubkeys(query.identity)
-  const authors = unique([...(query.authors ?? []), ...identityPubkeys])
+  const authors = unique(query.authors ?? [])
   const participantPubkeys = unique([...(query.participantPubkeys ?? []), ...identityPubkeys])
   const filters: Filter[] = []
 

@@ -157,8 +157,10 @@ export async function fetchMarketplaceSeedEvent(
   relays: string[],
   pubkey: string,
 ): Promise<Event | null> {
-  const [event] = await pool.querySync(relays, marketplaceSeedFilter(pubkey))
-  return event && validateMarketplaceSeedEvent(event) ? event : null
+  const events = await pool.querySync(relays, { ...marketplaceSeedFilter(pubkey), limit: 50 })
+  return events
+    .filter(validateMarketplaceSeedEvent)
+    .sort((a, b) => b.created_at - a.created_at || b.id.localeCompare(a.id))[0] ?? null
 }
 
 export async function ensureMarketplaceSeed(opts: EnsureMarketplaceSeedOptions): Promise<MarketplaceSeedResolution> {

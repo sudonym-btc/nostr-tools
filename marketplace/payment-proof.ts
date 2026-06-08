@@ -32,7 +32,7 @@ export function parsePaymentProof(json: unknown): PaymentProof | null | undefine
     const escrowRecord = record.escrow as Record<string, unknown>
     escrow = {
       escrowService: parseEventJson(escrowRecord.escrowService, 'escrowService'),
-      sellerEscrowMethod: parseEventJson(escrowRecord.sellerEscrowMethod, 'sellerEscrowMethod'),
+      paymentMethod: parseEventJson(escrowRecord.paymentMethod, 'paymentMethod'),
     }
   }
   return { listing, paymentProof, ...(escrow ? { escrow } : {}) }

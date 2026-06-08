@@ -79,7 +79,7 @@ export type PaymentValidationContext = {
   buyerOrder?: ParsedOrder
   paymentProof?: PaymentProofEvidence
   listing?: Event
-  escrowMethod?: Event
+  paymentMethod?: Event
   escrowService?: Event
   now?: number
 }
@@ -88,7 +88,7 @@ export type ValidateOrderGroupPaymentsOptions = {
   policies?: MarketplacePaymentValidationPolicy[]
   resolved?: ResolvedOrderGroup
   listing?: Event
-  escrowMethod?: Event
+  paymentMethod?: Event
   escrowService?: Event
   now?: number
   reduceOptions?: ReduceOrderGroupOptions

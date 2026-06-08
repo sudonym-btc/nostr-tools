@@ -1,10 +1,13 @@
 import type { Event } from '../core.ts'
 import {
   CommitAuthorization,
-  EscrowMethod,
+  MarketplacePaymentMethod,
   EscrowService,
   EscrowServiceSelection,
   MarketplaceOrderCancel,
+  MarketplaceAuction,
+  MarketplaceAuctionBid,
+  MarketplaceAuctionComplete,
   MarketplaceOrder,
   MarketplacePayment,
   MarketplacePaymentAck,
@@ -18,9 +21,12 @@ import {
 import { bytesToHex, utf8Encoder } from '../utils.ts'
 import { sha256 } from '@noble/hashes/sha2.js'
 
-export const escrowMethodKind = EscrowMethod
+export const paymentMethodKind = MarketplacePaymentMethod
 export const escrowServiceKind = EscrowService
 export const escrowServiceSelectionKind = EscrowServiceSelection
+export const auctionKind = MarketplaceAuction
+export const auctionBidKind = MarketplaceAuctionBid
+export const auctionCompleteKind = MarketplaceAuctionComplete
 export const orderKind = MarketplaceOrder
 export const paymentKind = MarketplacePayment
 export const paymentAckKind = MarketplacePaymentAck
@@ -46,6 +52,7 @@ export type PaymentSettlementAction =
   | 'split'
   | 'timeout_claim'
   | 'auction_refund'
+  | 'auction_promote'
   | string
 export type MarketplaceAmount = {
   value: string
@@ -81,7 +88,7 @@ export type PaymentProof = {
   paymentProof: PaymentProofEvidence | null
   escrow?: {
     escrowService: string | Event
-    sellerEscrowMethod: string | Event
+    paymentMethod: string | Event
   }
 }
 

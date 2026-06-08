@@ -1,7 +1,7 @@
 import type { AbstractSimplePool } from '../abstract-pool.ts'
 import type { Event, EventTemplate } from '../core.ts'
 import type { Filter } from '../filter.ts'
-import { EscrowMethod } from '../kinds.ts'
+import { MarketplacePaymentMethod } from '../kinds.ts'
 import { isEvmAddress, now, tagValues } from './helper.ts'
 
 export type AcceptedPaymentForm = {
@@ -10,26 +10,28 @@ export type AcceptedPaymentForm = {
   appId?: string
 }
 
-export type ParsedEscrowMethod = {
+export type ParsedPaymentMethod = {
   event: Event
   trustedEscrowPubkeys: string[]
   supportedContractBytecodeHashes: string[]
   acceptedPaymentForms: AcceptedPaymentForm[]
   evmAddress?: string
   evmAddressProof?: string
+  cashuPubkey?: string
 }
 
-export type EscrowMethodTemplate = {
+export type PaymentMethodTemplate = {
   trustedEscrowPubkeys?: string[]
   supportedContractBytecodeHashes?: string[]
   acceptedPaymentForms?: AcceptedPaymentForm[]
   evmAddress?: string
   evmAddressProof?: string
+  cashuPubkey?: string
   extraTags?: string[][]
   createdAt?: number
 }
 
-export type EscrowMethodFindQuery = {
+export type PaymentMethodFindQuery = {
   author?: string
   trustedEscrowPubkey?: string
   contractBytecodeHash?: string
@@ -39,6 +41,19 @@ export type EscrowMethodFindQuery = {
 }
 
 export function canonicalAssetId(assetId: string): string {
+  const cashu = assetId.match(/^cashu:([^:]+):(.+)$/)
+  if (cashu) {
+    const [, unit, rawMintUrl] = cashu
+    try {
+      const mintUrl = new URL(rawMintUrl)
+      mintUrl.protocol = mintUrl.protocol.toLowerCase()
+      mintUrl.hostname = mintUrl.hostname.toLowerCase()
+      if (mintUrl.pathname === '/') mintUrl.pathname = ''
+      return `cashu:${unit.toLowerCase()}:${mintUrl.toString().replace(/\/$/, '')}`
+    } catch {
+      return `cashu:${unit.toLowerCase()}:${rawMintUrl.replace(/\/+$/, '')}`
+    }
+  }
   const separator = assetId.indexOf(':')
   if (separator === -1) return assetId
   const chainId = assetId.slice(0, separator)
@@ -54,21 +69,25 @@ export function evmAddressTag(address: string, eip191Proof?: string): string[] {
   return ['i', `evm:address:${address}`, ...(eip191Proof ? [`eip191:${eip191Proof}`] : [])]
 }
 
+export function cashuPubkeyTag(pubkey: string): string[] {
+  return ['i', `cashu:p2pk:${pubkey}`]
+}
+
 function sameAssetId(left: string, right: string): boolean {
   return canonicalAssetId(left) === canonicalAssetId(right)
 }
 
-export function validateEscrowMethodEvent(event: Event): boolean {
+export function validatePaymentMethodEvent(event: Event): boolean {
   try {
-    parseEscrowMethodEvent(event)
+    parsePaymentMethodEvent(event)
     return true
   } catch (_) {
     return false
   }
 }
 
-export function parseEscrowMethodEvent(event: Event): ParsedEscrowMethod {
-  if (event.kind !== EscrowMethod) throw new Error('Invalid escrow method kind')
+export function parsePaymentMethodEvent(event: Event): ParsedPaymentMethod {
+  if (event.kind !== MarketplacePaymentMethod) throw new Error('Invalid payment method kind')
   const acceptedPaymentForms = event.tags
     .filter(tag => tag[0] === 'o')
     .map(tag => {
@@ -79,6 +98,8 @@ export function parseEscrowMethodEvent(event: Event): ParsedEscrowMethod {
   const parsedEvmAddress = evmClaim?.[1]?.slice('evm:address:'.length)
   if (parsedEvmAddress !== undefined && !isEvmAddress(parsedEvmAddress)) throw new Error('Invalid EVM address')
   const proof = evmClaim?.[2]
+  const cashuClaim = [...event.tags].reverse().find(tag => tag[0] === 'i' && tag[1]?.startsWith('cashu:p2pk:'))
+  const cashuPubkey = cashuClaim?.[1]?.slice('cashu:p2pk:'.length)
   return {
     event,
     trustedEscrowPubkeys: tagValues(event, 'p'),
@@ -86,12 +107,13 @@ export function parseEscrowMethodEvent(event: Event): ParsedEscrowMethod {
     acceptedPaymentForms,
     ...(parsedEvmAddress ? { evmAddress: parsedEvmAddress } : {}),
     ...(proof ? { evmAddressProof: proof.startsWith('eip191:') ? proof.slice('eip191:'.length) : proof } : {}),
+    ...(cashuPubkey ? { cashuPubkey } : {}),
   }
 }
 
-export function generateEscrowMethodEventTemplate(method: EscrowMethodTemplate): EventTemplate {
+export function generatePaymentMethodEventTemplate(method: PaymentMethodTemplate): EventTemplate {
   return {
-    kind: EscrowMethod,
+    kind: MarketplacePaymentMethod,
     created_at: method.createdAt ?? now(),
     content: '',
     tags: [
@@ -104,14 +126,15 @@ export function generateEscrowMethodEventTemplate(method: EscrowMethodTemplate):
         ...(form.appId ? [form.appId] : []),
       ]),
       ...(method.evmAddress ? [evmAddressTag(method.evmAddress, method.evmAddressProof)] : []),
+      ...(method.cashuPubkey ? [cashuPubkeyTag(method.cashuPubkey)] : []),
       ...(method.extraTags ?? []),
     ],
   }
 }
 
-export function escrowMethodFilter(query: EscrowMethodFindQuery = {}): Filter {
+export function paymentMethodFilter(query: PaymentMethodFindQuery = {}): Filter {
   const filter: Filter = {
-    kinds: [EscrowMethod],
+    kinds: [MarketplacePaymentMethod],
     authors: query.author ? [query.author] : undefined,
     limit: query.limit ?? 1,
   }
@@ -120,13 +143,13 @@ export function escrowMethodFilter(query: EscrowMethodFindQuery = {}): Filter {
   return filter
 }
 
-export async function findEscrowMethod(
+export async function findPaymentMethod(
   pool: Pick<AbstractSimplePool, 'querySync'>,
   relays: string[],
-  query: EscrowMethodFindQuery = {},
-): Promise<ParsedEscrowMethod | null> {
-  const events = await pool.querySync(relays, escrowMethodFilter(query))
-  const methods = events.filter(validateEscrowMethodEvent).map(parseEscrowMethodEvent)
+  query: PaymentMethodFindQuery = {},
+): Promise<ParsedPaymentMethod | null> {
+  const events = await pool.querySync(relays, paymentMethodFilter(query))
+  const methods = events.filter(validatePaymentMethodEvent).map(parsePaymentMethodEvent)
   return (
     methods.find(method => {
       if (query.denomination && !method.acceptedPaymentForms.some(form => form.denomination === query.denomination))
@@ -146,13 +169,14 @@ export async function findEscrowMethod(
   )
 }
 
-export const escrowMethods = {
-  parse: parseEscrowMethodEvent,
-  validate: validateEscrowMethodEvent,
-  template: generateEscrowMethodEventTemplate,
-  filter: escrowMethodFilter,
-  findOne: findEscrowMethod,
+export const paymentMethod = {
+  parse: parsePaymentMethodEvent,
+  validate: validatePaymentMethodEvent,
+  template: generatePaymentMethodEventTemplate,
+  filter: paymentMethodFilter,
+  findOne: findPaymentMethod,
   canonicalAssetId,
   evmAddressOwnershipMessage,
   evmAddressTag,
+  cashuPubkeyTag,
 }

@@ -364,7 +364,7 @@ export function paymentProofForEvm(opts: {
   listing: Event
   txHash: string
   escrowService: Event | string
-  sellerEscrowMethod: Event | string
+  paymentMethod: Event | string
 }): PaymentProof {
   if (!isTransactionHash(opts.txHash)) throw new Error('Invalid EVM txHash')
   return {
@@ -372,7 +372,7 @@ export function paymentProofForEvm(opts: {
     paymentProof: { method: 'evm', params: { txHash: opts.txHash } },
     escrow: {
       escrowService: eventToEscrowContextValue(opts.escrowService),
-      sellerEscrowMethod: eventToEscrowContextValue(opts.sellerEscrowMethod),
+      paymentMethod: eventToEscrowContextValue(opts.paymentMethod),
     },
   }
 }

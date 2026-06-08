@@ -159,7 +159,7 @@ export async function validateOrderGroupPayments(
     ...(options.listing ?? paymentEvent?.content.proof.listing
       ? { listing: options.listing ?? paymentEvent?.content.proof.listing }
       : {}),
-    ...(options.escrowMethod ? { escrowMethod: options.escrowMethod } : {}),
+    ...(options.paymentMethod ? { paymentMethod: options.paymentMethod } : {}),
     ...(options.escrowService ? { escrowService: options.escrowService } : {}),
     ...(options.now !== undefined ? { now: options.now } : {}),
   }

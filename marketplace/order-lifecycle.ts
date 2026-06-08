@@ -25,6 +25,8 @@ import { parsePaymentProof } from './payment-proof.ts'
 
 export type OrderLinkedEventRefs = {
   orders: string[]
+  auctionBids: string[]
+  auctionCompletes: string[]
   payments: string[]
   paymentAcks: string[]
   paymentNacks: string[]
@@ -44,6 +46,7 @@ export type OrderLinkedEventTemplate = {
   orderGroupId?: string
   tradeId: string
   listingAnchor: string
+  anchorMarker?: string
   participants?: PTag[]
   refs?: Partial<OrderLinkedEventRefs>
   extraTags?: string[][]
@@ -123,6 +126,8 @@ export type OrderCancelTemplate = OrderLinkedEventTemplate & OrderCancelContent
 function referenceTags(refs: Partial<OrderLinkedEventRefs> | undefined): string[][] {
   return [
     ...(refs?.orders ?? []).map(id => ['e', id, '', 'order']),
+    ...(refs?.auctionBids ?? []).map(id => ['e', id, '', 'auction-bid']),
+    ...(refs?.auctionCompletes ?? []).map(id => ['e', id, '', 'auction-complete']),
     ...(refs?.payments ?? []).map(id => ['e', id, '', 'payment']),
     ...(refs?.paymentAcks ?? []).map(id => ['e', id, '', 'payment-ack']),
     ...(refs?.paymentNacks ?? []).map(id => ['e', id, '', 'payment-nack']),
@@ -136,7 +141,7 @@ function linkedTags(template: OrderLinkedEventTemplate): string[][] {
     template.orderGroupId ?? orderGroupIdForRoleParticipants(template.tradeId, template.participants ?? [])
   if (!orderGroupId) throw new Error('Order linked event requires an order group id')
   return [
-    ['a', template.listingAnchor],
+    ['a', template.listingAnchor, ...(template.anchorMarker ? ['', template.anchorMarker] : [])],
     ['d', orderGroupId],
     ['trade', template.tradeId],
     ...(template.participants ?? []).map(pTag),
@@ -148,6 +153,8 @@ function linkedTags(template: OrderLinkedEventTemplate): string[][] {
 function linkedFields(event: Event, label: string): ParsedOrderLinkedFields {
   const refs: OrderLinkedEventRefs = {
     orders: [],
+    auctionBids: [],
+    auctionCompletes: [],
     payments: [],
     paymentAcks: [],
     paymentNacks: [],
@@ -157,6 +164,8 @@ function linkedFields(event: Event, label: string): ParsedOrderLinkedFields {
   for (const tag of event.tags) {
     if (tag[0] !== 'e' || !tag[1]) continue
     if (tag[3] === 'order') refs.orders.push(tag[1])
+    else if (tag[3] === 'auction-bid' || tag[3] === 'bid') refs.auctionBids.push(tag[1])
+    else if (tag[3] === 'auction-complete' || tag[3] === 'auction-close') refs.auctionCompletes.push(tag[1])
     else if (tag[3] === 'payment') refs.payments.push(tag[1])
     else if (tag[3] === 'payment-ack') refs.paymentAcks.push(tag[1])
     else if (tag[3] === 'payment-nack') refs.paymentNacks.push(tag[1])
@@ -224,10 +233,15 @@ function parseCancelContent(content: string): OrderCancelContent {
 
 export function parseOrderPaymentEvent(event: Event): ParsedOrderPayment {
   if (event.kind !== MarketplacePayment) throw new Error('Invalid payment kind')
+  const content = parsePaymentContent(event.content)
+  const purpose = content.purpose ?? tagValue(event, 'purpose')
   return {
     event,
     ...linkedFields(event, 'payment'),
-    content: parsePaymentContent(event.content),
+    content: {
+      ...content,
+      ...(purpose ? { purpose } : {}),
+    },
   }
 }
 
@@ -275,7 +289,10 @@ export function generateOrderPaymentEventTemplate(payment: OrderPaymentTemplate)
       proof: payment.proof,
       ...(payment.purpose ? { purpose: payment.purpose } : {}),
     }),
-    tags: linkedTags(payment),
+    tags: [
+      ...linkedTags(payment),
+      ...(payment.purpose ? [['purpose', payment.purpose]] : []),
+    ],
   }
 }
 
