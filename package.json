@@ -291,6 +291,7 @@
   },
   "license": "Unlicense",
   "dependencies": {
+    "@sudonym-btc/marketplace-driver-interface": "file:../marketplace-driver-interface-ts",
     "@noble/ciphers": "2.1.1",
     "@noble/curves": "2.0.1",
     "@noble/hashes": "2.0.1",

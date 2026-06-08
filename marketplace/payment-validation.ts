@@ -1,8 +1,15 @@
 import type { MarketplaceAmount, PaymentMethod, PaymentProofEvidence } from './helper.ts'
+import type {
+  MarketplaceDriverValidationExpected,
+  MarketplaceDriverValidationPolicy,
+  MarketplaceDriverValidationRequest,
+  MarketplaceDriverValidationResult,
+  MarketplaceDriverValidationStatus,
+} from '@sudonym-btc/marketplace-driver-interface'
 
-export type MarketplacePaymentValidationStatus = 'valid' | 'invalid' | 'pending' | 'expired' | 'unverifiable'
+export type MarketplacePaymentValidationStatus = MarketplaceDriverValidationStatus
 
-export type MarketplacePaymentValidationExpected = {
+export type MarketplacePaymentValidationExpected = MarketplaceDriverValidationExpected & {
   settlementId: string
   tradeId: string
   listingAnchor: string
@@ -27,14 +34,14 @@ export type MarketplacePaymentValidationExpected = {
   fee?: MarketplaceAmount
 }
 
-export type MarketplacePaymentValidationRequest = {
+export type MarketplacePaymentValidationRequest = MarketplaceDriverValidationRequest & {
   method: PaymentMethod
   proof: PaymentProofEvidence
   expected: MarketplacePaymentValidationExpected
   now?: number
 }
 
-export type MarketplacePaymentValidationResult = {
+export type MarketplacePaymentValidationResult = MarketplaceDriverValidationResult & {
   method: PaymentMethod
   status: MarketplacePaymentValidationStatus
   orderEventId?: string
@@ -48,7 +55,10 @@ export type MarketplacePaymentValidationResult = {
   error?: string
 }
 
-export type MarketplacePaymentValidationPolicy = {
+export type MarketplacePaymentValidationPolicy = MarketplaceDriverValidationPolicy<
+  MarketplacePaymentValidationRequest,
+  MarketplacePaymentValidationResult
+> & {
   method: PaymentMethod | '*'
   canValidate?: (request: MarketplacePaymentValidationRequest) => boolean | Promise<boolean>
   validatePayment: (request: MarketplacePaymentValidationRequest) => Promise<MarketplacePaymentValidationResult>

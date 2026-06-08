@@ -159,47 +159,40 @@ import type {
   MarketplacePaymentValidationRequest,
   MarketplacePaymentValidationResult,
 } from './payment-validation.ts'
+import type {
+  MarketplaceDriverAmount,
+  MarketplaceDriverAsset,
+  MarketplaceDriverAuctionPolicy,
+  MarketplaceDriverAuctionSettlementIntent,
+  MarketplaceDriverAuctionSettlementResult,
+  MarketplaceDriverBolt11PaymentRequest,
+  MarketplaceDriverContract,
+  MarketplaceDriverIdentity,
+  MarketplaceDriverOrderPolicy,
+  MarketplaceDriverPaymentIntent,
+  MarketplaceDriverPaymentProof,
+  MarketplaceDriverPaymentState,
+  MarketplaceDriverPolicyDescriptor,
+  MarketplaceDriverRecoveryItem,
+  MarketplaceDriverRecoveryState,
+  MarketplaceDriverStartContext,
+  MarketplaceDriverStartResult,
+  MarketplaceDriverValidationRequest,
+  MarketplaceDriverValidationResult,
+  MarketplaceDriverWatermarkContext,
+  MarketplaceDriverWatermarkDiscovery,
+  MarketplaceDriverWatermarkRecoveryAction,
+} from '@sudonym-btc/marketplace-driver-interface'
 
-export type MarketplacePolicyWatermarkRecoveryAction = {
-  policy: string
-  type: string
-  index?: number
-  data?: Record<string, unknown>
-}
+export type MarketplacePolicyWatermarkRecoveryAction = MarketplaceDriverWatermarkRecoveryAction
 
-export type MarketplacePolicyWatermarkContext = {
-  seed: string
-  highWaterMark: number
-  unusedWindow: number
-  now?: number
-}
+export type MarketplacePolicyWatermarkContext = MarketplaceDriverWatermarkContext
 
-export type MarketplacePolicyWatermarkDiscovery = {
-  policy: string
-  maxUsedIndex: number
-  nextUnusedIndex?: number
-  highWaterMark?: number
-  scannedFrom?: number
-  scannedThrough?: number
-  unusedWindow?: number
-  usedIndexes?: number[]
-  recoveryActions?: MarketplacePolicyWatermarkRecoveryAction[] | unknown[]
-}
+export type MarketplacePolicyWatermarkDiscovery = MarketplaceDriverWatermarkDiscovery
 
-export type MarketplacePolicyStartContext = {
-  seed: string
-  highWaterMark: number
-  nextUnusedIndex: number
-  unusedWindow: number
-  discovery: MarketplaceHighWatermarkDiscovery
-  now?: number
-}
+export type MarketplacePolicyStartContext = MarketplaceDriverStartContext<MarketplaceHighWatermarkDiscovery>
 
-export type MarketplacePolicyStartResult = {
-  policy: string
-  recoveryActions?: MarketplacePolicyWatermarkRecoveryAction[] | unknown[]
-  data?: Record<string, unknown>
-}
+export type MarketplacePolicyStartResult = MarketplaceDriverStartResult
 
 export type MarketplaceHighWatermarkOptions = {
   seed?: string
@@ -277,48 +270,20 @@ export type MarketplacePaymentRoute = {
   score: number
 }
 
-export type MarketplacePaymentPolicy = {
+export type MarketplacePaymentPolicy = MarketplaceDriverPolicyDescriptor & {
   method: PaymentMethod
-  id: string
-  hash?: string
-  type?: string
-  chainId?: number
-  contractAddress?: string
-  data?: Record<string, unknown>
 }
 
-export type MarketplacePaymentAsset = {
+export type MarketplacePaymentAsset = MarketplaceDriverAsset & {
   method: PaymentMethod
-  assetId: string
-  denomination: string
-  decimals: number
-  appId?: string
-  chainId?: number
-  assetAddress?: string
-  data?: Record<string, unknown>
 }
 
-export type MarketplacePaymentIdentity = {
-  pubkey?: string
-  address?: string
-  data?: Record<string, unknown>
-}
+export type MarketplacePaymentIdentity = MarketplaceDriverIdentity
 
-export type MarketplacePaymentContract = {
-  type: string
-  chainId?: number
-  address?: string
-  bytecodeHash?: string
-  params: Record<string, unknown>
-}
+export type MarketplacePaymentContract = MarketplaceDriverContract
 
-export type MarketplacePaymentIntent = {
+export type MarketplacePaymentIntent = MarketplaceDriverPaymentIntent & {
   method: PaymentMethod
-  subject: 'order' | 'bid'
-  tradeId: string
-  settlementId: string
-  accountIndex: number
-  seed?: string
   amount: MarketplaceAmount
   fee: MarketplaceAmount
   asset: MarketplacePaymentAsset
@@ -329,23 +294,19 @@ export type MarketplacePaymentIntent = {
     seller: MarketplacePaymentIdentity
     escrow: MarketplacePaymentIdentity
   }
-  unlockAt: number
-  metadata?: Record<string, unknown>
 }
 
-export type MarketplacePaymentRecoveryItem = {
-  subject: 'order' | 'bid'
+export type MarketplacePaymentRecoveryItem = MarketplaceDriverRecoveryItem<
+  PaymentProofEvidence,
+  MarketplacePaymentValidationRequest['expected']
+> & {
   group: ParsedOrderGroup
   payment: ParsedOrderPayment
   proof: PaymentProofEvidence
   expected: MarketplacePaymentValidationRequest['expected']
 }
 
-export type MarketplacePaymentRecoveryState =
-  | { type: 'noop'; data?: Record<string, unknown> }
-  | { type: 'progress'; status: string; data?: Record<string, unknown> }
-  | { type: 'recovered'; data?: Record<string, unknown> }
-  | { type: 'settlement_ready'; proof: PaymentProofEvidence; data?: Record<string, unknown> }
+export type MarketplacePaymentRecoveryState = MarketplaceDriverRecoveryState<PaymentProofEvidence>
 
 export type MarketplaceEscrowArbitrationIntent = {
   subject: 'order'
@@ -420,9 +381,10 @@ export type MarketplaceAuctionBidValidation = {
   validation: MarketplacePaymentValidationResult
 }
 
-export type MarketplaceAuctionPaymentSettlementIntent = {
-  subject: 'bid'
-  action: 'auction_refund' | 'auction_promote'
+export type MarketplaceAuctionPaymentSettlementIntent = MarketplaceDriverAuctionSettlementIntent<
+  PaymentProofEvidence,
+  MarketplacePaymentValidationRequest['expected']
+> & {
   bid: ParsedMarketplaceAuctionBid
   payment: ParsedOrderPayment
   proof: PaymentProofEvidence
@@ -437,11 +399,12 @@ export type MarketplaceAuctionPaymentSettlementIntent = {
   data?: Record<string, unknown>
 }
 
-export type MarketplaceAuctionPaymentSettlementResult = {
+export type MarketplaceAuctionPaymentSettlementResult = Omit<
+  MarketplaceDriverAuctionSettlementResult<PaymentProofEvidence>,
+  'outputs'
+> & {
   proof: PaymentProofEvidence
-  inputs?: Array<Record<string, unknown>>
   outputs?: OrderPaymentSettlementOutput[]
-  data?: Record<string, unknown>
 }
 
 export type MarketplaceAuctionSettlementState =
@@ -462,42 +425,30 @@ export type MarketplaceAuctionSettlementState =
   | { type: 'payment_ack_published'; winner: MarketplaceAuctionBidValidation; event: Event }
   | { type: 'completed'; winner?: MarketplaceAuctionBidValidation; bids: MarketplaceAuctionBidValidation[] }
 
-export type MarketplaceBolt11PaymentRequest = {
-  type: 'bolt11'
-  bolt11: string
+export type MarketplaceBolt11PaymentRequest = MarketplaceDriverBolt11PaymentRequest & {
   amount?: MarketplaceAmount
-  description?: string
-  expiresAt?: number
-  data?: Record<string, unknown>
 }
 
 export type MarketplacePaymentRequest = MarketplaceBolt11PaymentRequest
 
-export type MarketplacePolicyPaymentRequiredState = {
-  type: 'payment_required'
+export type MarketplacePolicyPaymentRequiredState = Extract<
+  MarketplaceDriverPaymentState<PaymentProofEvidence>,
+  { type: 'payment_required' }
+> & {
   request: MarketplacePaymentRequest
-  proof?: PaymentProofEvidence | null
-  data?: Record<string, unknown>
 }
 
-export type MarketplacePolicyPaymentProgressState = {
-  type: 'payment_progress'
-  status: string
-  proof?: PaymentProofEvidence | null
-  data?: Record<string, unknown>
-}
+export type MarketplacePolicyPaymentProgressState = Extract<
+  MarketplaceDriverPaymentState<PaymentProofEvidence>,
+  { type: 'payment_progress' }
+>
 
-export type MarketplacePolicyPaymentPaidState = {
-  type: 'paid'
-  proof: PaymentProofEvidence
-  data?: Record<string, unknown>
-}
+export type MarketplacePolicyPaymentPaidState = Extract<MarketplaceDriverPaymentState<PaymentProofEvidence>, { type: 'paid' }>
 
-export type MarketplacePolicyPaymentCompletedState = {
-  type: 'completed'
-  proof?: PaymentProofEvidence | null
-  data?: Record<string, unknown>
-}
+export type MarketplacePolicyPaymentCompletedState = Extract<
+  MarketplaceDriverPaymentState<PaymentProofEvidence>,
+  { type: 'completed' }
+>
 
 export type MarketplacePolicyPaymentState =
   | MarketplacePolicyPaymentRequiredState
@@ -574,50 +525,35 @@ export type MarketplaceAuctionBidState =
   | MarketplaceAuctionBidPaymentPublishedState
   | MarketplaceAuctionBidCompletedState
 
-export type MarketplacePaymentPolicyImplementation<State = MarketplacePolicyPaymentState> = {
-  method: PaymentMethod
-  id?: string
-  subject: 'order' | 'bid'
-  family: 'escrow' | 'auction' | string
-  policies(): MarketplacePaymentPolicy[]
-  assets(): MarketplacePaymentAsset[]
-  discoverHighWatermark?: (
-    context: MarketplacePolicyWatermarkContext,
-  ) => MarketplacePolicyWatermarkDiscovery | Promise<MarketplacePolicyWatermarkDiscovery>
-  startup?: (
-    context: MarketplacePolicyStartContext,
-  ) => void | MarketplacePolicyStartResult | Promise<void | MarketplacePolicyStartResult>
-  pay(intent: MarketplacePaymentIntent): AsyncIterable<State> | Promise<AsyncIterable<State>>
-  recover?: (
-    payment: MarketplacePaymentRecoveryItem,
-  ) => AsyncIterable<MarketplacePaymentRecoveryState> | Promise<AsyncIterable<MarketplacePaymentRecoveryState>>
-  arbitrate?: (
-    intent: MarketplaceEscrowArbitrationIntent,
-  ) => AsyncIterable<MarketplaceEscrowArbitrationState> | Promise<AsyncIterable<MarketplaceEscrowArbitrationState>>
-  validatePayment?: (request: MarketplacePaymentValidationRequest) => Promise<MarketplacePaymentValidationResult>
-  refundPayment?: (
-    intent: MarketplaceAuctionPaymentSettlementIntent & { action: 'auction_refund'; refundPercent: number },
-  ) => Promise<MarketplaceAuctionPaymentSettlementResult>
-  recyclePayment?: (
-    intent: MarketplaceAuctionPaymentSettlementIntent & {
-      action: 'auction_promote'
-      targetTradeId: string
-      targetOrderGroupId: string
-    },
-  ) => Promise<MarketplaceAuctionPaymentSettlementResult>
-}
+export type MarketplaceOrderPolicy<State = MarketplacePolicyPaymentState> = MarketplaceDriverOrderPolicy<
+  State,
+  MarketplacePaymentPolicy,
+  MarketplacePaymentAsset,
+  MarketplacePaymentIntent,
+  MarketplacePaymentValidationRequest,
+  MarketplacePaymentValidationResult,
+  MarketplacePaymentRecoveryItem,
+  MarketplacePaymentRecoveryState,
+  MarketplaceEscrowArbitrationIntent,
+  MarketplaceEscrowArbitrationState
+>
 
-export type MarketplaceOrderPolicy<State = MarketplacePolicyPaymentState> =
-  MarketplacePaymentPolicyImplementation<State> & {
-    subject: 'order'
-    family: 'escrow'
-  }
+export type MarketplaceBidPolicy<State = MarketplacePolicyPaymentState> = MarketplaceDriverAuctionPolicy<
+  State,
+  MarketplacePaymentPolicy,
+  MarketplacePaymentAsset,
+  MarketplacePaymentIntent,
+  MarketplacePaymentValidationRequest,
+  MarketplacePaymentValidationResult,
+  MarketplacePaymentRecoveryItem,
+  MarketplacePaymentRecoveryState,
+  MarketplaceAuctionPaymentSettlementIntent,
+  MarketplaceAuctionPaymentSettlementResult
+>
 
-export type MarketplaceBidPolicy<State = MarketplacePolicyPaymentState> =
-  MarketplacePaymentPolicyImplementation<State> & {
-    subject: 'bid'
-    family: 'auction'
-  }
+export type MarketplacePaymentPolicyImplementation<State = MarketplacePolicyPaymentState> =
+  | MarketplaceOrderPolicy<State>
+  | MarketplaceBidPolicy<State>
 
 export type MarketplacePayOptions = {
   accountIndex?: number
