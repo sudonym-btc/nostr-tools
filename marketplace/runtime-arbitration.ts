@@ -1,7 +1,9 @@
 import type { SubCloser } from '../abstract-pool.ts'
 import type { Event } from '../core.ts'
 import {
+  auctionCompleteAppliesToAuction,
   type ParsedMarketplaceAuction,
+  type ParsedMarketplaceAuctionComplete,
 } from './auction.ts'
 import {
   fetchAuctionBidGroups,
@@ -11,17 +13,20 @@ import {
   type ParsedAuctionBidGroup,
 } from './auction-bid-group.ts'
 import {
+  searchAuctionCompletes,
   searchAuctions,
   subscribeAuctions,
+  type MarketplaceAuctionCompleteSearchOptions,
   type MarketplaceAuctionSearchOptions,
   type MarketplaceAuctionSubscribeOptions,
 } from './auction-query.ts'
-import type { PaymentMethod } from './helper.ts'
 import {
   generateOrderPaymentAckEventTemplate,
   generateOrderPaymentNackEventTemplate,
   type ParsedOrderPayment,
 } from './order-lifecycle.ts'
+import { resolvePaymentAmount } from './payment-amount.ts'
+import { resolvePaymentProof } from './payment-proof.ts'
 import type { MarketplacePaymentValidationResult } from './payment-validation.ts'
 import {
   auctionPaymentItem,
@@ -29,27 +34,31 @@ import {
   validateAuctionPayment,
 } from './runtime-auction-settlement.ts'
 import {
-  emitEscrowState,
+  emitArbitrationState,
   errorFromUnknown,
-  escrowStartIdentity,
-  processEscrowGroupPayment,
+  arbitrationStartIdentity,
+  processArbitrationGroupPayment,
   shouldAck,
   shouldNack,
-  startMarketplaceEscrow,
-} from './runtime-escrow.ts'
+  startMarketplaceOrderArbitration,
+} from './runtime-payment-arbitration.ts'
 import {
   publishMarketplaceTemplate,
-  requireEscrowPublisher,
+  requireArbitrationPublisher,
   requireSubscribePool,
 } from './runtime-common.ts'
 import type {
-  MarketplaceEscrowRuntime,
-  MarketplaceEscrowStartOptions,
+  MarketplaceArbitrationRuntime,
+  MarketplaceArbitrationStartOptions,
   MarketplaceRuntimeOptions,
 } from './runtime-types.ts'
+import type { PaymentProof } from './helper.ts'
+import { isMarketplaceDriverEncryptedPaymentProofParams } from '@sudonym-btc/marketplace-driver-interface'
 
-function paymentMethod(payment?: ParsedOrderPayment): PaymentMethod {
-  return payment?.content.proof.paymentProof?.method ?? 'none'
+const AUCTION_SETTLEMENT_SWEEP_INTERVAL_MS = 60 * 60 * 1000
+
+function paymentDriver(payment?: ParsedOrderPayment): string {
+  return payment?.content.proof?.paymentProof?.driver ?? 'none'
 }
 
 function invalidAuctionBidPayment(
@@ -58,7 +67,7 @@ function invalidAuctionBidPayment(
   error: string,
 ): MarketplacePaymentValidationResult {
   return {
-    method: paymentMethod(payment),
+    driver: paymentDriver(payment),
     status: 'invalid',
     ...(payment ? { proofEventId: payment.event.id } : {}),
     data: { bidEventId: group.bid.event.id },
@@ -88,9 +97,13 @@ function recycleArgsMatchBidOrder(
   auction: ParsedMarketplaceAuction,
   group: ParsedAuctionBidGroup,
   payment: ParsedOrderPayment,
+  resolvedProof = payment.content.proof,
 ): string | undefined {
-  const proof = payment.content.proof.paymentProof
-  const order = proof ? recycleTargetOrder(proof.params) : undefined
+  const proof = resolvedProof?.paymentProof
+  const params = proof && !isMarketplaceDriverEncryptedPaymentProofParams(proof.params)
+    ? proof.params as Record<string, unknown>
+    : undefined
+  const order = params ? recycleTargetOrder(params) : undefined
   if (!order) return 'Auction bid recycleArgs are missing target order parameters'
   const expected = {
     ...(group.bid.content.targetOrder ?? {}),
@@ -111,8 +124,7 @@ function auctionHasPaymentAckFrom(group: ParsedAuctionBidGroup, payment: ParsedO
   return group.paymentAcks.some(ack =>
     ack.event.pubkey === pubkey && (
       ack.refs.payments.includes(payment.event.id) ||
-      ack.refs.auctionBids.includes(group.bid.event.id) ||
-      (ack.orderGroupId === group.bidId && ack.tradeId === group.tradeId)
+      ack.refs.auctionBids.includes(group.bid.event.id)
     ),
   )
 }
@@ -121,8 +133,7 @@ function auctionHasPaymentNackFrom(group: ParsedAuctionBidGroup, payment: Parsed
   return group.paymentNacks.some(nack =>
     nack.event.pubkey === pubkey && (
       (payment && nack.refs.payments.includes(payment.event.id)) ||
-      nack.refs.auctionBids.includes(group.bid.event.id) ||
-      (nack.orderGroupId === group.bidId && nack.tradeId === group.tradeId)
+      nack.refs.auctionBids.includes(group.bid.event.id)
     ),
   )
 }
@@ -131,8 +142,9 @@ function auctionBidPaymentPrecheck(
   auction: ParsedMarketplaceAuction,
   group: ParsedAuctionBidGroup,
   payment: ParsedOrderPayment | undefined,
-  escrowPubkey: string,
+  arbiterPubkey: string,
   now?: number,
+  resolvedProof?: PaymentProof,
 ): MarketplacePaymentValidationResult | null {
   if (!payment) return invalidAuctionBidPayment(group, payment, 'Auction bid has no payment event')
   if (group.auctionAnchor !== auction.auctionAnchor) {
@@ -141,16 +153,16 @@ function auctionBidPaymentPrecheck(
   if (group.listingAnchor !== auction.listingAnchor) {
     return invalidAuctionBidPayment(group, payment, 'Bid listing does not match auction listing')
   }
-  if (payment.listingAnchor !== auction.auctionAnchor || payment.content.purpose !== 'auction_bid') {
+  if (payment.listingAnchor !== auction.auctionAnchor) {
     return invalidAuctionBidPayment(group, payment, 'Payment is not an auction bid lock')
   }
   if (group.amount.denomination !== auction.currency || group.amount.decimals !== auction.decimals) {
     return invalidAuctionBidPayment(group, payment, `Bid must use auction currency ${auction.currency}`)
   }
-  if (!group.participants.some(participant => participant.role === 'escrow' && participant.pubkey === auction.arbiterPubkey)) {
-    return invalidAuctionBidPayment(group, payment, 'Bid does not tag the auction arbiter as escrow')
+  if (!group.participants.some(participant => participant.role === 'arbiter' && participant.pubkey === auction.arbiterPubkey)) {
+    return invalidAuctionBidPayment(group, payment, 'Bid does not tag the auction arbiter')
   }
-  if (auction.arbiterPubkey !== escrowPubkey) {
+  if (auction.arbiterPubkey !== arbiterPubkey) {
     return invalidAuctionBidPayment(group, payment, 'Runtime identity is not the auction arbiter')
   }
   if (auction.startAt !== undefined && group.bid.event.created_at < auction.startAt) {
@@ -164,15 +176,15 @@ function auctionBidPaymentPrecheck(
       return invalidAuctionBidPayment(group, payment, 'Bid is below the auction starting bid')
     }
   }
-  const proof = payment.content.proof.paymentProof
+  const proof = (resolvedProof ?? payment.content.proof)?.paymentProof
   if (!proof) return invalidAuctionBidPayment(group, payment, 'Auction bid payment has no payment proof')
-  if (proof.params.subject !== undefined && proof.params.subject !== 'bid') {
-    return invalidAuctionBidPayment(group, payment, 'Auction bid payment proof subject must be bid')
-  }
-  if (proof.params.recycleArgs === undefined || proof.params.recycleArgs === null) {
+  const params = isMarketplaceDriverEncryptedPaymentProofParams(proof.params)
+    ? undefined
+    : proof.params as Record<string, unknown>
+  if (!params || params.recycleArgs === undefined || params.recycleArgs === null) {
     return invalidAuctionBidPayment(group, payment, 'Auction bid payment is missing recycle covenant parameters')
   }
-  const recycleArgsError = recycleArgsMatchBidOrder(auction, group, payment)
+  const recycleArgsError = recycleArgsMatchBidOrder(auction, group, payment, resolvedProof ?? payment.content.proof)
   if (recycleArgsError) return invalidAuctionBidPayment(group, payment, recycleArgsError)
   if (now !== undefined && auction.startAt !== undefined && now < auction.startAt) {
     return invalidAuctionBidPayment(group, payment, 'Auction is not open yet')
@@ -182,26 +194,52 @@ function auctionBidPaymentPrecheck(
 
 async function validateAuctionBidPaymentForRuntime(
   opts: MarketplaceRuntimeOptions,
-  options: MarketplaceEscrowStartOptions,
+  options: MarketplaceArbitrationStartOptions,
   auction: ParsedMarketplaceAuction,
   group: ParsedAuctionBidGroup,
   payment: ParsedOrderPayment,
-  escrowPubkey: string,
+  arbiterPubkey: string,
 ): Promise<MarketplacePaymentValidationResult> {
-  const precheck = auctionBidPaymentPrecheck(auction, group, payment, escrowPubkey, options.now)
+  let resolvedProof = payment.content.proof
+  if (!resolvedProof && payment.content.sealedProof) {
+    const proofResolution = await resolvePaymentProof(payment, {
+      keys: payment.paymentProofKeys,
+      signer: opts.signer,
+      signerPubkey: arbiterPubkey,
+    })
+    if (proofResolution.status !== 'resolved' || !proofResolution.proof) {
+      return invalidAuctionBidPayment(group, payment, proofResolution.error ?? 'Auction bid payment proof could not be resolved')
+    }
+    resolvedProof = proofResolution.proof
+  }
+  const precheck = auctionBidPaymentPrecheck(auction, group, payment, arbiterPubkey, options.now, resolvedProof)
   if (precheck) return precheck
-  const item = auctionPaymentItem(group.bid, payment, options.now)
+  const amount = await resolvePaymentAmount(payment, { signer: opts.signer, signerPubkey: arbiterPubkey })
+  if (amount.status !== 'resolved' || !amount.amount) {
+    return invalidAuctionBidPayment(group, payment, amount.error ?? 'Auction bid payment amount could not be resolved')
+  }
+  const item = auctionPaymentItem(group.bid, payment, options.now, amount.amount, resolvedProof)
   if (!item) return invalidAuctionBidPayment(group, payment, 'Auction bid payment has no recoverable proof')
-  return validateAuctionPayment(opts, item)
+  try {
+    return await validateAuctionPayment(opts, item)
+  } catch (error) {
+    return invalidAuctionBidPayment(group, payment, errorFromUnknown(error).message)
+  }
 }
 
-function auctionSearchOptions(options: MarketplaceEscrowStartOptions): MarketplaceAuctionSearchOptions {
+function auctionSearchOptions(options: MarketplaceArbitrationStartOptions): MarketplaceAuctionSearchOptions {
   return {
     ...(options.maxWait !== undefined ? { maxWait: options.maxWait } : {}),
   }
 }
 
-function auctionSubscribeOptions(options: MarketplaceEscrowStartOptions): MarketplaceAuctionSubscribeOptions {
+function auctionCompleteSearchOptions(options: MarketplaceArbitrationStartOptions): MarketplaceAuctionCompleteSearchOptions {
+  return {
+    ...(options.maxWait !== undefined ? { maxWait: options.maxWait } : {}),
+  }
+}
+
+function auctionSubscribeOptions(options: MarketplaceArbitrationStartOptions): MarketplaceAuctionSubscribeOptions {
   return {
     ...(options.maxWait !== undefined ? { maxWait: options.maxWait } : {}),
     ...(options.id ? { id: `${options.id}:auctions` } : {}),
@@ -210,14 +248,14 @@ function auctionSubscribeOptions(options: MarketplaceEscrowStartOptions): Market
   }
 }
 
-function auctionBidSearchOptions(options: MarketplaceEscrowStartOptions): AuctionBidGroupSearchOptions {
+function auctionBidSearchOptions(options: MarketplaceArbitrationStartOptions): AuctionBidGroupSearchOptions {
   return {
     ...(options.maxWait !== undefined ? { maxWait: options.maxWait } : {}),
   }
 }
 
 function auctionBidSubscribeOptions(
-  options: MarketplaceEscrowStartOptions,
+  options: MarketplaceArbitrationStartOptions,
   auction: ParsedMarketplaceAuction,
 ): AuctionBidGroupSubscribeOptions {
   return {
@@ -228,19 +266,21 @@ function auctionBidSubscribeOptions(
   }
 }
 
-function secondsNow(options: MarketplaceEscrowStartOptions): number {
+function secondsNow(options: MarketplaceArbitrationStartOptions): number {
   return options.now ?? Math.floor(Date.now() / 1000)
 }
 
-function auctionSettleDelayMs(auction: ParsedMarketplaceAuction, options: MarketplaceEscrowStartOptions): number | undefined {
-  if (auction.endAt === undefined) return undefined
-  if (options.now !== undefined) return Math.max(0, (auction.endAt - options.now) * 1000)
-  return Math.max(0, auction.endAt * 1000 - Date.now())
+function auctionSettlementSweepIntervalMs(options: MarketplaceArbitrationStartOptions): number {
+  return options.auctionSettlementSweepIntervalMs ?? AUCTION_SETTLEMENT_SWEEP_INTERVAL_MS
+}
+
+function auctionIsDueForSettlement(auction: ParsedMarketplaceAuction, options: MarketplaceArbitrationStartOptions): boolean {
+  return auction.endAt !== undefined && secondsNow(options) >= auction.endAt
 }
 
 function settlementRequest(
   auction: ParsedMarketplaceAuction,
-  options: MarketplaceEscrowStartOptions,
+  options: MarketplaceArbitrationStartOptions,
 ) {
   return {
     ...(options.auctionSettlement ?? {}),
@@ -259,18 +299,18 @@ function settlementRequest(
 
 export function startMarketplaceArbitration(
   opts: MarketplaceRuntimeOptions,
-  options: MarketplaceEscrowStartOptions = {},
-): MarketplaceEscrowRuntime {
-  requireEscrowPublisher(opts)
-  const identity = escrowStartIdentity(opts, options)
+  options: MarketplaceArbitrationStartOptions = {},
+): MarketplaceArbitrationRuntime {
+  requireArbitrationPublisher(opts)
+  const identity = arbitrationStartIdentity(opts, options)
   if (!identity.pubkey) throw new Error('Marketplace arbitration identity pubkey is required')
-  const escrowPubkey: string = identity.pubkey
+  const arbiterPubkey: string = identity.pubkey
 
-  const orderRuntime = options.orders === false ? undefined : startMarketplaceEscrow(opts, options)
+  const orderRuntime = options.orders === false ? undefined : startMarketplaceOrderArbitration(opts, options)
   const bidClosers = new Map<string, SubCloser>()
-  const settlementTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  let settlementSweepTimer: ReturnType<typeof setInterval> | undefined
   const processedAuctionPayments = new Set<string>()
-  const settlementStarted = new Set<string>()
+  const settlementInFlight = new Set<string>()
 
   async function publishAuctionBidAck(
     auction: ParsedMarketplaceAuction,
@@ -278,14 +318,14 @@ export function startMarketplaceArbitration(
     payment: ParsedOrderPayment,
     validation: MarketplacePaymentValidationResult,
   ): Promise<void> {
-    if (auctionHasPaymentAckFrom(group, payment, escrowPubkey)) {
-      await emitEscrowState(options, { type: 'auction_ignored', auction, group, payment, reason: 'bid payment already acked by arbiter' })
+    if (auctionHasPaymentAckFrom(group, payment, arbiterPubkey)) {
+      await emitArbitrationState(options, { type: 'auction_ignored', auction, group, payment, reason: 'bid payment already acked by arbiter' })
       return
     }
     const event = await publishMarketplaceTemplate(
       opts,
       generateOrderPaymentAckEventTemplate({
-        orderGroupId: group.bidId,
+        orderGroupId: group.tradeId,
         tradeId: group.tradeId,
         listingAnchor: auction.auctionAnchor,
         anchorMarker: 'auction',
@@ -294,7 +334,7 @@ export function startMarketplaceArbitration(
         status: 'accepted',
       }),
     )
-    await emitEscrowState(options, { type: 'auction_bid_payment_ack_published', auction, group, payment, validation, event })
+    await emitArbitrationState(options, { type: 'auction_bid_payment_ack_published', auction, group, payment, validation, event })
   }
 
   async function publishAuctionBidNack(
@@ -303,14 +343,14 @@ export function startMarketplaceArbitration(
     payment: ParsedOrderPayment | undefined,
     validation: MarketplacePaymentValidationResult,
   ): Promise<void> {
-    if (auctionHasPaymentNackFrom(group, payment, escrowPubkey)) {
-      await emitEscrowState(options, { type: 'auction_ignored', auction, group, payment, reason: 'bid payment already nacked by arbiter' })
+    if (auctionHasPaymentNackFrom(group, payment, arbiterPubkey)) {
+      await emitArbitrationState(options, { type: 'auction_ignored', auction, group, payment, reason: 'bid payment already nacked by arbiter' })
       return
     }
     const event = await publishMarketplaceTemplate(
       opts,
       generateOrderPaymentNackEventTemplate({
-        orderGroupId: group.bidId,
+        orderGroupId: group.tradeId,
         tradeId: group.tradeId,
         listingAnchor: auction.auctionAnchor,
         anchorMarker: 'auction',
@@ -323,32 +363,27 @@ export function startMarketplaceArbitration(
         ...(validation.error ? { message: validation.error } : {}),
       }),
     )
-    await emitEscrowState(options, { type: 'auction_bid_payment_nack_published', auction, group, payment, validation, event })
+    await emitArbitrationState(options, { type: 'auction_bid_payment_nack_published', auction, group, payment, validation, event })
   }
 
   async function processAuctionBidGroup(
     auction: ParsedMarketplaceAuction,
     group: ParsedAuctionBidGroup,
   ): Promise<void> {
-    await emitEscrowState(options, { type: 'auction_bid_group', auction, group })
+    await emitArbitrationState(options, { type: 'auction_bid_group', auction, group })
     const payment = group.payment
     if (!payment) {
-      const validation = invalidAuctionBidPayment(group, payment, 'Auction bid has no payment event')
-      if ((options.autoNack ?? true) && shouldNack(validation)) {
-        await publishAuctionBidNack(auction, group, payment, validation)
-      } else {
-        await emitEscrowState(options, { type: 'auction_ignored', auction, group, reason: validation.error ?? 'bid has no payment event' })
-      }
+      await emitArbitrationState(options, { type: 'auction_ignored', auction, group, reason: 'bid has no payment event yet' })
       return
     }
 
-    const key = `${auction.auctionAnchor}:${group.bidId}:${payment.event.id}:${payment.event.created_at}:${group.paymentAcks.length}:${group.paymentNacks.length}:${group.settlements.length}`
+    const key = `${auction.auctionAnchor}:${group.tradeId}:${payment.event.id}:${payment.event.created_at}:${group.paymentAcks.length}:${group.paymentNacks.length}:${group.settlements.length}`
     if (processedAuctionPayments.has(key)) return
     processedAuctionPayments.add(key)
 
-    await emitEscrowState(options, { type: 'auction_bid_payment_seen', auction, group, payment })
-    const validation = await validateAuctionBidPaymentForRuntime(opts, options, auction, group, payment, escrowPubkey)
-    await emitEscrowState(options, { type: 'auction_bid_payment_validated', auction, group, payment, validation })
+    await emitArbitrationState(options, { type: 'auction_bid_payment_seen', auction, group, payment })
+    const validation = await validateAuctionBidPaymentForRuntime(opts, options, auction, group, payment, arbiterPubkey)
+    await emitArbitrationState(options, { type: 'auction_bid_payment_validated', auction, group, payment, validation })
 
     if ((options.autoAck ?? true) && shouldAck(validation)) {
       await publishAuctionBidAck(auction, group, payment, validation)
@@ -357,56 +392,116 @@ export function startMarketplaceArbitration(
     }
   }
 
-  async function settleAuction(auction: ParsedMarketplaceAuction): Promise<void> {
-    if (settlementStarted.has(auction.auctionAnchor)) return
-    settlementStarted.add(auction.auctionAnchor)
+  async function latestAuctionComplete(auction: ParsedMarketplaceAuction) {
+    const [complete] = await searchAuctionCompletes(
+      opts.pool,
+      opts.relays,
+      { auctionAnchor: auction.auctionAnchor, authors: [auction.arbiterPubkey], limit: 10 },
+      auctionCompleteSearchOptions(options),
+    )
+    return complete
+  }
+
+  async function settleAuction(
+    auction: ParsedMarketplaceAuction,
+    knownComplete?: ParsedMarketplaceAuctionComplete,
+  ): Promise<void> {
+    if (auction.arbiterPubkey !== arbiterPubkey) {
+      await emitArbitrationState(options, { type: 'auction_ignored', auction, reason: 'auction is not assigned to this arbiter' })
+      return
+    }
+    if (auction.endAt === undefined) {
+      await emitArbitrationState(options, { type: 'auction_ignored', auction, reason: 'auction has no end time' })
+      return
+    }
+    if (!auctionIsDueForSettlement(auction, options)) {
+      await emitArbitrationState(options, { type: 'auction_ignored', auction, reason: 'auction has not ended yet' })
+      return
+    }
+    const complete = knownComplete ?? await latestAuctionComplete(auction)
+    if (complete && auctionCompleteAppliesToAuction(auction, complete)) {
+      await emitArbitrationState(options, { type: 'auction_ignored', auction, reason: 'auction already completed' })
+      return
+    }
+    if (settlementInFlight.has(auction.auctionAnchor)) return
+    settlementInFlight.add(auction.auctionAnchor)
     try {
-      await emitEscrowState(options, { type: 'auction_settlement_started', auction })
+      await emitArbitrationState(options, { type: 'auction_settlement_started', auction })
       for await (const state of settleMarketplaceAuction(opts, settlementRequest(auction, options))) {
-        await emitEscrowState(options, { type: 'auction_settlement_state', auction, state })
+        await emitArbitrationState(options, { type: 'auction_settlement_state', auction, state })
         if (state.type === 'completed') {
-          await emitEscrowState(options, { type: 'auction_settlement_completed', auction, winner: state.winner })
+          await emitArbitrationState(options, { type: 'auction_settlement_completed', auction, winner: state.winner })
         }
       }
     } catch (error) {
-      await emitEscrowState(options, { type: 'auction_error', auction, error: errorFromUnknown(error) })
+      await emitArbitrationState(options, { type: 'auction_error', auction, error: errorFromUnknown(error) })
+    } finally {
+      settlementInFlight.delete(auction.auctionAnchor)
     }
   }
 
-  function scheduleAuctionSettlement(auction: ParsedMarketplaceAuction): void {
+  async function settleDueAuctions(): Promise<void> {
     if (options.autoSettleAuctions === false) return
-    const delayMs = auctionSettleDelayMs(auction, options)
-    if (delayMs === undefined) {
-      void emitEscrowState(options, { type: 'auction_ignored', auction, reason: 'auction has no end time' })
-      return
+    const auctions = await searchAuctions(
+      opts.pool,
+      opts.relays,
+      { ...(options.auctionQuery ?? {}), arbiterPubkeys: [arbiterPubkey] },
+      auctionSearchOptions(options),
+    )
+    const dueAuctions = auctions.filter(auction => auctionIsDueForSettlement(auction, options))
+    if (dueAuctions.length === 0) return
+
+    const completes = await searchAuctionCompletes(
+      opts.pool,
+      opts.relays,
+      { auctionAnchors: dueAuctions.map(auction => auction.auctionAnchor), authors: [arbiterPubkey] },
+      auctionCompleteSearchOptions(options),
+    )
+    const completeByAuction = new Map(completes.map(complete => [complete.auctionAnchor, complete]))
+    await Promise.all(dueAuctions.map(auction => settleAuction(auction, completeByAuction.get(auction.auctionAnchor))))
+  }
+
+  function startAuctionSettlementLoop(): void {
+    if (options.auctions === false || options.autoSettleAuctions === false) return
+    void settleDueAuctions().catch(error => emitArbitrationState(options, { type: 'auction_error', error: errorFromUnknown(error) }))
+    const intervalMs = auctionSettlementSweepIntervalMs(options)
+    if (intervalMs <= 0) return
+    settlementSweepTimer = setInterval(() => {
+      void settleDueAuctions().catch(error => emitArbitrationState(options, { type: 'auction_error', error: errorFromUnknown(error) }))
+    }, intervalMs)
+    ;(settlementSweepTimer as unknown as { unref?: () => void }).unref?.()
+  }
+
+  async function settleAuctionIfDue(auction: ParsedMarketplaceAuction): Promise<void> {
+    if (options.autoSettleAuctions === false) return
+    if (!auctionIsDueForSettlement(auction, options)) return
+    await settleAuction(auction)
+  }
+
+  function stopAuctionSettlementLoop(): void {
+    if (settlementSweepTimer) {
+      clearInterval(settlementSweepTimer)
+      settlementSweepTimer = undefined
     }
-    const existing = settlementTimers.get(auction.auctionAnchor)
-    if (existing) clearTimeout(existing)
-    const timer = setTimeout(() => {
-      settlementTimers.delete(auction.auctionAnchor)
-      void settleAuction(auction)
-    }, delayMs)
-    settlementTimers.set(auction.auctionAnchor, timer)
-    void emitEscrowState(options, { type: 'auction_scheduled', auction, settleAt: auction.endAt!, delayMs })
   }
 
   async function processAuction(auction: ParsedMarketplaceAuction): Promise<void> {
-    if (auction.arbiterPubkey !== escrowPubkey) {
-      await emitEscrowState(options, { type: 'auction_ignored', auction, reason: 'auction is not assigned to this arbiter' })
+    if (auction.arbiterPubkey !== arbiterPubkey) {
+      await emitArbitrationState(options, { type: 'auction_ignored', auction, reason: 'auction is not assigned to this arbiter' })
       return
     }
-    await emitEscrowState(options, { type: 'auction_seen', auction })
+    await emitArbitrationState(options, { type: 'auction_seen', auction })
 
     const bidQuery = {
       ...(options.auctionBidQuery ?? {}),
       auctionAnchor: auction.auctionAnchor,
-      participantPubkeys: [escrowPubkey],
+      participantPubkeys: [arbiterPubkey],
     }
     try {
       const groups = await fetchAuctionBidGroups(opts.pool, opts.relays, bidQuery, auctionBidSearchOptions(options))
       await Promise.all(groups.map(group => processAuctionBidGroup(auction, group)))
     } catch (error) {
-      await emitEscrowState(options, { type: 'auction_error', auction, error: errorFromUnknown(error) })
+      await emitArbitrationState(options, { type: 'auction_error', auction, error: errorFromUnknown(error) })
     }
 
     if (!bidClosers.has(auction.auctionAnchor) && options.auctions !== false) {
@@ -419,13 +514,13 @@ export function startMarketplaceArbitration(
             void processAuctionBidGroup(auction, group)
           },
           oneose() {
-            void emitEscrowState(options, { type: 'eose' })
+            void emitArbitrationState(options, { type: 'eose' })
           },
           onclose(reasons) {
-            void emitEscrowState(options, { type: 'closed', reasons })
+            void emitArbitrationState(options, { type: 'closed', reasons })
           },
           oninvalid(_event: Event, error: Error) {
-            void emitEscrowState(options, { type: 'auction_error', auction, error })
+            void emitArbitrationState(options, { type: 'auction_error', auction, error })
           },
         },
         auctionBidSubscribeOptions(options, auction),
@@ -433,7 +528,7 @@ export function startMarketplaceArbitration(
       bidClosers.set(auction.auctionAnchor, closer)
     }
 
-    scheduleAuctionSettlement(auction)
+    await settleAuctionIfDue(auction)
   }
 
   let auctionCloser: SubCloser | undefined
@@ -441,11 +536,11 @@ export function startMarketplaceArbitration(
     const pool = requireSubscribePool(opts.pool)
     const query = {
       ...(options.auctionQuery ?? {}),
-      arbiterPubkeys: [escrowPubkey],
+      arbiterPubkeys: [arbiterPubkey],
     }
     void searchAuctions(opts.pool, opts.relays, query, auctionSearchOptions(options))
       .then(auctions => Promise.all(auctions.map(processAuction)))
-      .catch(error => emitEscrowState(options, { type: 'auction_error', error: errorFromUnknown(error) }))
+      .catch(error => emitArbitrationState(options, { type: 'auction_error', error: errorFromUnknown(error) }))
     auctionCloser = subscribeAuctions(
       pool,
       opts.relays,
@@ -455,21 +550,22 @@ export function startMarketplaceArbitration(
           void processAuction(auction)
         },
         oneose() {
-          void emitEscrowState(options, { type: 'eose' })
+          void emitArbitrationState(options, { type: 'eose' })
         },
         onclose(reasons) {
-          void emitEscrowState(options, { type: 'closed', reasons })
+          void emitArbitrationState(options, { type: 'closed', reasons })
         },
         oninvalid(_event: Event, error: Error) {
-          void emitEscrowState(options, { type: 'auction_error', error })
+          void emitArbitrationState(options, { type: 'auction_error', error })
         },
       },
       auctionSubscribeOptions(options),
     )
   }
+  startAuctionSettlementLoop()
 
   if (options.orders === false) {
-    void emitEscrowState(options, { type: 'started', identity })
+    void emitArbitrationState(options, { type: 'started', identity })
   }
 
   return {
@@ -478,9 +574,8 @@ export function startMarketplaceArbitration(
       auctionCloser?.close(reason)
       for (const closer of bidClosers.values()) closer.close(reason)
       bidClosers.clear()
-      for (const timer of settlementTimers.values()) clearTimeout(timer)
-      settlementTimers.clear()
-      void emitEscrowState(options, { type: 'closed', reasons: reason ? [reason] : [] })
+      stopAuctionSettlementLoop()
+      void emitArbitrationState(options, { type: 'closed', reasons: reason ? [reason] : [] })
     },
     async processGroup(group) {
       if (orderRuntime) {
@@ -489,14 +584,15 @@ export function startMarketplaceArbitration(
       }
       for (const payment of group.payments) {
         try {
-          await processEscrowGroupPayment(opts, options, identity, group, payment)
+          await processArbitrationGroupPayment(opts, options, identity, group, payment)
         } catch (error) {
-          await emitEscrowState(options, { type: 'error', group, payment, error: errorFromUnknown(error) })
+          await emitArbitrationState(options, { type: 'error', group, payment, error: errorFromUnknown(error) })
         }
       }
     },
     processAuction,
     processAuctionBidGroup,
     settleAuction,
+    settleDueAuctions,
   }
 }

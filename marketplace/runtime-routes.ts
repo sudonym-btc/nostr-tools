@@ -14,19 +14,19 @@ import {
   type ParsedPaymentMethod,
 } from './paymentmethod.ts'
 import {
-  escrowServiceFilter,
-  findEscrowService,
-  generateEscrowServiceEventTemplate,
-  parseEscrowServiceEvent,
-  parseEscrowServiceSelectionEvent,
-  searchEscrowServices,
-  validateEscrowServiceEvent,
-  validateEscrowServiceSelectionEvent,
-  generateEscrowServiceSelectionEventTemplate,
-  calculateEscrowFee,
-  type EscrowServiceFindQuery,
-  type ParsedEscrowService,
-} from './escrowservice.ts'
+  arbitrationServiceFilter,
+  findArbitrationService,
+  generateArbitrationServiceEventTemplate,
+  parseArbitrationServiceEvent,
+  parseArbitrationServiceSelectionEvent,
+  searchArbitrationServices,
+  validateArbitrationServiceEvent,
+  validateArbitrationServiceSelectionEvent,
+  generateArbitrationServiceSelectionEventTemplate,
+  calculateArbitrationFee,
+  type ArbitrationServiceFindQuery,
+  type ParsedArbitrationService,
+} from './arbitrationservice.ts'
 import {
   generateListingEventTemplate,
   listingSearchFilter,
@@ -47,7 +47,6 @@ import {
   type OrderContent,
   type ParsedOrder,
   type ParsedStructuredMessage,
-  type OrderTemplate,
 } from './order.ts'
 import {
   auctionAddress,
@@ -131,7 +130,13 @@ import {
   type OrderSubscribeOptions,
 } from './order-query.ts'
 import { generateReviewEventTemplate, parseReviewEvent, validateReviewEvent } from './review.ts'
-import { parseEventJson } from './helper.ts'
+import {
+  amountCurrency,
+  canonicalCurrency,
+  normalizeMarketplaceAmount,
+  parseEventJson,
+  scaleAmountValue as scaleMarketplaceAmountValue,
+} from './helper.ts'
 import type {
   MarketplaceAmount,
   OrderParticipantRole,
@@ -175,10 +180,10 @@ import type {
   MarketplacePaymentIntent,
   MarketplacePaymentRecoveryItem,
   MarketplacePaymentRecoveryState,
-  MarketplaceEscrowArbitrationIntent,
-  MarketplaceEscrowArbitrationState,
-  MarketplaceEscrowArbitrationRequest,
-  MarketplaceEscrowArbitrationRuntimeState,
+  MarketplacePaymentArbitrationIntent,
+  MarketplacePaymentArbitrationState,
+  MarketplacePaymentArbitrationRequest,
+  MarketplacePaymentArbitrationRuntimeState,
   MarketplaceAuctionSettlementRequest,
   MarketplaceAuctionBidSettlementInput,
   MarketplaceAuctionBidValidation,
@@ -212,16 +217,16 @@ import type {
   MarketplaceRuntimeIdentity,
   MarketplaceRuntimePool,
   MarketplaceRuntimeOptions,
-  MarketplaceEscrowStartEvent,
-  MarketplaceEscrowStartOptions,
-  MarketplaceEscrowRuntime,
+  MarketplaceArbitrationStartEvent,
+  MarketplaceArbitrationStartOptions,
+  MarketplaceArbitrationRuntime,
   MarketplaceSessionIdentity,
   MarketplaceBindOptions,
   MarketplaceSessionOptions,
   MarketplaceListingsApi,
   MarketplacePaymentMethodApi,
-  MarketplaceEscrowServicesApi,
-  MarketplaceEscrowServiceSelectionsApi,
+  MarketplaceArbitrationServicesApi,
+  MarketplaceArbitrationServiceSelectionsApi,
   MarketplaceOrderGroupsApi,
   MarketplaceOrdersApi,
   MarketplaceReviewsApi,
@@ -230,7 +235,7 @@ import type {
   MarketplaceAuctionsApi,
   MarketplaceAuctionBidGroupsApi,
   MarketplacePaymentsApi,
-  MarketplaceEscrowApi,
+  MarketplaceArbitrationApi,
   MarketplaceClient,
   MarketplaceSessionSeedEnsureOptions,
   MarketplaceSessionSeedEnsureResult,
@@ -242,11 +247,11 @@ import {
   policyDescriptors,
 } from './runtime-common.ts'
 
-export function serviceMethod(service: ParsedEscrowService): PaymentMethod {
+export function serviceMethod(service: ParsedArbitrationService): PaymentMethod {
   return service.content.type.toLowerCase()
 }
 
-export function servicePolicyHash(service: ParsedEscrowService): string | undefined {
+export function servicePolicyHash(service: ParsedArbitrationService): string | undefined {
   const params = service.content.params
   const hash = params.contractBytecodeHash ?? params.policyHash ?? params.scriptHash
   return typeof hash === 'string' ? canonicalPolicyHash(hash) : undefined
@@ -263,12 +268,12 @@ export function samePolicyHash(left: string | undefined, right: string | undefin
   return canonicalPolicyHash(left) === canonicalPolicyHash(right)
 }
 
-export function serviceChainId(service: ParsedEscrowService): number | undefined {
+export function serviceChainId(service: ParsedArbitrationService): number | undefined {
   const chainId = service.content.params.chainId
   return typeof chainId === 'number' ? chainId : undefined
 }
 
-export function serviceContractAddress(service: ParsedEscrowService): string | undefined {
+export function serviceContractAddress(service: ParsedArbitrationService): string | undefined {
   const address = service.content.params.contractAddress
   return typeof address === 'string' ? address : undefined
 }
@@ -278,7 +283,7 @@ export function sameMethod(left: string, right: string): boolean {
 }
 
 export function denomination(value: string | undefined): string {
-  return (value ?? '').toUpperCase()
+  return canonicalCurrency(value)
 }
 
 export function isBtcSatPair(left: string | undefined, right: string | undefined): boolean {
@@ -289,18 +294,11 @@ export function isBtcSatPair(left: string | undefined, right: string | undefined
 
 export function amountCompatibleWithAsset(amount: MarketplaceAmount | undefined, asset: MarketplacePaymentAsset): boolean {
   if (!amount) return true
-  return amount.denomination === asset.denomination || isBtcSatPair(amount.denomination, asset.denomination)
+  return amountCurrency(amount) === assetCurrency(asset)
 }
 
 export function scaleAmountValue(value: string, fromDecimals: number, toDecimals: number): bigint {
-  const units = BigInt(value)
-  if (fromDecimals === toDecimals) return units
-  if (fromDecimals < toDecimals) return units * 10n ** BigInt(toDecimals - fromDecimals)
-  const scale = 10n ** BigInt(fromDecimals - toDecimals)
-  if (units % scale !== 0n) {
-    throw new Error(`Amount ${value} cannot be converted from ${fromDecimals} to ${toDecimals} decimals`)
-  }
-  return units / scale
+  return scaleMarketplaceAmountValue(value, fromDecimals, toDecimals)
 }
 
 export function normalizeBtcSatAmount(amount: MarketplaceAmount, targetDenomination: 'BTC' | 'SAT'): MarketplaceAmount {
@@ -308,43 +306,57 @@ export function normalizeBtcSatAmount(amount: MarketplaceAmount, targetDenominat
     const value = denomination(amount.denomination) === 'BTC'
       ? scaleAmountValue(amount.value, amount.decimals, 8)
       : scaleAmountValue(amount.value, amount.decimals, 0)
-    return { value: value.toString(), denomination: 'SAT', decimals: 0 }
+    return { value: value.toString(), currency: 'BTC', denomination: 'SAT', decimals: 0 }
   }
   const value = denomination(amount.denomination) === 'SAT'
-    ? scaleAmountValue(amount.value, amount.decimals, 8)
+    ? scaleAmountValue(amount.value, amount.decimals, 0)
     : scaleAmountValue(amount.value, amount.decimals, 8)
-  return { value: value.toString(), denomination: 'BTC', decimals: 8 }
+  return { value: value.toString(), currency: 'BTC', denomination: 'BTC', decimals: 8 }
+}
+
+export function assetCurrency(asset: { currency?: string; denomination: string }): string {
+  return canonicalCurrency(asset.currency ?? asset.denomination)
+}
+
+function paymentFormCurrency(form: { currency?: string; denomination: string }): string {
+  return canonicalCurrency(form.currency ?? form.denomination)
+}
+
+function assetDecimalsForCurrency(asset: MarketplacePaymentAsset): number {
+  const rawDenomination = (asset.denomination ?? '').toUpperCase()
+  if (assetCurrency(asset) === 'BTC' && (rawDenomination === 'SAT' || rawDenomination === 'SATS')) {
+    return asset.decimals + 8
+  }
+  return asset.decimals
+}
+
+function assertAmountMatchesAsset(amount: MarketplaceAmount, asset: MarketplacePaymentAsset): string {
+  const currency = amountCurrency(amount)
+  const routeCurrency = assetCurrency(asset)
+  if (currency !== routeCurrency) {
+    throw new Error(`Payment route asset ${asset.denomination} cannot settle ${currency}`)
+  }
+  return currency
 }
 
 export function normalizeAmountForRouteEvent(amount: MarketplaceAmount, asset: MarketplacePaymentAsset): MarketplaceAmount {
-  if (isBtcSatPair(amount.denomination, asset.denomination)) {
-    return normalizeBtcSatAmount(amount, denomination(amount.denomination) === 'SAT' ? 'SAT' : 'BTC')
-  }
-  if (amount.denomination === asset.denomination) {
-    return {
-      value: scaleAmountValue(amount.value, amount.decimals, asset.decimals).toString(),
-      denomination: asset.denomination,
-      decimals: asset.decimals,
-    }
-  }
-  return amount
+  assertAmountMatchesAsset(amount, asset)
+  return normalizeMarketplaceAmount(amount)
 }
 
 export function normalizeAmountForPaymentAsset(amount: MarketplaceAmount, asset: MarketplacePaymentAsset): MarketplaceAmount {
-  if (isBtcSatPair(amount.denomination, asset.denomination)) {
-    return normalizeBtcSatAmount(amount, denomination(asset.denomination) === 'SAT' ? 'SAT' : 'BTC')
+  const currency = assertAmountMatchesAsset(amount, asset)
+  const normalized = normalizeMarketplaceAmount(amount)
+  const targetDecimals = assetDecimalsForCurrency(asset)
+  return {
+    value: scaleAmountValue(normalized.value, normalized.decimals, targetDecimals).toString(),
+    currency,
+    denomination: asset.denomination,
+    decimals: asset.decimals,
   }
-  if (amount.denomination === asset.denomination) {
-    return {
-      value: scaleAmountValue(amount.value, amount.decimals, asset.decimals).toString(),
-      denomination: asset.denomination,
-      decimals: asset.decimals,
-    }
-  }
-  return amount
 }
 
-export function policyMatchesService(policy: MarketplacePaymentPolicy, service: ParsedEscrowService): boolean {
+export function policyMatchesService(policy: MarketplacePaymentPolicy, service: ParsedArbitrationService): boolean {
   if (!sameMethod(policy.method, serviceMethod(service))) return false
   const hash = servicePolicyHash(service)
   if (policy.hash && hash && !samePolicyHash(policy.hash, hash)) return false
@@ -363,9 +375,9 @@ export function policyMatchesService(policy: MarketplacePaymentPolicy, service: 
 
 export function assetMatchesForm(
   asset: MarketplacePaymentAsset,
-  form: { denomination: string; assetId: string; appId?: string },
+  form: { currency?: string; denomination: string; assetId: string; appId?: string },
 ): boolean {
-  if (asset.denomination !== form.denomination) return false
+  if (assetCurrency(asset) !== paymentFormCurrency(form)) return false
   return canonicalAssetId(asset.assetId) === canonicalAssetId(form.assetId)
 }
 
@@ -405,18 +417,18 @@ export function routeScore(asset: MarketplacePaymentAsset, policy: MarketplacePa
 export async function paymentRoutesForListing(
   opts: MarketplaceRuntimeOptions,
   listing: Event | MarketplaceListing,
-  order: Partial<OrderTemplate> | null = null,
-  routeOptions: MarketplacePaymentRouteOptions = {},
+  options: MarketplacePaymentRouteOptions | null = null,
 ): Promise<MarketplacePaymentRoute[]> {
+  const routeOptions = options ?? {}
   const parsedListing = 'event' in listing ? listing : parseListingEvent(listing)
   const sellerPubkey = parsedListing.event.pubkey
-  const method = await findPaymentMethod(opts.pool, opts.relays, { author: sellerPubkey, limit: 5 })
+  const method = await findPaymentMethod(opts.pool, opts.relays, { author: sellerPubkey })
   if (!method) return []
 
-  const services: ParsedEscrowService[] = []
-  for (const escrowPubkey of method.trustedEscrowPubkeys) {
-    const escrowServices = await searchEscrowServices(opts.pool, opts.relays, { author: escrowPubkey, limit: 20 })
-    for (const service of escrowServices) {
+  const services: ParsedArbitrationService[] = []
+  for (const arbiterPubkey of method.trustedArbiterPubkeys) {
+    const arbitrationServices = await searchArbitrationServices(opts.pool, opts.relays, { author: arbiterPubkey, limit: 20 })
+    for (const service of arbitrationServices) {
       const hash = servicePolicyHash(service)
       if (
         method.supportedContractBytecodeHashes.length > 0 &&
@@ -431,16 +443,16 @@ export async function paymentRoutesForListing(
 
   const routes: MarketplacePaymentRoute[] = []
   const routePolicies =
-    routeOptions.subject === 'bid'
+    routeOptions.purpose === 'bid'
       ? opts.bidPolicies ?? []
       : opts.orderPolicies ?? []
-  for (const escrowService of services) {
+  for (const arbitrationService of services) {
     for (const paymentPolicy of routePolicies) {
-      const descriptors = policyDescriptors(paymentPolicy).filter(policy => policyMatchesService(policy, escrowService))
+      const descriptors = policyDescriptors(paymentPolicy).filter(policy => policyMatchesService(policy, arbitrationService))
       if (descriptors.length === 0) continue
       const assets = policyAssets(paymentPolicy).filter(asset =>
         method.acceptedPaymentForms.some(form => assetMatchesForm(asset, form)) &&
-        amountCompatibleWithAsset(order?.amount, asset),
+        amountCompatibleWithAsset(routeOptions.amount, asset),
       )
       for (const descriptor of descriptors) {
         for (const asset of assets.filter(candidate => assetMatchesPolicyDescriptor(candidate, descriptor))) {
@@ -448,7 +460,7 @@ export async function paymentRoutesForListing(
             policy: paymentPolicy,
             listing: parsedListing,
             paymentMethod: method,
-            escrowService,
+            arbitrationService,
             descriptor,
             asset,
             score: routeScore(asset, descriptor),
@@ -461,11 +473,6 @@ export async function paymentRoutesForListing(
 }
 
 export function routeMatchesAuction(route: MarketplacePaymentRoute, auction: ParsedMarketplaceAuction): boolean {
-  return route.escrowService.event.pubkey === auction.arbiterPubkey &&
-    (route.asset.denomination === auction.currency || isBtcSatPair(route.asset.denomination, auction.currency)) &&
-    (
-      route.asset.decimals === auction.decimals ||
-      (denomination(auction.currency) === 'BTC' && auction.decimals === 8 && denomination(route.asset.denomination) === 'SAT') ||
-      (denomination(auction.currency) === 'SAT' && auction.decimals === 0 && denomination(route.asset.denomination) === 'BTC')
-    )
+  return route.arbitrationService.event.pubkey === auction.arbiterPubkey &&
+    assetCurrency(route.asset) === canonicalCurrency(auction.currency)
 }

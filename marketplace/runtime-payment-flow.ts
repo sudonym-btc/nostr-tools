@@ -14,19 +14,19 @@ import {
   type ParsedPaymentMethod,
 } from './paymentmethod.ts'
 import {
-  escrowServiceFilter,
-  findEscrowService,
-  generateEscrowServiceEventTemplate,
-  parseEscrowServiceEvent,
-  parseEscrowServiceSelectionEvent,
-  searchEscrowServices,
-  validateEscrowServiceEvent,
-  validateEscrowServiceSelectionEvent,
-  generateEscrowServiceSelectionEventTemplate,
-  calculateEscrowFee,
-  type EscrowServiceFindQuery,
-  type ParsedEscrowService,
-} from './escrowservice.ts'
+  arbitrationServiceFilter,
+  findArbitrationService,
+  generateArbitrationServiceEventTemplate,
+  parseArbitrationServiceEvent,
+  parseArbitrationServiceSelectionEvent,
+  searchArbitrationServices,
+  validateArbitrationServiceEvent,
+  validateArbitrationServiceSelectionEvent,
+  generateArbitrationServiceSelectionEventTemplate,
+  calculateArbitrationFee,
+  type ArbitrationServiceFindQuery,
+  type ParsedArbitrationService,
+} from './arbitrationservice.ts'
 import {
   generateListingEventTemplate,
   listingSearchFilter,
@@ -175,10 +175,10 @@ import type {
   MarketplacePaymentIntent,
   MarketplacePaymentRecoveryItem,
   MarketplacePaymentRecoveryState,
-  MarketplaceEscrowArbitrationIntent,
-  MarketplaceEscrowArbitrationState,
-  MarketplaceEscrowArbitrationRequest,
-  MarketplaceEscrowArbitrationRuntimeState,
+  MarketplacePaymentArbitrationIntent,
+  MarketplacePaymentArbitrationState,
+  MarketplacePaymentArbitrationRequest,
+  MarketplacePaymentArbitrationRuntimeState,
   MarketplaceAuctionSettlementRequest,
   MarketplaceAuctionBidSettlementInput,
   MarketplaceAuctionBidValidation,
@@ -212,16 +212,16 @@ import type {
   MarketplaceRuntimeIdentity,
   MarketplaceRuntimePool,
   MarketplaceRuntimeOptions,
-  MarketplaceEscrowStartEvent,
-  MarketplaceEscrowStartOptions,
-  MarketplaceEscrowRuntime,
+  MarketplaceArbitrationStartEvent,
+  MarketplaceArbitrationStartOptions,
+  MarketplaceArbitrationRuntime,
   MarketplaceSessionIdentity,
   MarketplaceBindOptions,
   MarketplaceSessionOptions,
   MarketplaceListingsApi,
   MarketplacePaymentMethodApi,
-  MarketplaceEscrowServicesApi,
-  MarketplaceEscrowServiceSelectionsApi,
+  MarketplaceArbitrationServicesApi,
+  MarketplaceArbitrationServiceSelectionsApi,
   MarketplaceOrderGroupsApi,
   MarketplaceOrdersApi,
   MarketplaceReviewsApi,
@@ -230,7 +230,7 @@ import type {
   MarketplaceAuctionsApi,
   MarketplaceAuctionBidGroupsApi,
   MarketplacePaymentsApi,
-  MarketplaceEscrowApi,
+  MarketplaceArbitrationApi,
   MarketplaceClient,
   MarketplaceSessionSeedEnsureOptions,
   MarketplaceSessionSeedEnsureResult,
@@ -238,6 +238,8 @@ import type {
   MarketplaceSession,
 } from './runtime-types.ts'
 import {
+  marketplaceLogger,
+  policyName,
   publishMarketplaceEvent,
 } from './runtime-common.ts'
 import {
@@ -247,6 +249,24 @@ import {
   normalizeAmountForPaymentAsset,
   normalizeAmountForRouteEvent,
 } from './runtime-routes.ts'
+import {
+  buildPaymentProofPayload,
+  type PaymentProofKeyTag,
+  type PaymentProofPrivacy,
+  type SealedPaymentProof,
+} from './payment-proof.ts'
+import {
+  buildPaymentAmountPayload,
+  type PaymentAmountKeyTag,
+  type PaymentAmountPrivacy,
+  type SealedPaymentAmount,
+} from './payment-amount.ts'
+
+type PaymentAmountPayloadForState = {
+  amount?: MarketplaceAmount
+  sealedAmount?: SealedPaymentAmount
+  paymentAmountKeys: PaymentAmountKeyTag[]
+}
 
 export function addParticipant(
   participants: PTag[] | undefined,
@@ -268,8 +288,8 @@ export function orderWithRouteParticipants(
     ...order,
     participants: addParticipant(
       addParticipant(withBuyer, route.paymentMethod.event.pubkey, 'seller'),
-      route.escrowService.event.pubkey,
-      'escrow',
+      route.arbitrationService.event.pubkey,
+      'arbiter',
     ),
   }
 }
@@ -280,6 +300,7 @@ export function orderContent(order: OrderTemplate): OrderContent {
     ...(order.end ? { end: order.end } : {}),
     quantity: order.quantity ?? 1,
     ...(order.amount ? { amount: order.amount } : {}),
+    ...(order.listing ? { listing: order.listing } : {}),
     ...(order.recipient ? { recipient: order.recipient } : {}),
     ...(order.commitAuthorization ? { commitAuthorization: order.commitAuthorization } : {}),
   }
@@ -302,10 +323,9 @@ export function paymentProofForRoute(
   proof: PaymentProofEvidence | null,
 ): PaymentProof {
   return {
-    listing: route.listing.event,
-    paymentProof: proof,
-    escrow: {
-      escrowService: route.escrowService.event,
+    paymentProof: proof ? { driver: policyName(route.policy), params: proof.params } : null,
+    arbitration: {
+      arbitrationService: route.arbitrationService.event,
       paymentMethod: route.paymentMethod.event,
     },
   }
@@ -332,16 +352,21 @@ export function routedOrderForPaymentState(
 export function orderPaymentTemplateForState(
   route: MarketplacePaymentRoute,
   order: OrderTemplate,
-  proof: PaymentProofEvidence | null,
+  amountPayload: PaymentAmountPayloadForState,
+  proof: PaymentProof | SealedPaymentProof,
+  paymentProofKeys: PaymentProofKeyTag[],
   orderEvent: Event,
   buyerPubkey?: string,
 ): EventTemplate {
   const routedOrder = orderWithRouteParticipants(route, order, buyerPubkey)
+  if (!routedOrder.amount) throw new Error('Order amount is required for marketplace payment')
+  const { amount: _orderAmount, ...paymentOrder } = routedOrder
   return generateOrderPaymentEventTemplate({
-    ...routedOrder,
+    ...paymentOrder,
     orderGroupId: orderGroupIdForOrder(orderEvent),
-    proof: paymentProofForRoute(route, proof),
-    purpose: 'order_payment',
+    ...amountPayload,
+    proof,
+    paymentProofKeys,
     refs: { orders: [orderEvent.id] },
   })
 }
@@ -349,7 +374,9 @@ export function orderPaymentTemplateForState(
 export function auctionBidPaymentTemplateForState(
   route: MarketplacePaymentRoute,
   bid: MarketplaceAuctionBidTemplate,
-  proof: PaymentProofEvidence | null,
+  amountPayload: PaymentAmountPayloadForState,
+  proof: PaymentProof | SealedPaymentProof,
+  paymentProofKeys: PaymentProofKeyTag[],
   bidEvent: Event,
 ): EventTemplate {
   const routedBid = {
@@ -361,16 +388,57 @@ export function auctionBidPaymentTemplateForState(
       participants: bid.participants,
     }).participants,
   }
+  const { amount: _bidAmount, ...paymentBid } = routedBid
   return generateOrderPaymentEventTemplate({
+    ...paymentBid,
     tradeId: routedBid.tradeId,
     listingAnchor: routedBid.auctionAnchor,
     anchorMarker: 'auction',
     participants: routedBid.participants,
-    orderGroupId: routedBid.bidId ?? routedBid.tradeId,
-    proof: paymentProofForRoute(route, proof),
-    purpose: 'auction_bid',
+    orderGroupId: routedBid.tradeId,
+    ...amountPayload,
+    proof,
+    paymentProofKeys,
     refs: { auctionBids: [bidEvent.id] },
     extraTags: [['a', routedBid.listingAnchor, '', 'listing']],
+  })
+}
+
+function paymentProofRecipientPubkeys(participants: PTag[] | undefined, senderPubkey: string): string[] {
+  return [...new Set([
+    senderPubkey,
+    ...(participants ?? [])
+      .filter(participant => participant.role === 'seller' || participant.role === 'arbiter')
+      .map(participant => participant.pubkey),
+  ])]
+}
+
+function paymentProofPayloadForState(
+  route: MarketplacePaymentRoute,
+  proof: PaymentProofEvidence | null,
+  participants: PTag[] | undefined,
+  senderSecretKey: Uint8Array,
+  senderPubkey: string,
+  privacy: PaymentProofPrivacy,
+): { proof: PaymentProof | SealedPaymentProof; paymentProofKeys: PaymentProofKeyTag[] } {
+  return buildPaymentProofPayload(paymentProofForRoute(route, proof), {
+    mode: privacy,
+    senderSecretKey,
+    recipientPubkeys: paymentProofRecipientPubkeys(participants, senderPubkey),
+  })
+}
+
+function paymentAmountPayloadForState(
+  amount: MarketplaceAmount,
+  participants: PTag[] | undefined,
+  senderSecretKey: Uint8Array,
+  senderPubkey: string,
+  privacy: PaymentAmountPrivacy,
+): PaymentAmountPayloadForState {
+  return buildPaymentAmountPayload(amount, {
+    mode: privacy,
+    senderSecretKey,
+    recipientPubkeys: paymentProofRecipientPubkeys(participants, senderPubkey),
   })
 }
 
@@ -379,21 +447,21 @@ export function buildPaymentIntent(
   order: OrderTemplate,
   options: MarketplaceResolvedPayOptions,
   seed: string | undefined,
-  subject: 'order' | 'bid' = 'order',
+  purpose: 'order' | 'bid' = 'order',
 ): MarketplacePaymentIntent {
   const routedOrder = orderWithRouteParticipants(route, order)
   if (!routedOrder.amount) throw new Error('Order amount is required for marketplace payment')
   const amount = normalizeAmountForPaymentAsset(routedOrder.amount, route.asset)
   const feeAsset = route.asset.assetAddress?.toLowerCase() ?? route.asset.assetId
-  const fee = calculateEscrowFee(route.escrowService.content.fee, BigInt(amount.value), feeAsset)
+  const fee = calculateArbitrationFee(route.arbitrationService.content.fee, BigInt(amount.value), feeAsset)
   const buyer = routedOrder.participants?.find(participant => participant.role === 'buyer')
-  const chainId = serviceChainId(route.escrowService)
-  const contractAddress = serviceContractAddress(route.escrowService)
-  const policyHash = servicePolicyHash(route.escrowService)
+  const chainId = serviceChainId(route.arbitrationService)
+  const contractAddress = serviceContractAddress(route.arbitrationService)
+  const policyHash = servicePolicyHash(route.arbitrationService)
   const settlementId = options.settlementId ?? orderGroupIdForParticipants(routedOrder.tradeId, routedOrder.participants ?? [])
   return {
     method: route.policy.method,
-    subject,
+    purpose,
     tradeId: routedOrder.tradeId,
     settlementId,
     accountIndex: options.accountIndex,
@@ -401,17 +469,18 @@ export function buildPaymentIntent(
     amount,
     fee: {
       value: fee.toString(),
+      ...(amount.currency ? { currency: amount.currency } : {}),
       denomination: amount.denomination,
       decimals: amount.decimals,
     },
     asset: route.asset,
     policy: route.descriptor,
     contract: {
-      type: route.escrowService.content.type,
+      type: route.arbitrationService.content.type,
       ...(chainId !== undefined ? { chainId } : {}),
       ...(contractAddress ? { address: contractAddress } : {}),
       ...(policyHash ? { bytecodeHash: policyHash } : {}),
-      params: route.escrowService.content.params,
+      params: route.arbitrationService.content.params,
     },
     participants: {
       ...(buyer ? { buyer } : {}),
@@ -420,17 +489,17 @@ export function buildPaymentIntent(
         ...(route.paymentMethod.evmAddress ? { address: route.paymentMethod.evmAddress } : {}),
         ...(route.paymentMethod.cashuPubkey ? { data: { cashuPubkey: route.paymentMethod.cashuPubkey } } : {}),
       },
-      escrow: {
-        pubkey: route.escrowService.event.pubkey,
-        ...(typeof route.escrowService.content.params.arbiterAddress === 'string'
-          ? { address: route.escrowService.content.params.arbiterAddress }
+      arbiter: {
+        pubkey: route.arbitrationService.event.pubkey,
+        ...(typeof route.arbitrationService.content.params.arbiterAddress === 'string'
+          ? { address: route.arbitrationService.content.params.arbiterAddress }
           : {}),
-        ...(typeof route.escrowService.content.params.cashuPubkey === 'string'
-          ? { data: { cashuPubkey: route.escrowService.content.params.cashuPubkey } }
+        ...(typeof route.arbitrationService.content.params.cashuPubkey === 'string'
+          ? { data: { cashuPubkey: route.arbitrationService.content.params.cashuPubkey } }
           : {}),
       },
     },
-    unlockAt: unlockAt(order, route.escrowService.content.maxDuration, options.now),
+    unlockAt: unlockAt(order, route.arbitrationService.content.maxDuration, options.now),
     metadata: {
       listingAnchor: order.listingAnchor,
       listingId: route.listing.d,
@@ -446,8 +515,19 @@ export async function* publishOrderPaymentStream(
   tradeSecretKey: Uint8Array,
   tradePubkey: string,
   stream: AsyncIterable<MarketplacePolicyPaymentState>,
+  paymentProofPrivacy: PaymentProofPrivacy = 'public',
+  paymentAmountPrivacy: PaymentAmountPrivacy = 'public',
 ): AsyncIterable<MarketplacePaymentState> {
+  const logger = marketplaceLogger(opts, 'marketplace.runtime.pay', {
+    policy: route.descriptor.id,
+    method: route.policy.method,
+  })
   for await (const state of stream) {
+    logger.debug('Order payment policy state received', {
+      type: state.type,
+      status: 'status' in state ? state.status : undefined,
+      data: state.data,
+    })
     if (state.type === 'payment_required') {
       yield {
         type: 'payment_required',
@@ -462,8 +542,33 @@ export async function* publishOrderPaymentStream(
         event: orderEvent,
         data: state.data,
       }
+      const routedOrder = orderWithRouteParticipants(route, order, tradePubkey)
+      if (!routedOrder.amount) throw new Error('Order amount is required for marketplace payment')
+      const paymentAmountPayload = paymentAmountPayloadForState(
+        normalizeAmountForRouteEvent(routedOrder.amount, route.asset),
+        routedOrder.participants,
+        tradeSecretKey,
+        tradePubkey,
+        paymentAmountPrivacy,
+      )
+      const paymentProofPayload = paymentProofPayloadForState(
+        route,
+        state.proof,
+        routedOrder.participants,
+        tradeSecretKey,
+        tradePubkey,
+        paymentProofPrivacy,
+      )
       const paymentEvent = finalizeEvent(
-        orderPaymentTemplateForState(route, order, state.proof, orderEvent, tradePubkey),
+        orderPaymentTemplateForState(
+          route,
+          order,
+          paymentAmountPayload,
+          paymentProofPayload.proof,
+          paymentProofPayload.paymentProofKeys,
+          orderEvent,
+          tradePubkey,
+        ),
         tradeSecretKey,
       )
       await publishMarketplaceEvent(opts, paymentEvent)
@@ -500,9 +605,21 @@ export async function* publishAuctionBidPaymentStream(
   route: MarketplacePaymentRoute,
   bid: MarketplaceAuctionBidTemplate,
   tradeSecretKey: Uint8Array,
+  tradePubkey: string,
   stream: AsyncIterable<MarketplacePolicyPaymentState>,
+  paymentProofPrivacy: PaymentProofPrivacy = 'public',
+  paymentAmountPrivacy: PaymentAmountPrivacy = 'public',
 ): AsyncIterable<MarketplaceAuctionBidState> {
+  const logger = marketplaceLogger(opts, 'marketplace.runtime.bid', {
+    policy: route.descriptor.id,
+    method: route.policy.method,
+  })
   for await (const state of stream) {
+    logger.debug('Auction bid payment policy state received', {
+      type: state.type,
+      status: 'status' in state ? state.status : undefined,
+      data: state.data,
+    })
     if (state.type === 'payment_required') {
       yield {
         type: 'payment_required',
@@ -517,7 +634,41 @@ export async function* publishAuctionBidPaymentStream(
         event: bidEvent,
         data: state.data,
       }
-      const paymentEvent = finalizeEvent(auctionBidPaymentTemplateForState(route, bid, state.proof, bidEvent), tradeSecretKey)
+      const routedBid = {
+        ...bid,
+        participants: orderWithRouteParticipants(route, {
+          tradeId: bid.tradeId,
+          listingAnchor: bid.listingAnchor,
+          amount: bid.amount,
+          participants: bid.participants,
+        }).participants,
+      }
+      const paymentAmountPayload = paymentAmountPayloadForState(
+        normalizeAmountForRouteEvent(routedBid.amount, route.asset),
+        routedBid.participants,
+        tradeSecretKey,
+        tradePubkey,
+        paymentAmountPrivacy,
+      )
+      const paymentProofPayload = paymentProofPayloadForState(
+        route,
+        state.proof,
+        routedBid.participants,
+        tradeSecretKey,
+        tradePubkey,
+        paymentProofPrivacy,
+      )
+      const paymentEvent = finalizeEvent(
+        auctionBidPaymentTemplateForState(
+          route,
+          bid,
+          paymentAmountPayload,
+          paymentProofPayload.proof,
+          paymentProofPayload.paymentProofKeys,
+          bidEvent,
+        ),
+        tradeSecretKey,
+      )
       await publishMarketplaceEvent(opts, paymentEvent)
       yield {
         type: 'payment_published',

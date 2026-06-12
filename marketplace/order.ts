@@ -1,5 +1,6 @@
 import type { Event, EventTemplate } from '../core.ts'
-import { CommitAuthorization, MarketplaceOrder, StructuredMessage, TradeKeyAuthorization } from '../kinds.ts'
+import { CommitAuthorization, MarketplaceOrder, StructuredMessage } from '../kinds.ts'
+import { parseListingEvent } from './listing.ts'
 import {
   generateOrderCancelEventTemplate,
   generateOrderPaymentAckEventTemplate,
@@ -16,40 +17,60 @@ import { orderGroups } from './order-group.ts'
 import { isOrderGroupRole, orderGroupIdForRoleParticipants, type OrderGroupRole } from './order-id.ts'
 import { orderQueries } from './order-query.ts'
 import {
-  eventToEscrowContextValue,
+  eventToArbitrationContextValue,
   isTransactionHash,
+  normalizeMarketplaceAmount,
   now,
   parseAmount,
   parseEventJson,
   parseJsonObject,
   parseNonNegativeIntValue,
   parseOptionalInt,
-  parsePTag,
-  pTag,
   requireString,
   sha256Hex,
   sortedJson,
   tagValue,
   tagValues,
   type MarketplaceAmount,
-  type PTag,
   type PaymentProof,
 } from './helper.ts'
+import {
+  parseParticipantTag,
+  participantTag,
+  type MarketplaceParticipantTag,
+} from './participant.ts'
+import {
+  generateTradeKeyAuthorizationEventTemplate,
+  hashParticipantProofPayload,
+  parseParticipantProofKeyTag,
+  parseParticipantProofTag,
+  participantProofKeyTag,
+  participantProofTag,
+  type ParticipantProofKeyTag,
+  type ParticipantProofTag,
+} from './participant-proof.ts'
 
-export type ParticipantProofTag = {
-  role: string
-  participantPubkey: string
-  recipientPubkey: string
-  scheme: string
-  payloadHash: string
-  payload: string
-}
+export type {
+  ParticipantProofKeyTag,
+  ParticipantProofTag,
+  TradeKeyAuthorizationContent,
+  TradeKeyAuthorizationTemplate,
+} from './participant-proof.ts'
+
+export {
+  hashParticipantProofPayload,
+  parseParticipantProofKeyTag,
+  parseParticipantProofTag,
+  participantProofKeyTag,
+  participantProofTag,
+} from './participant-proof.ts'
 
 export type OrderContent = {
   start?: string
   end?: string
   quantity: number
   amount?: MarketplaceAmount
+  listing?: Event
   recipient?: string
   commitAuthorization?: Event
 }
@@ -59,8 +80,9 @@ export type ParsedOrder = {
   orderGroupId: string
   tradeId: string
   listingAnchor: string
-  participants: PTag[]
+  participants: MarketplaceParticipantTag[]
   participantProofs: ParticipantProofTag[]
+  participantProofKeys: ParticipantProofKeyTag[]
   authorRole: OrderGroupRole
   publishedAt?: number
   content: OrderContent
@@ -70,8 +92,9 @@ export type OrderTemplate = Omit<OrderContent, 'quantity'> & {
   tradeId: string
   listingAnchor: string
   quantity?: number
-  participants?: PTag[]
+  participants?: MarketplaceParticipantTag[]
   participantProofs?: ParticipantProofTag[]
+  participantProofKeys?: ParticipantProofKeyTag[]
   extraTags?: string[][]
   publishedAt?: number
   createdAt?: number
@@ -96,31 +119,18 @@ export type CommitAuthorizationTemplate = {
   createdAt?: number
 }
 
-export type TradeKeyAuthorizationContent = {
-  version: number
-  role: string
-  participantPubkey: string
-}
-
-export type TradeKeyAuthorizationTemplate = TradeKeyAuthorizationContent & {
-  listingAnchor: string
-  tradeId: string
-  orderGroupId?: string
-  createdAt?: number
-}
-
 export type ParsedStructuredMessage = {
   event: Event
   childEvent: Event
   conversation?: string
-  recipients: PTag[]
+  recipients: MarketplaceParticipantTag[]
   alt: string[]
 }
 
 export type StructuredMessageTemplate = {
   childEvent: Event | string
   conversation?: string
-  recipients?: PTag[]
+  recipients?: MarketplaceParticipantTag[]
   alt?: string | string[]
   extraTags?: string[][]
   createdAt?: number
@@ -129,7 +139,7 @@ export type StructuredMessageTemplate = {
 const listingAnchorRegex = /^\d+:[a-f0-9]{64}:.+$/
 const committedOrderFields = ['amount', 'end', 'quantity', 'recipient', 'start']
 
-function roleCounts(participants: PTag[]): Map<OrderGroupRole, number> {
+function roleCounts(participants: MarketplaceParticipantTag[]): Map<OrderGroupRole, number> {
   const counts = new Map<OrderGroupRole, number>()
   for (const participant of participants) {
     if (!isOrderGroupRole(participant.role)) continue
@@ -142,7 +152,7 @@ function requireSingleRole(counts: Map<OrderGroupRole, number>, role: OrderGroup
   if ((counts.get(role) ?? 0) !== 1) throw new Error(`Order requires exactly one ${role} participant`)
 }
 
-function authorRole(event: Event, participants: PTag[]): OrderGroupRole {
+function authorRole(event: Event, participants: MarketplaceParticipantTag[]): OrderGroupRole {
   const matches = participants.filter(
     participant => participant.pubkey === event.pubkey && isOrderGroupRole(participant.role),
   )
@@ -154,44 +164,16 @@ function validateOrderParticipants(
   event: Event,
   orderGroupId: string,
   tradeId: string,
-  participants: PTag[],
+  participants: MarketplaceParticipantTag[],
 ): OrderGroupRole {
   const counts = roleCounts(participants)
   requireSingleRole(counts, 'buyer')
   requireSingleRole(counts, 'seller')
-  if ((counts.get('escrow') ?? 0) > 1) throw new Error('Order can include at most one escrow participant')
+  if ((counts.get('arbiter') ?? 0) > 1) throw new Error('Order can include at most one arbiter participant')
   if (orderGroupIdForRoleParticipants(tradeId, participants) !== orderGroupId) {
     throw new Error('Order group id mismatch')
   }
   return authorRole(event, participants)
-}
-
-export function participantProofTag(proof: ParticipantProofTag): string[] {
-  return [
-    'participant_proof',
-    proof.role,
-    proof.participantPubkey,
-    proof.recipientPubkey,
-    proof.scheme,
-    proof.payloadHash,
-    proof.payload,
-  ]
-}
-
-export function parseParticipantProofTag(tag: string[]): ParticipantProofTag | null {
-  if (tag.length < 7 || tag[0] !== 'participant_proof') return null
-  return {
-    role: tag[1],
-    participantPubkey: tag[2],
-    recipientPubkey: tag[3],
-    scheme: tag[4],
-    payloadHash: tag[5],
-    payload: tag[6],
-  }
-}
-
-export function hashParticipantProofPayload(payload: string): string {
-  return sha256Hex(payload)
 }
 
 export function parseOrderContent(content: string): OrderContent {
@@ -199,6 +181,9 @@ export function parseOrderContent(content: string): OrderContent {
   const quantity = json.quantity === undefined ? 1 : parseNonNegativeIntValue(json.quantity, 'quantity')
   if (quantity < 1) throw new Error('Invalid quantity')
   const amount = parseAmount(json.amount)
+  const listing =
+    json.listing === undefined ? undefined : parseEventJson(json.listing, 'listing')
+  if (listing) parseListingEvent(listing)
   const commitAuthorization =
     json.commitAuthorization === undefined ? undefined : parseEventJson(json.commitAuthorization, 'commitAuthorization')
   return {
@@ -206,6 +191,7 @@ export function parseOrderContent(content: string): OrderContent {
     ...(typeof json.end === 'string' ? { end: json.end } : {}),
     quantity,
     ...(amount ? { amount } : {}),
+    ...(listing ? { listing } : {}),
     ...(typeof json.recipient === 'string' ? { recipient: json.recipient } : {}),
     ...(commitAuthorization ? { commitAuthorization } : {}),
   }
@@ -226,10 +212,13 @@ export function parseOrderEvent(event: Event): ParsedOrder {
   const tradeId = requireString(tagValue(event, 'trade'), 'order trade id')
   const listingAnchor = requireString(tagValue(event, 'a'), 'order listing anchor')
   if (!listingAnchorRegex.test(listingAnchor)) throw new Error('Invalid listing anchor')
-  const participants = event.tags.map(parsePTag).filter((tag): tag is PTag => tag !== null)
+  const participants = event.tags.map(parseParticipantTag).filter((tag): tag is MarketplaceParticipantTag => tag !== null)
   const participantProofs = event.tags
     .map(parseParticipantProofTag)
     .filter((tag): tag is ParticipantProofTag => tag !== null)
+  const participantProofKeys = event.tags
+    .map(parseParticipantProofKeyTag)
+    .filter((tag): tag is ParticipantProofKeyTag => tag !== null)
   const content = parseOrderContent(event.content)
   const role = validateOrderParticipants(event, orderGroupId, tradeId, participants)
   return {
@@ -239,6 +228,7 @@ export function parseOrderEvent(event: Event): ParsedOrder {
     listingAnchor,
     participants,
     participantProofs,
+    participantProofKeys,
     authorRole: role,
     publishedAt: parseOptionalInt(tagValue(event, 'published_at'), 'published_at'),
     content,
@@ -254,7 +244,8 @@ export function generateOrderEventTemplate(order: OrderTemplate): EventTemplate 
     ...(order.start ? { start: order.start } : {}),
     ...(order.end ? { end: order.end } : {}),
     quantity: order.quantity ?? 1,
-    ...(order.amount ? { amount: order.amount } : {}),
+    ...(order.amount ? { amount: normalizeMarketplaceAmount(order.amount) } : {}),
+    ...(order.listing ? { listing: order.listing } : {}),
     ...(order.recipient ? { recipient: order.recipient } : {}),
     ...(order.commitAuthorization ? { commitAuthorization: order.commitAuthorization } : {}),
   }
@@ -267,8 +258,9 @@ export function generateOrderEventTemplate(order: OrderTemplate): EventTemplate 
       ['d', orderGroupId],
       ['trade', order.tradeId],
       ['published_at', publishedAt.toString()],
-      ...participants.map(pTag),
+      ...participants.map(participantTag),
       ...(order.participantProofs ?? []).map(participantProofTag),
+      ...(order.participantProofKeys ?? []).map(participantProofKeyTag),
       ...(order.extraTags ?? []),
     ],
   }
@@ -312,19 +304,6 @@ export function generateCommitAuthorizationEventTemplate(auth: CommitAuthorizati
   }
 }
 
-export function generateTradeKeyAuthorizationEventTemplate(auth: TradeKeyAuthorizationTemplate): EventTemplate {
-  return {
-    kind: TradeKeyAuthorization,
-    created_at: auth.createdAt ?? now(),
-    tags: [
-      ['a', auth.listingAnchor],
-      ['trade', auth.tradeId],
-      ...(auth.orderGroupId ? [['d', auth.orderGroupId]] : []),
-    ],
-    content: JSON.stringify({ version: auth.version, role: auth.role, participantPubkey: auth.participantPubkey }),
-  }
-}
-
 export function validateStructuredMessageEvent(event: Event): boolean {
   try {
     parseStructuredMessageEvent(event)
@@ -340,7 +319,9 @@ export function parseStructuredMessageEvent(event: Event): ParsedStructuredMessa
     event,
     childEvent: parseEventJson(event.content, 'structured message child event'),
     conversation: tagValue(event, 'conversation'),
-    recipients: event.tags.map(parsePTag).filter((tag): tag is PTag => tag !== null),
+    recipients: event.tags
+      .map(parseParticipantTag)
+      .filter((tag): tag is MarketplaceParticipantTag => tag !== null),
     alt: tagValues(event, 'alt'),
   }
 }
@@ -350,9 +331,9 @@ export function generateStructuredMessageEventTemplate(message: StructuredMessag
   return {
     kind: StructuredMessage,
     created_at: message.createdAt ?? now(),
-    content: eventToEscrowContextValue(message.childEvent),
+    content: eventToArbitrationContextValue(message.childEvent),
     tags: [
-      ...(message.recipients ?? []).map(pTag),
+      ...(message.recipients ?? []).map(participantTag),
       ...(message.conversation ? [['conversation', message.conversation]] : []),
       ...alt.map(value => ['alt', value]),
       ...(message.extraTags ?? []),
@@ -361,31 +342,29 @@ export function generateStructuredMessageEventTemplate(message: StructuredMessag
 }
 
 export function paymentProofForEvm(opts: {
-  listing: Event
+  driver: string
   txHash: string
-  escrowService: Event | string
+  arbitrationService: Event | string
   paymentMethod: Event | string
 }): PaymentProof {
   if (!isTransactionHash(opts.txHash)) throw new Error('Invalid EVM txHash')
   return {
-    listing: opts.listing,
-    paymentProof: { method: 'evm', params: { txHash: opts.txHash } },
-    escrow: {
-      escrowService: eventToEscrowContextValue(opts.escrowService),
-      paymentMethod: eventToEscrowContextValue(opts.paymentMethod),
+    paymentProof: { driver: opts.driver, params: { txHash: opts.txHash } },
+    arbitration: {
+      arbitrationService: eventToArbitrationContextValue(opts.arbitrationService),
+      paymentMethod: eventToArbitrationContextValue(opts.paymentMethod),
     },
   }
 }
 
 export function paymentProofForZap(opts: {
-  listing: Event
+  driver: string
   receipt: Event | string
   recipientProfile: Event
 }): PaymentProof {
   return {
-    listing: opts.listing,
     paymentProof: {
-      method: 'zap',
+      driver: opts.driver,
       params: {
         receipt: typeof opts.receipt === 'string' ? opts.receipt : JSON.stringify(opts.receipt),
         recipientProfile: opts.recipientProfile,
@@ -412,6 +391,8 @@ export const orders = {
   committedTerms: committedOrderTerms,
   participantProofTag,
   parseParticipantProofTag,
+  participantProofKeyTag,
+  parseParticipantProofKeyTag,
   hashParticipantProofPayload,
   commitAuthorizationTemplate: generateCommitAuthorizationEventTemplate,
   tradeKeyAuthorizationTemplate: generateTradeKeyAuthorizationEventTemplate,

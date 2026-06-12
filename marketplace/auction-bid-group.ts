@@ -8,7 +8,9 @@ import {
   MarketplacePaymentNack,
   MarketplacePaymentSettlement,
 } from '../kinds.ts'
-import type { MarketplaceAmount, PTag } from './helper.ts'
+import type { MarketplaceAmount } from './helper.ts'
+import { marketplaceAuctionBidIdentity } from './identity.ts'
+import type { MarketplaceParticipantTag } from './participant.ts'
 import {
   parseAuctionBidEvent,
   type ParsedMarketplaceAuctionBid,
@@ -23,6 +25,10 @@ import {
   type ParsedOrderPaymentNack,
   type ParsedOrderPaymentSettlement,
 } from './order-lifecycle.ts'
+import {
+  orderIdentityPubkeys,
+  type MarketplaceOrderIdentity,
+} from './order-query.ts'
 
 export const auctionBidGroupEventKinds = [
   MarketplaceAuctionBid,
@@ -50,12 +56,11 @@ export type AuctionBidGroupEvent =
 
 export type ParsedAuctionBidGroup = {
   id: string
-  bidId: string
   tradeId: string
   auctionAnchor: string
   listingAnchor: string
   amount: MarketplaceAmount
-  participants: PTag[]
+  participants: MarketplaceParticipantTag[]
   participantPubkeys: string[]
   bids: ParsedMarketplaceAuctionBid[]
   bid: ParsedMarketplaceAuctionBid
@@ -72,16 +77,31 @@ export type ParsedAuctionBidGroup = {
   stage: AuctionBidGroupStage
 }
 
-export type AuctionBidGroupQuery = {
+export type ParsedAuctionBidChain = {
+  id: string
   auctionAnchor: string
-  bidIds?: string[]
+  listingAnchor: string
+  amount: MarketplaceAmount
+  head: ParsedAuctionBidGroup
+  groups: ParsedAuctionBidGroup[]
+  bidEventIds: string[]
+  paymentEventIds: string[]
+  complete: boolean
+}
+
+export type AuctionBidGroupQuery = {
+  auctionAnchor?: string
   tradeIds?: string[]
   authors?: string[]
   participantPubkeys?: string[]
+  identity?: MarketplaceOrderIdentity
   since?: number
   until?: number
   limit?: number
 }
+
+export type MyAuctionBidGroupQuery =
+  Omit<AuctionBidGroupQuery, 'identity'> & { identity?: MarketplaceOrderIdentity }
 
 export type AuctionBidGroupSearchOptions = {
   maxWait?: number
@@ -101,9 +121,16 @@ export type AuctionBidGroupSubscribeHandlers = {
 
 type AuctionBidGroupQueryPool = Pick<AbstractSimplePool, 'querySync'>
 type AuctionBidGroupSubscribePool = Pick<AbstractSimplePool, 'subscribeMap'>
+const defaultPubkeyChunkSize = 200
 
 function unique(values: Iterable<string | undefined>): string[] {
   return [...new Set([...values].filter((value): value is string => typeof value === 'string' && value.length > 0))]
+}
+
+function chunks<T>(values: T[], size = defaultPubkeyChunkSize): T[][] {
+  const output: T[][] = []
+  for (let i = 0; i < values.length; i += size) output.push(values.slice(i, i + size))
+  return output
 }
 
 function latestEvent<T extends AuctionBidGroupEvent>(left: T | undefined, right: T): T {
@@ -113,6 +140,8 @@ function latestEvent<T extends AuctionBidGroupEvent>(left: T | undefined, right:
   }
   return right.event.id.localeCompare(left.event.id) > 0 ? right : left
 }
+
+type ParsedAuctionBidPaymentDecision = ParsedOrderPaymentAck | ParsedOrderPaymentNack
 
 function isParsedBid(event: AuctionBidGroupEvent): event is ParsedMarketplaceAuctionBid {
   return event.event.kind === MarketplaceAuctionBid
@@ -138,13 +167,19 @@ function refsPayment(event: ParsedOrderPaymentAck | ParsedOrderPaymentNack | Par
   return event.refs.payments.some(id => ids.has(id))
 }
 
+function auctionBidPrevBidId(bid: ParsedMarketplaceAuctionBid): string | undefined {
+  const prevBid = bid.event.tags.find(tag => tag[0] === 'prev_bid')?.[1]
+  if (prevBid) return prevBid
+  return bid.event.tags.find(tag => tag[0] === 'e' && (tag[3] === 'prev-bid' || tag[3] === 'prev_bid'))?.[1]
+}
+
 function sameBidGroup(event: AuctionBidGroupEvent, bid: ParsedMarketplaceAuctionBid): boolean {
   if (isParsedBid(event)) {
-    return event.auctionAnchor === bid.auctionAnchor && event.bidId === bid.bidId
+    return event.auctionAnchor === bid.auctionAnchor && event.tradeId === bid.tradeId
   }
   const sameSyntheticGroup =
     event.listingAnchor === bid.auctionAnchor &&
-    event.orderGroupId === bid.bidId &&
+    event.orderGroupId === bid.tradeId &&
     event.tradeId === bid.tradeId
   return sameSyntheticGroup || event.refs.auctionBids.includes(bid.event.id)
 }
@@ -166,6 +201,30 @@ function groupStage(input: {
   return 'bid'
 }
 
+function isActiveBidGroup(group: ParsedAuctionBidGroup): boolean {
+  if (group.paymentNack) return false
+  if (group.settlement?.content.action === 'auction_refund') return false
+  return true
+}
+
+function amountUnits(amount: MarketplaceAmount): bigint {
+  return amount.value && /^\d+$/.test(amount.value) ? BigInt(amount.value) : 0n
+}
+
+function sumBidGroupAmounts(groups: ParsedAuctionBidGroup[]): MarketplaceAmount {
+  const amount = groups[0]?.amount ?? { value: '0', denomination: '', decimals: 0 }
+  const value = groups.reduce((sum, group) => {
+    if (group.amount.denomination !== amount.denomination || group.amount.decimals !== amount.decimals) return sum
+    return sum + amountUnits(group.amount)
+  }, 0n)
+  return {
+    value: value.toString(),
+    ...(amount.currency ? { currency: amount.currency } : {}),
+    denomination: amount.denomination,
+    decimals: amount.decimals,
+  }
+}
+
 export function parseAuctionBidGroupEvent(event: Event | AuctionBidGroupEvent): AuctionBidGroupEvent {
   if ('event' in event) return event
   if (event.kind === MarketplaceAuctionBid) return parseAuctionBidEvent(event)
@@ -176,18 +235,47 @@ export function parseAuctionBidGroupEvent(event: Event | AuctionBidGroupEvent): 
   throw new Error('Invalid auction bid group event kind')
 }
 
-export function auctionBidGroupFilter(query: AuctionBidGroupQuery): Filter {
+function auctionBidGroupBaseFilter(query: AuctionBidGroupQuery): Filter {
   return {
     kinds: auctionBidGroupEventKinds,
-    '#a': [query.auctionAnchor],
-    ...(query.bidIds && query.bidIds.length > 0 ? { '#d': unique(query.bidIds) } : {}),
-    ...(query.tradeIds && query.tradeIds.length > 0 ? { '#trade': unique(query.tradeIds) } : {}),
-    ...(query.authors && query.authors.length > 0 ? { authors: unique(query.authors) } : {}),
-    ...(query.participantPubkeys && query.participantPubkeys.length > 0 ? { '#p': unique(query.participantPubkeys) } : {}),
+    ...(query.auctionAnchor ? { '#a': [query.auctionAnchor] } : {}),
+    ...(query.tradeIds && query.tradeIds.length > 0 ? { '#d': unique(query.tradeIds) } : {}),
     ...(query.since !== undefined ? { since: query.since } : {}),
     ...(query.until !== undefined ? { until: query.until } : {}),
     ...(query.limit !== undefined ? { limit: query.limit } : {}),
   }
+}
+
+function auctionBidParticipantPubkeys(query: AuctionBidGroupQuery): string[] {
+  return unique([
+    ...(query.participantPubkeys ?? []),
+    ...(query.identity ? orderIdentityPubkeys(query.identity) : []),
+  ])
+}
+
+export function auctionBidGroupFilter(query: AuctionBidGroupQuery): Filter {
+  const participantPubkeys = auctionBidParticipantPubkeys(query)
+  return {
+    ...auctionBidGroupBaseFilter(query),
+    ...(query.authors && query.authors.length > 0 ? { authors: unique(query.authors) } : {}),
+    ...(participantPubkeys.length > 0 ? { '#p': participantPubkeys } : {}),
+  }
+}
+
+export function auctionBidGroupFilters(query: AuctionBidGroupQuery): Filter[] {
+  const base = auctionBidGroupBaseFilter(query)
+  const authors = unique(query.authors ?? [])
+  const participantPubkeys = auctionBidParticipantPubkeys(query)
+  const filters: Filter[] = []
+
+  for (const authorChunk of chunks(authors)) {
+    filters.push({ ...base, authors: authorChunk })
+  }
+  for (const participantChunk of chunks(participantPubkeys)) {
+    filters.push({ ...base, '#p': participantChunk })
+  }
+
+  return filters.length > 0 ? filters : [base]
 }
 
 export function reduceAuctionBidGroup(
@@ -207,12 +295,11 @@ export function reduceAuctionBidGroup(
 
   const payments = groupEvents.filter(isParsedPayment).filter(payment => {
     const valid =
-      payment.content.purpose === 'auction_bid' &&
       (
         payment.refs.auctionBids.some(id => bidEventIds.has(id)) ||
         (
           payment.listingAnchor === bid.auctionAnchor &&
-          payment.orderGroupId === bid.bidId &&
+          payment.orderGroupId === bid.tradeId &&
           payment.tradeId === bid.tradeId
         )
       )
@@ -225,24 +312,32 @@ export function reduceAuctionBidGroup(
   const paymentAcks = groupEvents.filter(isParsedPaymentAck).filter(ack => {
     const valid = refsPayment(ack, paymentIds) || (
       ack.listingAnchor === bid.auctionAnchor &&
-      ack.orderGroupId === bid.bidId &&
+      ack.orderGroupId === bid.tradeId &&
       ack.tradeId === bid.tradeId
     )
     if (!valid) ignoredEvents.push(ack)
     return valid
   })
-  const paymentAck = paymentAcks.reduce<ParsedOrderPaymentAck | undefined>(latestEvent, undefined)
 
   const paymentNacks = groupEvents.filter(isParsedPaymentNack).filter(nack => {
     const valid = refsPayment(nack, paymentIds) || (
       nack.listingAnchor === bid.auctionAnchor &&
-      nack.orderGroupId === bid.bidId &&
+      nack.orderGroupId === bid.tradeId &&
       nack.tradeId === bid.tradeId
     )
     if (!valid) ignoredEvents.push(nack)
     return valid
   })
-  const paymentNack = paymentNacks.reduce<ParsedOrderPaymentNack | undefined>(latestEvent, undefined)
+  const latestPaymentDecision = [...paymentAcks, ...paymentNacks]
+    .reduce<ParsedAuctionBidPaymentDecision | undefined>(latestEvent, undefined)
+  const paymentAck =
+    latestPaymentDecision && isParsedPaymentAck(latestPaymentDecision) && latestPaymentDecision.content.status === 'accepted'
+      ? latestPaymentDecision
+      : undefined
+  const paymentNack =
+    latestPaymentDecision && isParsedPaymentNack(latestPaymentDecision) && latestPaymentDecision.content.status === 'rejected'
+      ? latestPaymentDecision
+      : undefined
 
   const settlements = groupEvents.filter(isParsedSettlement).filter(settlement => {
     const valid = refsPayment(settlement, paymentIds) || settlement.refs.auctionBids.some(id => bidEventIds.has(id))
@@ -253,8 +348,7 @@ export function reduceAuctionBidGroup(
   const participantPubkeys = unique(bid.participants.map(participant => participant.pubkey)).sort((a, b) => a.localeCompare(b))
 
   return {
-    id: bid.bidId,
-    bidId: bid.bidId,
+    id: bid.tradeId,
     tradeId: bid.tradeId,
     auctionAnchor: bid.auctionAnchor,
     listingAnchor: bid.listingAnchor,
@@ -284,10 +378,74 @@ export function groupAuctionBidEvents(
   const bids = parsed.filter(isParsedBid)
   const buckets = new Map<string, AuctionBidGroupEvent[]>()
   for (const bid of bids) {
-    const key = `${bid.auctionAnchor}:${bid.bidId}`
+    const key = `${bid.auctionAnchor}:${bid.tradeId}`
     buckets.set(key, parsed.filter(event => sameBidGroup(event, bid)))
   }
   return [...buckets.values()].map(reduceAuctionBidGroup)
+}
+
+export function buildAuctionBidChains(groups: Iterable<ParsedAuctionBidGroup>): ParsedAuctionBidChain[] {
+  const activeGroups = [...groups].filter(isActiveBidGroup)
+  const groupByBidId = new Map(activeGroups.map(group => [group.bid.event.id, group]))
+  const childBidIds = new Set<string>()
+  for (const group of activeGroups) {
+    const previousBidId = auctionBidPrevBidId(group.bid)
+    if (previousBidId && groupByBidId.has(previousBidId)) childBidIds.add(previousBidId)
+  }
+
+  const heads = activeGroups.filter(group => !childBidIds.has(group.bid.event.id))
+  const visited = new Set<string>()
+  const chains: ParsedAuctionBidChain[] = []
+
+  function collect(head: ParsedAuctionBidGroup): ParsedAuctionBidChain {
+    const reversed: ParsedAuctionBidGroup[] = []
+    const seen = new Set<string>()
+    let complete = true
+    let current: ParsedAuctionBidGroup | undefined = head
+
+    while (current && !seen.has(current.bid.event.id)) {
+      reversed.push(current)
+      seen.add(current.bid.event.id)
+      visited.add(current.bid.event.id)
+      const previousBidId = auctionBidPrevBidId(current.bid)
+      if (!previousBidId) break
+      const previous = groupByBidId.get(previousBidId)
+      if (!previous) {
+        complete = false
+        break
+      }
+      current = previous
+    }
+
+    const chainGroups = reversed.reverse()
+    const amount = sumBidGroupAmounts(chainGroups)
+    return {
+      id: head.bid.event.id,
+      auctionAnchor: head.auctionAnchor,
+      listingAnchor: head.listingAnchor,
+      amount,
+      head,
+      groups: chainGroups,
+      bidEventIds: chainGroups.map(group => group.bid.event.id),
+      paymentEventIds: chainGroups.flatMap(group => group.payments.map(payment => payment.event.id)),
+      complete,
+    }
+  }
+
+  for (const head of heads) chains.push(collect(head))
+  for (const group of activeGroups) {
+    if (!visited.has(group.bid.event.id)) chains.push(collect(group))
+  }
+
+  return chains.sort((left, right) => {
+    const rightAmount = amountUnits(right.amount)
+    const leftAmount = amountUnits(left.amount)
+    if (rightAmount !== leftAmount) return rightAmount > leftAmount ? 1 : -1
+    if (right.head.bid.event.created_at !== left.head.bid.event.created_at) {
+      return right.head.bid.event.created_at - left.head.bid.event.created_at
+    }
+    return right.head.bid.event.id.localeCompare(left.head.bid.event.id)
+  })
 }
 
 export async function fetchAuctionBidGroups(
@@ -296,8 +454,33 @@ export async function fetchAuctionBidGroups(
   query: AuctionBidGroupQuery,
   options: AuctionBidGroupSearchOptions = {},
 ): Promise<ParsedAuctionBidGroup[]> {
-  const events = await pool.querySync(relays, auctionBidGroupFilter(query), options)
-  return groupAuctionBidEvents(events)
+  const uniqueEvents = new Map<string, Event>()
+  await Promise.all(auctionBidGroupFilters(query).map(async filter => {
+    const events = await pool.querySync(relays, filter, options)
+    for (const event of events) uniqueEvents.set(event.id, event)
+  }))
+  return groupAuctionBidEvents(uniqueEvents.values())
+}
+
+function auctionBidGroupHasBuyerIdentity(group: ParsedAuctionBidGroup, pubkeys: Set<string>): boolean {
+  if (pubkeys.has(group.bid.event.pubkey)) return true
+  if (group.participants.some(participant => participant.role === 'buyer' && pubkeys.has(participant.pubkey))) return true
+  return group.payments.some(payment =>
+    pubkeys.has(payment.event.pubkey) ||
+    payment.participants.some(participant => participant.role === 'buyer' && pubkeys.has(participant.pubkey)),
+  )
+}
+
+export async function fetchMyAuctionBidGroups(
+  pool: AuctionBidGroupQueryPool,
+  relays: string[],
+  query: MyAuctionBidGroupQuery,
+  options: AuctionBidGroupSearchOptions = {},
+): Promise<ParsedAuctionBidGroup[]> {
+  const identity = marketplaceAuctionBidIdentity(query.identity)
+  const groups = await fetchAuctionBidGroups(pool, relays, { ...query, identity }, options)
+  const pubkeys = new Set(orderIdentityPubkeys(identity))
+  return groups.filter(group => auctionBidGroupHasBuyerIdentity(group, pubkeys))
 }
 
 export function subscribeAuctionBidGroups(
@@ -309,8 +492,8 @@ export function subscribeAuctionBidGroups(
 ): SubCloser {
   const events = new Map<string, AuctionBidGroupEvent>()
   const seen = new Set<string>()
-  const filter = auctionBidGroupFilter(query)
-  const requests = relays.map(url => ({ url, filter }))
+  const filters = auctionBidGroupFilters(query)
+  const requests = relays.flatMap(url => filters.map(filter => ({ url, filter })))
   return pool.subscribeMap(requests, {
     ...options,
     onevent(event: Event) {
@@ -331,7 +514,7 @@ export function subscribeAuctionBidGroups(
         const group = groups.find(candidate =>
           candidate.payments.some(payment => parsed.refs.payments.includes(payment.event.id)) ||
           candidate.bid.event.id === parsed.refs.auctionBids[0] ||
-          (candidate.bidId === parsed.orderGroupId && candidate.tradeId === parsed.tradeId),
+          (candidate.tradeId === parsed.orderGroupId && candidate.tradeId === parsed.tradeId),
         )
         if (group) handlers.ongroup?.(group)
         return
@@ -351,9 +534,12 @@ export function subscribeAuctionBidGroups(
 export const auctionBidGroups = {
   eventKinds: auctionBidGroupEventKinds,
   filter: auctionBidGroupFilter,
+  filters: auctionBidGroupFilters,
   parseEvent: parseAuctionBidGroupEvent,
   reduce: reduceAuctionBidGroup,
   group: groupAuctionBidEvents,
+  chains: buildAuctionBidChains,
   fetch: fetchAuctionBidGroups,
+  fetchMine: fetchMyAuctionBidGroups,
   subscribe: subscribeAuctionBidGroups,
 }

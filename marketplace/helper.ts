@@ -2,8 +2,8 @@ import type { Event } from '../core.ts'
 import {
   CommitAuthorization,
   MarketplacePaymentMethod,
-  EscrowService,
-  EscrowServiceSelection,
+  ArbitrationService,
+  ArbitrationServiceSelection,
   MarketplaceOrderCancel,
   MarketplaceAuction,
   MarketplaceAuctionBid,
@@ -20,10 +20,26 @@ import {
 } from '../kinds.ts'
 import { bytesToHex, utf8Encoder } from '../utils.ts'
 import { sha256 } from '@noble/hashes/sha2.js'
+import type { MarketplaceDriverPaymentProofParams } from '@sudonym-btc/marketplace-driver-interface'
+import type {
+  MarketplaceParticipantRole,
+  MarketplaceParticipantTag,
+} from './participant.ts'
+export {
+  parseParticipantTag as parsePTag,
+  participantTag as pTag,
+} from './participant.ts'
+export type {
+  MarketplaceParticipantEntry,
+  MarketplaceParticipantGroupRole,
+  MarketplaceParticipantRecord,
+  MarketplaceParticipantRole,
+  MarketplaceParticipantTag,
+} from './participant.ts'
 
 export const paymentMethodKind = MarketplacePaymentMethod
-export const escrowServiceKind = EscrowService
-export const escrowServiceSelectionKind = EscrowServiceSelection
+export const arbitrationServiceKind = ArbitrationService
+export const arbitrationServiceSelectionKind = ArbitrationServiceSelection
 export const auctionKind = MarketplaceAuction
 export const auctionBidKind = MarketplaceAuctionBid
 export const auctionCompleteKind = MarketplaceAuctionComplete
@@ -41,8 +57,8 @@ export const structuredMessageKind = StructuredMessage
 
 export type RentOrBuy = 'rent' | 'buy'
 export type OrderStage = 'negotiate' | 'commit' | 'settled' | 'cancel'
-export type OrderParticipantRole = 'buyer' | 'seller' | 'escrow' | string
-export type EscrowType = 'EVM' | string
+export type OrderParticipantRole = MarketplaceParticipantRole
+export type ArbitrationType = 'EVM' | string
 export type PaymentMethod = 'zap' | 'evm' | string
 export type PaymentAckStatus = 'accepted'
 export type PaymentNackStatus = 'rejected'
@@ -54,8 +70,34 @@ export type PaymentSettlementAction =
   | 'auction_refund'
   | 'auction_promote'
   | string
+
+export const Currency = {
+  BTC: { decimals: 8 },
+  USD: { decimals: 2 },
+} as const
+
+export const Currencies = Currency
+
+export type CurrencyCode = keyof typeof Currency
+
+export type Amount<C extends CurrencyCode = CurrencyCode> = {
+  currency: C
+  value: bigint
+}
+
+export type WireAmount<C extends string = string> = {
+  currency: C
+  value: string
+}
+
 export type MarketplaceAmount = {
   value: string
+  /**
+   * Logical marketplace currency. Payment routes may settle this through
+   * assets with different denominations/decimals, but marketplace events
+   * should compare and display this currency, not the rail-specific asset.
+   */
+  currency?: string
   denomination: string
   decimals: number
 }
@@ -72,22 +114,17 @@ export type CancellationPolicy = {
   secondsAfterOrder?: number
 }
 
-export type PTag = {
-  pubkey: string
-  relayHint?: string
-  role?: OrderParticipantRole
-}
+export type PTag = MarketplaceParticipantTag
 
 export type PaymentProofEvidence = {
-  method: PaymentMethod
-  params: Record<string, unknown>
+  driver: string
+  params: MarketplaceDriverPaymentProofParams
 }
 
 export type PaymentProof = {
-  listing: Event
   paymentProof: PaymentProofEvidence | null
-  escrow?: {
-    escrowService: string | Event
+  arbitration?: {
+    arbitrationService: string | Event
     paymentMethod: string | Event
   }
 }
@@ -151,14 +188,82 @@ export function parseNonNegativeIntValue(value: unknown, field: string): number 
   return value
 }
 
+export function canonicalCurrency(value: string | undefined): string {
+  const normalized = (value ?? '').trim().toUpperCase()
+  if (normalized === 'SAT' || normalized === 'SATS' || normalized === 'XBT') return 'BTC'
+  if (normalized === 'USDT' || normalized === 'USDC') return 'USD'
+  return normalized
+}
+
+export function currencyDecimals(currency: string | undefined): number | undefined {
+  const normalized = canonicalCurrency(currency)
+  return normalized in Currency ? Currency[normalized as CurrencyCode].decimals : undefined
+}
+
+export function amountCurrency(amount: Pick<MarketplaceAmount, 'denomination'> & { currency?: string }): string {
+  return canonicalCurrency(amount.currency ?? amount.denomination)
+}
+
+export function scaleAmountValue(value: string, fromDecimals: number, toDecimals: number): bigint {
+  const units = BigInt(value)
+  if (fromDecimals === toDecimals) return units
+  if (fromDecimals < toDecimals) return units * 10n ** BigInt(toDecimals - fromDecimals)
+  const scale = 10n ** BigInt(fromDecimals - toDecimals)
+  if (units % scale !== 0n) {
+    throw new Error(`Amount ${value} cannot be converted from ${fromDecimals} to ${toDecimals} decimals`)
+  }
+  return units / scale
+}
+
+function amountDecimalsForCurrency(amount: Pick<MarketplaceAmount, 'denomination' | 'decimals'> & { currency?: string }): number {
+  const currency = amountCurrency(amount)
+  const denomination = canonicalCurrency(amount.denomination)
+  const rawDenomination = amount.denomination.trim().toUpperCase()
+  if (currency === 'BTC' && denomination === 'BTC' && (rawDenomination === 'SAT' || rawDenomination === 'SATS')) {
+    return amount.decimals + 8
+  }
+  return amount.decimals
+}
+
+export function normalizeMarketplaceAmount(amount: MarketplaceAmount): MarketplaceAmount {
+  const currency = amountCurrency(amount)
+  const decimals = currencyDecimals(currency)
+  if (decimals === undefined) return { ...amount, currency }
+  return {
+    value: scaleAmountValue(amount.value, amountDecimalsForCurrency(amount), decimals).toString(),
+    currency,
+    denomination: currency,
+    decimals,
+  }
+}
+
+export function amountFromCurrencyValue(currency: string, value: string | bigint): MarketplaceAmount {
+  const normalized = canonicalCurrency(currency)
+  const decimals = currencyDecimals(normalized)
+  if (decimals === undefined) throw new Error(`Unsupported marketplace currency: ${currency}`)
+  return {
+    value: value.toString(),
+    currency: normalized,
+    denomination: normalized,
+    decimals,
+  }
+}
+
 export function parseAmount(json: unknown): MarketplaceAmount | undefined {
   if (!json || typeof json !== 'object' || Array.isArray(json)) return undefined
   const value = (json as Record<string, unknown>).value
+  const currency = (json as Record<string, unknown>).currency
   const denomination = (json as Record<string, unknown>).denomination
   const decimals = (json as Record<string, unknown>).decimals
-  if (typeof value !== 'string' || typeof denomination !== 'string' || typeof decimals !== 'number') return undefined
+  if (typeof value !== 'string') return undefined
+  if (typeof currency === 'string') {
+    const logicalDecimals = currencyDecimals(currency)
+    if (logicalDecimals === undefined) return undefined
+    return amountFromCurrencyValue(currency, value)
+  }
+  if (typeof denomination !== 'string' || typeof decimals !== 'number') return undefined
   if (!Number.isSafeInteger(decimals) || decimals < 0) return undefined
-  return { value, denomination, decimals }
+  return normalizeMarketplaceAmount({ value, denomination, decimals })
 }
 
 export function parseEventJson(value: unknown, label: string): Event {
@@ -177,7 +282,7 @@ export function parseEventJson(value: unknown, label: string): Event {
   return event
 }
 
-export function eventToEscrowContextValue(event: Event | string): string {
+export function eventToArbitrationContextValue(event: Event | string): string {
   return typeof event === 'string' ? event : JSON.stringify(event)
 }
 
@@ -201,14 +306,15 @@ export function tagForBoolean(name: string, value: boolean): string[] {
 }
 
 export function amountToTag(name: string, amount: MarketplaceAmount): string[] {
-  return [name, amount.value, amount.denomination, amount.decimals.toString()]
+  const normalized = normalizeMarketplaceAmount(amount)
+  return [name, normalized.value, normalized.denomination, normalized.decimals.toString()]
 }
 
 export function amountFromTag(tag: string[] | undefined): MarketplaceAmount | undefined {
   if (!tag || tag.length < 4) return undefined
   const decimals = Number.parseInt(tag[3], 10)
   if (!Number.isSafeInteger(decimals) || decimals < 0) throw new Error(`Invalid ${tag[0]} decimals`)
-  return { value: tag[1], denomination: tag[2], decimals }
+  return normalizeMarketplaceAmount({ value: tag[1], denomination: tag[2], decimals })
 }
 
 export function parseCancellationPolicy(tag: string[]): CancellationPolicy {
@@ -240,15 +346,6 @@ export function cancellationPolicyTag(policy: CancellationPolicy): string[] {
     ...(policy.secondsBeforeStart !== undefined ? ['secondsBeforeStart', policy.secondsBeforeStart.toString()] : []),
     ...(policy.secondsAfterOrder !== undefined ? ['secondsAfterOrder', policy.secondsAfterOrder.toString()] : []),
   ]
-}
-
-export function parsePTag(tag: string[]): PTag | null {
-  if (tag[0] !== 'p' || !tag[1]) return null
-  return { pubkey: tag[1], relayHint: tag[2] ?? '', ...(tag[3] ? { role: tag[3] } : {}) }
-}
-
-export function pTag(participant: PTag): string[] {
-  return ['p', participant.pubkey, participant.relayHint ?? '', ...(participant.role ? [participant.role] : [])]
 }
 
 export function isIsoDuration(value: string): boolean {

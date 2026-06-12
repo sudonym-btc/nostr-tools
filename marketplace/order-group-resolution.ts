@@ -1,8 +1,6 @@
-import { TradeKeyAuthorization } from '../kinds.ts'
-import { verifyEvent } from '../pure.ts'
-import { parseEventJson, sha256Hex } from './helper.ts'
-import type { ParticipantProofTag } from './order.ts'
+import type { ParticipantProofKeyTag, ParticipantProofTag } from './order.ts'
 import { isOrderGroupRole, type OrderGroupRole } from './order-id.ts'
+import { resolveParticipantProof as resolveParticipantProofTag } from './participant-proof.ts'
 import type {
   Nip44DecryptSigner,
   OrderGroupResolutionStatus,
@@ -11,18 +9,6 @@ import type {
   ResolvedTradeParticipant,
   ResolveOrderGroupParticipantsOptions,
 } from './order-group-types.ts'
-
-function hasTag(event: { tags: string[][] }, name: string, value: string): boolean {
-  return event.tags.some(tag => tag[0] === name && tag[1] === value)
-}
-
-function parseTradeKeyAuthorizationContent(content: string): { role: string; participantPubkey: string } {
-  const json = JSON.parse(content) as Record<string, unknown>
-  if (typeof json.role !== 'string' || typeof json.participantPubkey !== 'string') {
-    throw new Error('Invalid trade key authorization content')
-  }
-  return { role: json.role, participantPubkey: json.participantPubkey }
-}
 
 function participantProofsFor(
   group: ParsedOrderGroup,
@@ -34,15 +20,27 @@ function participantProofsFor(
   for (const order of group.orders) {
     for (const proof of order.participantProofs) {
       if (proof.role !== role || proof.participantPubkey !== tradePubkey) continue
-      const key = [proof.role, proof.participantPubkey, proof.recipientPubkey, proof.payloadHash, proof.payload].join(
-        ':',
-      )
+      const key = [proof.role, proof.participantPubkey, proof.proofId, proof.mode, proof.payload].join(':')
       if (seen.has(key)) continue
       seen.add(key)
       proofs.push(proof)
     }
   }
   return proofs
+}
+
+function participantProofKeysFor(group: ParsedOrderGroup): ParticipantProofKeyTag[] {
+  const seen = new Set<string>()
+  const keys: ParticipantProofKeyTag[] = []
+  for (const order of group.orders) {
+    for (const key of order.participantProofKeys) {
+      const cacheKey = [key.proofId, key.recipientPubkey, key.senderPubkey, key.scheme, key.payload].join(':')
+      if (seen.has(cacheKey)) continue
+      seen.add(cacheKey)
+      keys.push(key)
+    }
+  }
+  return keys
 }
 
 function publicParticipants(group: ParsedOrderGroup): { role: OrderGroupRole; tradePubkey: string }[] {
@@ -56,8 +54,8 @@ function publicParticipants(group: ParsedOrderGroup): { role: OrderGroupRole; tr
     }
   }
   participants.set(`seller:${group.sellerPubkey}`, { role: 'seller', tradePubkey: group.sellerPubkey })
-  for (const escrowPubkey of group.escrowPubkeys) {
-    participants.set(`escrow:${escrowPubkey}`, { role: 'escrow', tradePubkey: escrowPubkey })
+  for (const arbiterPubkey of group.arbiterPubkeys) {
+    participants.set(`arbiter:${arbiterPubkey}`, { role: 'arbiter', tradePubkey: arbiterPubkey })
   }
   return [...participants.values()].sort((a, b) => {
     const role = a.role.localeCompare(b.role)
@@ -74,61 +72,35 @@ async function resolveParticipantProof(
   const base = {
     role: proof.role as OrderGroupRole,
     tradePubkey: proof.participantPubkey,
-    proofRecipientPubkey: proof.recipientPubkey,
-    proofPayloadHash: proof.payloadHash,
+    proofId: proof.proofId,
   }
 
   if (!isOrderGroupRole(proof.role)) {
     return { ...base, role: 'buyer', proofStatus: 'invalid', error: 'Invalid participant proof role' }
   }
-  if (proof.scheme !== 'nip44') {
-    return { ...base, proofStatus: 'unsupported', error: 'Unsupported participant proof scheme' }
-  }
-  if (!signer) return { ...base, proofStatus: 'not_for_us', error: 'No signer available for participant proof' }
-  if (signerPubkey && proof.recipientPubkey !== signerPubkey) {
-    return { ...base, proofStatus: 'not_for_us', error: 'Participant proof is addressed to another recipient' }
-  }
-
-  let plaintext: string
-  try {
-    plaintext = await signer.nip44Decrypt(proof.participantPubkey, proof.payload)
-  } catch (err) {
-    return {
-      ...base,
-      proofStatus: 'not_for_us',
-      error: err instanceof Error ? err.message : 'Unable to decrypt participant proof',
-    }
-  }
-
-  try {
-    if (sha256Hex(plaintext) !== proof.payloadHash) throw new Error('Participant proof payload hash mismatch')
-    const authorization = parseEventJson(plaintext, 'trade key authorization')
-    if (authorization.kind !== TradeKeyAuthorization) throw new Error('Invalid trade key authorization kind')
-    if (!verifyEvent(authorization)) throw new Error('Invalid trade key authorization signature')
-    if (!hasTag(authorization, 'a', group.listingAnchor)) {
-      throw new Error('Trade key authorization listing anchor mismatch')
-    }
-    if (!hasTag(authorization, 'trade', group.tradeId)) throw new Error('Trade key authorization trade id mismatch')
-    if (hasTag(authorization, 'd', group.id) === false && authorization.tags.some(tag => tag[0] === 'd')) {
-      throw new Error('Trade key authorization order group id mismatch')
-    }
-    const content = parseTradeKeyAuthorizationContent(authorization.content)
-    if (content.role !== proof.role) throw new Error('Trade key authorization role mismatch')
-    if (content.participantPubkey !== proof.participantPubkey) {
-      throw new Error('Trade key authorization participant pubkey mismatch')
-    }
+  const resolved = await resolveParticipantProofTag(proof, {
+    listingAnchor: group.listingAnchor,
+    tradeId: group.tradeId,
+    orderGroupId: group.id,
+    role: proof.role,
+    participantPubkey: proof.participantPubkey,
+  }, {
+    signer,
+    signerPubkey,
+    keys: participantProofKeysFor(group),
+  })
+  if (resolved.status === 'resolved') {
     return {
       ...base,
       proofStatus: 'resolved',
-      realPubkey: authorization.pubkey,
-      authorizationEventId: authorization.id,
+      realPubkey: resolved.realPubkey,
+      authorizationEventId: resolved.authorizationEventId,
     }
-  } catch (err) {
-    return {
-      ...base,
-      proofStatus: 'invalid',
-      error: err instanceof Error ? err.message : 'Invalid participant proof',
-    }
+  }
+  return {
+    ...base,
+    proofStatus: resolved.status === 'missing' ? 'missing' : resolved.status,
+    error: resolved.error,
   }
 }
 
@@ -152,8 +124,8 @@ export async function resolveOrderGroupParticipants(
 
   for (const participant of publicParticipants(group)) {
     const publicSeller = participant.role === 'seller' && participant.tradePubkey === group.listingOwnerPubkey
-    const publicEscrow = participant.role === 'escrow' && group.escrowPubkeys.includes(participant.tradePubkey)
-    if (publicSeller || publicEscrow) {
+    const publicArbiter = participant.role === 'arbiter' && group.arbiterPubkeys.includes(participant.tradePubkey)
+    if (publicSeller || publicArbiter) {
       resolved.push({
         ...participant,
         realPubkey: participant.tradePubkey,

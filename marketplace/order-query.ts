@@ -9,16 +9,10 @@ import {
   MarketplacePaymentNack,
   MarketplacePaymentSettlement,
 } from '../kinds.ts'
-import { deriveMarketplaceTradeMaterial, normalizeMarketplaceSeed } from './seed.ts'
+import { marketplaceIdentityPubkeys, type MarketplaceOrderIdentity } from './identity.ts'
 import { parseOrderEvent, type ParsedOrder } from './order.ts'
-import type { OrderGroupRole } from './order-id.ts'
 
-export type MarketplaceOrderIdentity = {
-  pubkey?: string
-  seed?: string
-  roles?: OrderGroupRole[]
-  tempKeyWindow?: number
-}
+export type { MarketplaceOrderIdentity } from './identity.ts'
 
 export type OrderQuery = {
   tradeIds?: string[]
@@ -58,20 +52,6 @@ export const MarketplaceOrderGroupKinds = [
 type OrderQueryPool = Pick<AbstractSimplePool, 'querySync'>
 type OrderSubscribePool = Pick<AbstractSimplePool, 'subscribeMap'>
 
-function filterSummary(filter: Filter): Record<string, unknown> {
-  return {
-    kinds: filter.kinds,
-    authors: filter.authors?.length ?? 0,
-    participantPubkeys: filter['#p']?.length ?? 0,
-    tradeIds: filter['#trade']?.length ?? 0,
-    orderGroupIds: filter['#d']?.length ?? 0,
-    listingAnchors: filter['#a']?.length ?? 0,
-    limit: filter.limit,
-    since: filter.since,
-    until: filter.until,
-  }
-}
-
 function unique(values: Iterable<string | undefined>): string[] {
   return [...new Set([...values].filter((value): value is string => typeof value === 'string' && value.length > 0))]
 }
@@ -82,41 +62,7 @@ function chunks<T>(values: T[], size = defaultPubkeyChunkSize): T[][] {
   return output
 }
 
-function safeTempKeyWindow(value: number | undefined): number {
-  const window = value ?? 0
-  if (!Number.isSafeInteger(window) || window < 0) throw new Error(`Invalid tempKeyWindow: ${value}`)
-  return window
-}
-
-function identityRoles(identity: MarketplaceOrderIdentity): OrderGroupRole[] {
-  return identity.roles && identity.roles.length > 0 ? identity.roles : ['buyer']
-}
-
-export function orderIdentityPubkeys(identity: MarketplaceOrderIdentity = {}): string[] {
-  const pubkeys: string[] = []
-  if (identity.pubkey) pubkeys.push(identity.pubkey)
-  const tempKeyWindow = safeTempKeyWindow(identity.tempKeyWindow)
-  if (identity.seed && tempKeyWindow > 0) {
-    const seed = normalizeMarketplaceSeed(identity.seed)
-    for (const role of identityRoles(identity)) {
-      for (let index = 0; index < tempKeyWindow; index += 1) {
-        pubkeys.push(deriveMarketplaceTradeMaterial(seed, { index, role }).tradePubkey)
-        if (role === 'buyer') {
-          pubkeys.push(deriveMarketplaceTradeMaterial(seed, { index, role, extra: 'auction-bid' }).tradePubkey)
-        }
-      }
-    }
-  }
-  const derived = unique(pubkeys)
-  console.debug('[nostr-tools/marketplace] derived order identity pubkeys', {
-    hasPubkey: Boolean(identity.pubkey),
-    hasSeed: Boolean(identity.seed),
-    roles: identityRoles(identity),
-    tempKeyWindow,
-    pubkeyCount: derived.length,
-  })
-  return derived
-}
+export const orderIdentityPubkeys = marketplaceIdentityPubkeys
 
 function baseOrderFilter(query: OrderQuery, kinds: number[] = [MarketplaceOrder]): Filter {
   return {
@@ -143,17 +89,7 @@ function filtersForKinds(query: OrderQuery = {}, kinds: number[] = [MarketplaceO
   for (const participantChunk of chunks(participantPubkeys)) {
     filters.push({ ...base, '#p': participantChunk })
   }
-  const resolved = filters.length > 0 ? filters : [base]
-  console.debug('[nostr-tools/marketplace] built order filters', {
-    filterCount: resolved.length,
-    authorPubkeys: authors.length,
-    participantPubkeys: participantPubkeys.length,
-    tradeIds: query.tradeIds?.length ?? 0,
-    orderGroupIds: query.orderGroupIds?.length ?? 0,
-    listingAnchors: query.listingAnchors?.length ?? 0,
-    limit: query.limit,
-  })
-  return resolved
+  return filters.length > 0 ? filters : [base]
 }
 
 export function orderFilters(query: OrderQuery = {}): Filter[] {
@@ -172,46 +108,17 @@ export async function searchOrders(
 ): Promise<ParsedOrder[]> {
   const uniqueEvents = new Map<string, Event>()
   const filters = orderFilters(query)
-  console.debug('[nostr-tools/marketplace] searching orders', {
-    relayCount: relays.length,
-    filterCount: filters.length,
-    maxWait: options.maxWait,
-  })
   await Promise.all(filters.map(async filter => {
-    try {
-      const events = await pool.querySync(relays, filter, options)
-      console.debug('[nostr-tools/marketplace] order filter returned events', {
-        ...filterSummary(filter),
-        eventCount: events.length,
-      })
-      for (const event of events) uniqueEvents.set(event.id, event)
-    } catch (err) {
-      console.warn('[nostr-tools/marketplace] order filter query failed', filterSummary(filter), err)
-      throw err
-    }
+    const events = await pool.querySync(relays, filter, options)
+    for (const event of events) uniqueEvents.set(event.id, event)
   }))
   const events = [...uniqueEvents.values()]
   const orders: ParsedOrder[] = []
-  const invalid: { eventId: string; kind: number; error: string }[] = []
   for (const event of events) {
     try {
       orders.push(parseOrderEvent(event))
-    } catch (err) {
-      invalid.push({
-        eventId: event.id,
-        kind: event.kind,
-        error: err instanceof Error ? err.message : String(err),
-      })
-    }
+    } catch (_) {}
   }
-  if (invalid.length > 0) {
-    console.warn('[nostr-tools/marketplace] ignoring invalid order events', { invalid })
-  }
-  console.debug('[nostr-tools/marketplace] order search complete', {
-    eventCount: events.length,
-    validOrderCount: orders.length,
-    invalidCount: invalid.length,
-  })
   return orders
 }
 
@@ -225,12 +132,6 @@ export function subscribeOrders(
   const filters = orderFilters(query)
   const requests = relays.flatMap(url => filters.map(filter => ({ url, filter })))
   const seen = new Set<string>()
-  console.debug('[nostr-tools/marketplace] subscribing to orders', {
-    relayCount: relays.length,
-    filterCount: filters.length,
-    requestCount: requests.length,
-    label: options.label,
-  })
   return pool.subscribeMap(requests, {
     ...options,
     onevent(event: Event) {
@@ -239,21 +140,13 @@ export function subscribeOrders(
       try {
         handlers.onevent?.(parseOrderEvent(event))
       } catch (err) {
-        console.warn('[nostr-tools/marketplace] subscription received invalid order event', {
-          eventId: event.id,
-          kind: event.kind,
-        }, err)
         handlers.oninvalid?.(event, err instanceof Error ? err : new Error('Invalid marketplace order'))
       }
     },
     oneose() {
-      console.debug('[nostr-tools/marketplace] order subscription received EOSE', {
-        seenEvents: seen.size,
-      })
       handlers.oneose?.()
     },
     onclose(reasons) {
-      console.debug('[nostr-tools/marketplace] order subscription closed', { reasons })
       handlers.onclose?.(reasons)
     },
   })

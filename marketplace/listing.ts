@@ -9,6 +9,7 @@ import {
   firstTag,
   isIsoDuration,
   now,
+  normalizeMarketplaceAmount,
   parseCancellationPolicy,
   parseOptionalInt,
   parsePositiveInt,
@@ -94,6 +95,13 @@ export type ListingSearchQuery = {
   until?: number
 }
 
+export type MarketplaceListingPriceOptions = {
+  end?: Date | number | string
+  price?: MarketplacePrice
+  priceIndex?: number
+  start?: Date | number | string
+}
+
 export const marketplaceListingTagPromotions: readonly TagPromotion[] = [
   tagPromotion.direct('autoAccept', 'I'),
   tagPromotion.direct('rentOrBuy', 'M'),
@@ -112,6 +120,61 @@ function parsePrices(event: Event): MarketplacePrice[] {
 
 function rentOrBuyForPrices(prices: MarketplacePrice[]): RentOrBuy {
   return prices.some(price => price.frequency) ? 'rent' : 'buy'
+}
+
+function parseDecimalAmount(value: string): { units: bigint; decimals: number } {
+  const match = value.trim().match(/^(\d+)(?:\.(\d+))?$/)
+  if (!match) throw new Error(`Invalid decimal amount: ${value}`)
+  const [, whole, fraction = ''] = match
+  return {
+    units: BigInt(`${whole}${fraction}`),
+    decimals: fraction.length,
+  }
+}
+
+function timeValue(value: Date | number | string | undefined): number | undefined {
+  if (value === undefined) return undefined
+  const time = value instanceof Date ? value.getTime() : new Date(value).getTime()
+  return Number.isFinite(time) ? time : undefined
+}
+
+function daysBetween(start: Date | number | string | undefined, end: Date | number | string | undefined): number {
+  const left = timeValue(start)
+  const right = timeValue(end)
+  if (left === undefined || right === undefined || right <= left) return 1
+  return Math.max(1, Math.ceil((right - left) / 86_400_000))
+}
+
+function listingPriceMultiplier(
+  frequency: string | undefined,
+  options: Pick<MarketplaceListingPriceOptions, 'end' | 'start'>,
+): bigint {
+  if (!frequency) return 1n
+  const normalized = frequency.trim().toLowerCase()
+  if (normalized === 'p1d' || normalized.includes('day')) return BigInt(daysBetween(options.start, options.end))
+  return 1n
+}
+
+function selectListingPrice(listing: MarketplaceListing, options: MarketplaceListingPriceOptions): MarketplacePrice {
+  const price = options.price ?? listing.prices[options.priceIndex ?? 0]
+  if (!price) throw new Error('Listing price not found')
+  return price
+}
+
+export function listingPriceAmount(
+  listing: MarketplaceListing,
+  options: MarketplaceListingPriceOptions = {},
+): MarketplaceAmount {
+  const price = selectListingPrice(listing, options)
+  const parsed = parseDecimalAmount(price.amount)
+  const multiplier = listingPriceMultiplier(price.frequency, options)
+  return {
+    ...normalizeMarketplaceAmount({
+      value: (parsed.units * multiplier).toString(),
+      denomination: price.currency,
+      decimals: parsed.decimals,
+    }),
+  }
 }
 
 export function validateListingEvent(event: Event): boolean {
@@ -208,6 +271,20 @@ export function generateListingEventTemplate(listing: MarketplaceListingTemplate
   }
 }
 
+export function listingAnchor(listing: Event | MarketplaceListing): string {
+  const parsed = 'event' in listing ? listing : parseListingEvent(listing)
+  return `${parsed.event.kind}:${parsed.event.pubkey}:${parsed.d}`
+}
+
+export function listingAnchorParts(anchor: string): { kind: number; pubkey: string; d: string } {
+  const [kindValue, pubkey, ...rest] = anchor.split(':')
+  const kind = Number.parseInt(kindValue, 10)
+  if (!Number.isSafeInteger(kind) || !pubkey || rest.length === 0) {
+    throw new Error(`Invalid listing anchor: ${anchor}`)
+  }
+  return { kind, pubkey, d: rest.join(':') }
+}
+
 export function listingSearchFilter(query: ListingSearchQuery = {}): Filter {
   const filter: Filter = {
     kinds: query.kinds ?? [ClassifiedListing],
@@ -237,10 +314,51 @@ export async function searchListings(
   return events.filter(validateListingEvent).map(parseListingEvent)
 }
 
+export async function findListing(
+  pool: Pick<AbstractSimplePool, 'querySync'>,
+  relays: string[],
+  pubkey: string,
+  query: Omit<ListingSearchQuery, 'authors' | 'limit'> = {},
+): Promise<MarketplaceListing | null> {
+  const listings = await searchListings(pool, relays, {
+    ...query,
+    authors: [pubkey],
+    limit: 1,
+  })
+  return listings[0] ?? null
+}
+
+export async function findListingById(
+  pool: Pick<AbstractSimplePool, 'querySync'>,
+  relays: string[],
+  id: string,
+): Promise<MarketplaceListing | null> {
+  const [event] = await pool.querySync(relays, { ids: [id], limit: 1 })
+  if (!event || !validateListingEvent(event)) return null
+  return parseListingEvent(event)
+}
+
+export async function findListingByAnchor(
+  pool: Pick<AbstractSimplePool, 'querySync'>,
+  relays: string[],
+  anchor: string,
+): Promise<MarketplaceListing | null> {
+  const { kind, pubkey, d } = listingAnchorParts(anchor)
+  return findListing(pool, relays, pubkey, {
+    kinds: [kind],
+    tagFilters: { d: [d] },
+  })
+}
+
 export const listings = {
+  anchor: listingAnchor,
   parse: parseListingEvent,
   validate: validateListingEvent,
   template: generateListingEventTemplate,
   filters: { search: listingSearchFilter },
+  price: listingPriceAmount,
+  findOne: findListing,
+  findById: findListingById,
+  findByAnchor: findListingByAnchor,
   search: searchListings,
 }

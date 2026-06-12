@@ -14,19 +14,19 @@ import {
   type ParsedPaymentMethod,
 } from './paymentmethod.ts'
 import {
-  escrowServiceFilter,
-  findEscrowService,
-  generateEscrowServiceEventTemplate,
-  parseEscrowServiceEvent,
-  parseEscrowServiceSelectionEvent,
-  searchEscrowServices,
-  validateEscrowServiceEvent,
-  validateEscrowServiceSelectionEvent,
-  generateEscrowServiceSelectionEventTemplate,
-  calculateEscrowFee,
-  type EscrowServiceFindQuery,
-  type ParsedEscrowService,
-} from './escrowservice.ts'
+  arbitrationServiceFilter,
+  findArbitrationService,
+  generateArbitrationServiceEventTemplate,
+  parseArbitrationServiceEvent,
+  parseArbitrationServiceSelectionEvent,
+  searchArbitrationServices,
+  validateArbitrationServiceEvent,
+  validateArbitrationServiceSelectionEvent,
+  generateArbitrationServiceSelectionEventTemplate,
+  calculateArbitrationFee,
+  type ArbitrationServiceFindQuery,
+  type ParsedArbitrationService,
+} from './arbitrationservice.ts'
 import {
   generateListingEventTemplate,
   listingSearchFilter,
@@ -152,6 +152,10 @@ import type {
   MarketplacePaymentValidationRequest,
   MarketplacePaymentValidationResult,
 } from './payment-validation.ts'
+import { normalizePaymentValidationResult } from './payment-validation.ts'
+import { resolvePaymentAmount } from './payment-amount.ts'
+import { paymentProofParamsDecryptor } from './payment-proof.ts'
+import { isMarketplaceDriverEncryptedPaymentProofParams } from '@sudonym-btc/marketplace-driver-interface'
 import type {
   MarketplacePolicyWatermarkRecoveryAction,
   MarketplacePolicyWatermarkContext,
@@ -175,10 +179,10 @@ import type {
   MarketplacePaymentIntent,
   MarketplacePaymentRecoveryItem,
   MarketplacePaymentRecoveryState,
-  MarketplaceEscrowArbitrationIntent,
-  MarketplaceEscrowArbitrationState,
-  MarketplaceEscrowArbitrationRequest,
-  MarketplaceEscrowArbitrationRuntimeState,
+  MarketplacePaymentArbitrationIntent,
+  MarketplacePaymentArbitrationState,
+  MarketplacePaymentArbitrationRequest,
+  MarketplacePaymentArbitrationRuntimeState,
   MarketplaceAuctionSettlementRequest,
   MarketplaceAuctionBidSettlementInput,
   MarketplaceAuctionBidValidation,
@@ -212,16 +216,16 @@ import type {
   MarketplaceRuntimeIdentity,
   MarketplaceRuntimePool,
   MarketplaceRuntimeOptions,
-  MarketplaceEscrowStartEvent,
-  MarketplaceEscrowStartOptions,
-  MarketplaceEscrowRuntime,
+  MarketplaceArbitrationStartEvent,
+  MarketplaceArbitrationStartOptions,
+  MarketplaceArbitrationRuntime,
   MarketplaceSessionIdentity,
   MarketplaceBindOptions,
   MarketplaceSessionOptions,
   MarketplaceListingsApi,
   MarketplacePaymentMethodApi,
-  MarketplaceEscrowServicesApi,
-  MarketplaceEscrowServiceSelectionsApi,
+  MarketplaceArbitrationServicesApi,
+  MarketplaceArbitrationServiceSelectionsApi,
   MarketplaceOrderGroupsApi,
   MarketplaceOrdersApi,
   MarketplaceReviewsApi,
@@ -230,13 +234,31 @@ import type {
   MarketplaceAuctionsApi,
   MarketplaceAuctionBidGroupsApi,
   MarketplacePaymentsApi,
-  MarketplaceEscrowApi,
+  MarketplaceArbitrationApi,
   MarketplaceClient,
   MarketplaceSessionSeedEnsureOptions,
   MarketplaceSessionSeedEnsureResult,
   MarketplaceSessionSeedApi,
   MarketplaceSession,
+  MarketplaceLogEntry,
+  MarketplaceLogger,
 } from './runtime-types.ts'
+
+const noopMarketplaceLogger: MarketplaceLogger = {
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+}
+
+export function marketplaceLogger(
+  opts: MarketplaceRuntimeOptions,
+  scope: string,
+  data?: MarketplaceLogEntry['data'],
+): MarketplaceLogger {
+  if (!opts.logger) return noopMarketplaceLogger
+  return opts.logger.child?.({ scope, ...(data ? { data } : {}) }) ?? opts.logger
+}
 
 export function runtimeSeed(opts: MarketplaceRuntimeOptions, seed?: string): string {
   const resolved = seed ?? opts.seed
@@ -346,7 +368,11 @@ export async function validateGroupsWithRuntimePolicies(
   const policies = paymentValidationPolicies(paymentPolicies(opts))
   if (policies.length === 0) return groups
   return Promise.all(groups.map(async group => {
-    const validated = await validateOrderGroupPayments(group, { policies, reduceOptions })
+    const validated = await validateOrderGroupPayments(group, {
+      policies,
+      reduceOptions,
+      ...(opts.signer ? { signer: opts.signer } : {}),
+    })
     return validated.group
   }))
 }
@@ -355,21 +381,24 @@ export function paymentRecoveryItemForGroup(
   group: ParsedOrderGroup,
   payment: ParsedOrderPayment = group.payment!,
   now?: number,
+  amount = payment?.content.amount,
 ): MarketplacePaymentRecoveryItem | undefined {
   const order = group.buyerOrder ?? group.orders[0]
-  const paymentProof = payment?.content.proof.paymentProof ?? undefined
-  if (!order || !payment || !paymentProof) return undefined
+  const paymentProof = payment?.content.proof?.paymentProof ?? undefined
+  if (!order || !payment || !paymentProof || !amount) return undefined
   const request = paymentValidationRequest({
     group,
     order,
+    payment,
+    amount,
     paymentProof,
-    ...(payment.content.proof.escrow?.escrowService
-      ? { escrowService: payment.content.proof.escrow.escrowService as Event }
+    ...(payment.content.proof?.arbitration?.arbitrationService
+      ? { arbitrationService: payment.content.proof.arbitration.arbitrationService as Event }
       : {}),
     ...(now !== undefined ? { now } : {}),
   })
   return {
-    subject: payment.content.purpose === 'auction_bid' || paymentProof.params.subject === 'bid' ? 'bid' : 'order',
+    purpose: payment.refs.auctionBids.length > 0 ? 'bid' : 'order',
     group,
     payment,
     proof: paymentProof,
@@ -394,10 +423,11 @@ export function sameMethod(left: string, right: string): boolean {
 
 export function paymentPolicyMatchesDescriptor(
   descriptor: MarketplacePaymentPolicy,
-  item: { proof: PaymentProofEvidence; expected: MarketplacePaymentValidationRequest['expected'] },
+  item: { proof: PaymentProofEvidence; expected?: MarketplacePaymentValidationRequest['expected'] },
 ): boolean {
-  if (!sameMethod(descriptor.method, item.proof.method)) return false
-  const params = item.proof.params
+  const params = isMarketplaceDriverEncryptedPaymentProofParams(item.proof.params)
+    ? {}
+    : item.proof.params as Record<string, unknown>
   const policyId = typeof params.policyId === 'string' ? params.policyId : undefined
   if (policyId && descriptor.id !== policyId) return false
   const policyType = typeof params.policyType === 'string' ? params.policyType : undefined
@@ -407,17 +437,17 @@ export function paymentPolicyMatchesDescriptor(
       ? params.policyHash
       : typeof params.contractBytecodeHash === 'string'
         ? params.contractBytecodeHash
-        : item.expected.contract?.bytecodeHash
+        : item.expected?.contract?.bytecodeHash
   if (descriptor.hash && policyHash && !samePolicyHash(descriptor.hash, policyHash)) return false
   const chainId =
     typeof params.chainId === 'number'
       ? params.chainId
-      : item.expected.contract?.chainId
+      : item.expected?.contract?.chainId
   if (descriptor.chainId !== undefined && chainId !== undefined && descriptor.chainId !== chainId) return false
   const contractAddress =
     typeof params.contractAddress === 'string'
       ? params.contractAddress
-      : item.expected.contract?.address
+      : item.expected?.contract?.address
   if (
     descriptor.contractAddress &&
     contractAddress &&
@@ -432,11 +462,7 @@ export function policyForPayment(
   opts: MarketplaceRuntimeOptions,
   item: MarketplacePaymentRecoveryItem,
 ): MarketplacePaymentPolicyImplementation | undefined {
-  return paymentPolicies(opts).find(policy =>
-    policy.subject === item.subject &&
-    policy.method === item.proof.method &&
-    policyDescriptors(policy).some(descriptor => paymentPolicyMatchesDescriptor(descriptor, item)),
-  )
+  return paymentPolicies(opts).find(policy => policyName(policy) === item.proof.driver)
 }
 
 export async function paymentItemsForMyOrderGroups(
@@ -448,7 +474,9 @@ export async function paymentItemsForMyOrderGroups(
   const items: MarketplacePaymentRecoveryItem[] = []
   for (const group of buckets.all) {
     for (const payment of group.payments) {
-      const item = paymentRecoveryItemForGroup(group, payment, options.now)
+      const amount = await resolvePaymentAmount(payment, { signer: opts.signer })
+      if (amount.status !== 'resolved' || !amount.amount) continue
+      const item = paymentRecoveryItemForGroup(group, payment, options.now, amount.amount)
       if (item) items.push(item)
     }
   }
@@ -465,7 +493,7 @@ export async function* recoverMarketplacePayment(
       type: 'noop',
       data: {
         reason: policy ? 'policy has no recover hook' : 'no matching payment policy',
-        method: item.proof.method,
+        driver: item.proof.driver,
         paymentId: item.payment.event.id,
       },
     }
@@ -482,25 +510,39 @@ export async function validateMarketplacePayment(
   const policy = policyForPayment(opts, payment)
   if (!policy?.validatePayment) {
     return {
-      method: payment.proof.method,
+      driver: payment.proof.driver,
       status: 'unverifiable',
       proofEventId: payment.payment.event.id,
       error: policy ? 'Policy has no payment validator' : 'No matching payment policy',
     }
   }
-  return policy.validatePayment({
-    method: payment.proof.method,
+  const amount = await resolvePaymentAmount(payment.payment, { signer: opts.signer })
+  if (amount.status !== 'resolved' || !amount.amount) {
+    return {
+      driver: payment.proof.driver,
+      status: 'unverifiable',
+      proofEventId: payment.payment.event.id,
+      error: amount.error ?? 'Payment amount could not be resolved',
+    }
+  }
+  const result = await policy.validatePayment({
+    driver: payment.proof.driver,
     proof: payment.proof,
-    expected: payment.expected,
+    ...(payment.expected ? { expected: payment.expected } : {}),
+    decryptParams: paymentProofParamsDecryptor({
+      keys: payment.payment.paymentProofKeys,
+      signer: opts.signer,
+    }),
   })
+  return normalizePaymentValidationResult(result, amount.amount)
 }
 
-export function requireEscrowPublisher(opts: MarketplaceRuntimeOptions): {
+export function requireArbitrationPublisher(opts: MarketplaceRuntimeOptions): {
   signer: MarketplaceSeedSigner
   publish: (event: Event) => unknown | Promise<unknown>
 } {
-  if (!opts.signer) throw new Error('Marketplace escrow mode requires a signer')
-  if (!opts.publish) throw new Error('Marketplace escrow mode requires a publish function')
+  if (!opts.signer) throw new Error('Marketplace arbitration mode requires a signer')
+  if (!opts.publish) throw new Error('Marketplace arbitration mode requires a publish function')
   return { signer: opts.signer, publish: opts.publish }
 }
 
@@ -513,7 +555,7 @@ export async function publishMarketplaceTemplate(
   opts: MarketplaceRuntimeOptions,
   template: EventTemplate,
 ): Promise<Event> {
-  const { signer, publish } = requireEscrowPublisher(opts)
+  const { signer, publish } = requireArbitrationPublisher(opts)
   const event = await signer.signEvent(template)
   await publish(event)
   return event
@@ -521,6 +563,18 @@ export async function publishMarketplaceTemplate(
 
 export async function publishMarketplaceEvent(opts: MarketplaceRuntimeOptions, event: Event): Promise<Event> {
   const publish = requireMarketplacePublisher(opts)
-  await publish(event)
-  return event
+  const logger = marketplaceLogger(opts, 'marketplace.runtime.publish', {
+    kind: event.kind,
+    eventId: event.id,
+    pubkey: event.pubkey,
+  })
+  const run = async (spanLogger: MarketplaceLogger) => {
+    spanLogger.debug('Publishing marketplace event')
+    await publish(event)
+    spanLogger.info('Marketplace event published')
+    return event
+  }
+  return logger.span
+    ? logger.span('publish marketplace event', undefined, run)
+    : run(logger)
 }

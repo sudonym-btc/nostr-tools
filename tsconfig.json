@@ -14,5 +14,11 @@
     "resolveJsonModule": true,
     "rootDir": ".",
     "types": ["bun-types"]
-  }
+  },
+  "exclude": [
+    "**/*.test.ts",
+    "benchmarks.ts",
+    "helpers.ts",
+    "test-helpers.ts"
+  ]
 }

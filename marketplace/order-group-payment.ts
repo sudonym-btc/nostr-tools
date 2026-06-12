@@ -1,8 +1,12 @@
 import type { Event } from '../core.ts'
-import { parseEventJson, type PaymentProofEvidence } from './helper.ts'
+import { amountCurrency, parseEventJson, type MarketplaceAmount, type PaymentProofEvidence } from './helper.ts'
 import type { ParsedOrder } from './order.ts'
+import type { ParsedOrderPayment } from './order-lifecycle.ts'
+import { resolvePaymentAmount } from './payment-amount.ts'
+import { paymentProofParamsDecryptor, resolvePaymentProof } from './payment-proof.ts'
 import { reduceOrderGroup } from './order-group-core.ts'
 import { resolveOrderGroupParticipants } from './order-group-resolution.ts'
+import { validateMarketplaceOrder } from './order-validation.ts'
 import type {
   PaymentValidationContext,
   ParsedOrderGroup,
@@ -11,20 +15,27 @@ import type {
   ValidateOrderGroupPaymentsOptions,
   ValidatedOrderGroup,
 } from './order-group-types.ts'
+import type { MarketplaceOrderValidationResult } from './order-validation.ts'
 import type {
   MarketplacePaymentValidationPolicy,
   MarketplacePaymentValidationRequest,
   MarketplacePaymentValidationResult,
 } from './payment-validation.ts'
+import {
+  isPaymentValidationAccepted,
+  normalizePaymentValidationResult,
+} from './payment-validation.ts'
+import { isMarketplaceDriverEncryptedPaymentProofParams } from '@sudonym-btc/marketplace-driver-interface'
 
 async function paymentValidationPolicy(
   policies: MarketplacePaymentValidationPolicy[],
   request: MarketplacePaymentValidationRequest,
 ): Promise<MarketplacePaymentValidationPolicy | undefined> {
-  const method = request.proof.method
-  if (!method) return undefined
+  const driver = request.proof.driver
+  if (!driver) return undefined
   for (const policy of policies) {
-    if (policy.method !== method && policy.method !== '*') continue
+    const policyDriver = policy.driver ?? policy.id ?? policy.method
+    if (policyDriver !== driver && policyDriver !== '*') continue
     try {
       if (policy.canValidate && !(await policy.canValidate(request))) continue
     } catch (_) {
@@ -48,7 +59,7 @@ function numberParam(params: Record<string, unknown>, name: string): number | un
 function serviceParamsFrom(event: Event | string | undefined): Record<string, unknown> {
   if (!event) return {}
   try {
-    const parsed = parseEventJson(event, 'escrowService')
+    const parsed = parseEventJson(event, 'arbitrationService')
     const content = JSON.parse(parsed.content) as Record<string, unknown>
     if (content.params && typeof content.params === 'object' && !Array.isArray(content.params)) {
       return content.params as Record<string, unknown>
@@ -62,23 +73,30 @@ function serviceParamsFrom(event: Event | string | undefined): Record<string, un
 export function paymentValidationRequest(context: {
   group: ParsedOrderGroup
   order: ParsedOrder
+  payment: ParsedOrderPayment
+  amount: MarketplaceAmount
   paymentProof: PaymentProofEvidence
-  escrowService?: Event
+  decryptParams?: MarketplacePaymentValidationRequest['decryptParams']
+  arbitrationService?: Event
   now?: number
 }): MarketplacePaymentValidationRequest {
-  const params = context.paymentProof.params
-  const serviceParams = serviceParamsFrom(context.escrowService ?? context.group.payment?.content.proof.escrow?.escrowService)
+  const params = isMarketplaceDriverEncryptedPaymentProofParams(context.paymentProof.params)
+    ? {}
+    : context.paymentProof.params as Record<string, unknown>
+  const serviceParams = serviceParamsFrom(context.arbitrationService ?? context.group.payment?.content.proof?.arbitration?.arbitrationService)
   return {
-    method: context.paymentProof.method,
+    driver: context.paymentProof.driver,
     proof: context.paymentProof,
+    ...(context.decryptParams ? { decryptParams: context.decryptParams } : {}),
     expected: {
       settlementId: context.group.id,
       tradeId: context.group.tradeId,
       listingAnchor: context.group.listingAnchor,
-      ...(context.order.content.amount ? { amount: context.order.content.amount } : {}),
+      amount: context.amount,
       asset: {
-        denomination: context.order.content.amount?.denomination,
-        decimals: context.order.content.amount?.decimals,
+        currency: amountCurrency(context.amount),
+        denomination: context.amount.denomination,
+        decimals: context.amount.decimals,
         assetId: stringParam(params, 'assetId'),
       },
       contract: {
@@ -97,8 +115,8 @@ export function paymentValidationRequest(context: {
           pubkey: context.group.sellerPubkey,
           address: stringParam(params, 'sellerAddress'),
         },
-        escrow: {
-          pubkey: context.group.escrowPubkeys[0],
+        arbiter: {
+          pubkey: context.group.arbiterPubkeys[0],
           address: stringParam(params, 'arbiterAddress'),
         },
       },
@@ -106,8 +124,9 @@ export function paymentValidationRequest(context: {
         ? {
             fee: {
               value: stringParam(params, 'escrowFee')!,
-              denomination: context.order.content.amount?.denomination ?? '',
-              decimals: context.order.content.amount?.decimals ?? 0,
+              currency: amountCurrency(context.amount),
+              denomination: context.amount.denomination,
+              decimals: context.amount.decimals,
             },
           }
         : {}),
@@ -121,7 +140,7 @@ function groupWithPaymentValidation(
   payment: MarketplacePaymentValidationResult,
   reduceOptions: ReduceOrderGroupOptions | undefined,
 ): ParsedOrderGroup {
-  const validPaymentId = payment.status === 'valid' ? payment.proofEventId : undefined
+  const validPaymentId = isPaymentValidationAccepted(payment) ? payment.proofEventId : undefined
   return reduceOrderGroup(group.events, {
     ...reduceOptions,
     isPaymentValid: (candidate, context) =>
@@ -133,11 +152,13 @@ function groupWithPaymentValidation(
 function validatedOrderGroupResult(
   group: ParsedOrderGroup,
   payment: MarketplacePaymentValidationResult,
+  order: MarketplaceOrderValidationResult | undefined,
   options: ValidateOrderGroupPaymentsOptions,
 ): ValidatedOrderGroup {
   return {
     group: groupWithPaymentValidation(group, payment, options.reduceOptions),
     payment,
+    ...(order ? { order } : {}),
     ...(options.resolved ? { resolved: options.resolved } : {}),
   }
 }
@@ -149,63 +170,121 @@ export async function validateOrderGroupPayments(
   const buyerOrder = group.buyerOrder
   const order = buyerOrder ?? group.orders[0]
   const paymentEvent = group.payment
-  const paymentProof = paymentEvent?.content.proof.paymentProof ?? undefined
-  const method = paymentProof?.method ?? 'none'
+  let paymentProof = paymentEvent?.content.proof?.paymentProof ?? undefined
+  let paymentProofResolutionError: string | undefined
+  if (paymentEvent && !paymentProof && paymentEvent.content.sealedProof) {
+    const proofResolution = await resolvePaymentProof(paymentEvent, {
+      signer: options.signer,
+      signerPubkey: options.signerPubkey,
+    })
+    if (proofResolution.status === 'resolved' && proofResolution.proof?.paymentProof) {
+      paymentProof = proofResolution.proof.paymentProof
+    } else {
+      paymentProofResolutionError = proofResolution.error ?? 'Payment proof could not be resolved'
+    }
+  }
+  const driver = paymentProof?.driver ?? 'none'
   const context: PaymentValidationContext = {
     group,
     ...(options.resolved ? { resolved: options.resolved } : {}),
     ...(buyerOrder ? { buyerOrder } : {}),
     ...(paymentProof ? { paymentProof } : {}),
-    ...(options.listing ?? paymentEvent?.content.proof.listing
-      ? { listing: options.listing ?? paymentEvent?.content.proof.listing }
-      : {}),
+    ...(options.listing ? { listing: options.listing } : {}),
     ...(options.paymentMethod ? { paymentMethod: options.paymentMethod } : {}),
-    ...(options.escrowService ? { escrowService: options.escrowService } : {}),
+    ...(options.arbitrationService ? { arbitrationService: options.arbitrationService } : {}),
+    ...(options.signer ? { signer: options.signer } : {}),
+    ...(options.signerPubkey ? { signerPubkey: options.signerPubkey } : {}),
     ...(options.now !== undefined ? { now: options.now } : {}),
   }
 
   if (!order || !paymentEvent || !paymentProof) {
     const payment: MarketplacePaymentValidationResult = {
-      method,
+      driver,
       status: 'unverifiable',
       ...(buyerOrder ? { orderEventId: buyerOrder.event.id } : {}),
       ...(paymentEvent ? { proofEventId: paymentEvent.event.id } : {}),
-      error: 'No payment event to validate',
+      error: paymentProofResolutionError ?? 'No payment event to validate',
     }
-    return validatedOrderGroupResult(group, payment, options)
+    const orderValidation = order
+      ? validateMarketplaceOrder({
+          order,
+          payments: [payment],
+          settlementId: group.id,
+          tradeId: group.tradeId,
+          ...(options.now !== undefined ? { now: options.now } : {}),
+        })
+      : undefined
+    return validatedOrderGroupResult(group, payment, orderValidation, options)
   }
 
+  const amountResolution = await resolvePaymentAmount(paymentEvent, {
+    signer: context.signer,
+    signerPubkey: context.signerPubkey,
+  })
+  if (amountResolution.status !== 'resolved' || !amountResolution.amount) {
+    const payment: MarketplacePaymentValidationResult = {
+      driver,
+      status: 'unverifiable',
+      orderEventId: buyerOrder?.event.id,
+      proofEventId: paymentEvent.event.id,
+      error: paymentProofResolutionError ?? amountResolution.error ?? 'Payment amount could not be resolved',
+    }
+    const orderValidation = validateMarketplaceOrder({
+      order,
+      payments: [payment],
+      settlementId: group.id,
+      tradeId: group.tradeId,
+      ...(context.now !== undefined ? { now: context.now } : {}),
+    })
+    return validatedOrderGroupResult(group, payment, orderValidation, options)
+  }
+
+  const decryptParams = paymentProofParamsDecryptor({
+    keys: paymentEvent.paymentProofKeys,
+    signer: context.signer,
+    signerPubkey: context.signerPubkey,
+  })
   const request = paymentValidationRequest({
     group,
     order,
+    payment: paymentEvent,
+    amount: amountResolution.amount,
     paymentProof,
-    ...(context.escrowService ? { escrowService: context.escrowService } : {}),
+    decryptParams,
+    ...(context.arbitrationService ? { arbitrationService: context.arbitrationService } : {}),
     ...(context.now !== undefined ? { now: context.now } : {}),
   })
   const policy = await paymentValidationPolicy(options.policies ?? [], request)
   if (!policy) {
     const payment: MarketplacePaymentValidationResult = {
-      method,
+      driver,
       status: 'unverifiable',
       orderEventId: buyerOrder?.event.id,
       proofEventId: paymentEvent.event.id,
-      error: `No payment validation policy for method: ${method}`,
+      error: `No payment validation policy for driver: ${driver}`,
     }
-    return validatedOrderGroupResult(group, payment, options)
+    const orderValidation = validateMarketplaceOrder({
+      order,
+      payments: [payment],
+      settlementId: group.id,
+      tradeId: group.tradeId,
+      ...(context.now !== undefined ? { now: context.now } : {}),
+    })
+    return validatedOrderGroupResult(group, payment, orderValidation, options)
   }
 
   let payment: MarketplacePaymentValidationResult
   try {
     const policyPayment = await policy.validatePayment(request)
-    payment = {
+    payment = normalizePaymentValidationResult({
       ...policyPayment,
-      method: policyPayment.method ?? method,
+      driver: policyPayment.driver ?? driver,
       orderEventId: policyPayment.orderEventId ?? buyerOrder?.event.id,
       proofEventId: policyPayment.proofEventId ?? paymentEvent.event.id,
-    }
+    }, amountResolution.amount)
   } catch (err) {
     payment = {
-      method,
+      driver,
       status: 'unverifiable',
       orderEventId: buyerOrder?.event.id,
       proofEventId: paymentEvent.event.id,
@@ -213,7 +292,14 @@ export async function validateOrderGroupPayments(
     }
   }
 
-  return validatedOrderGroupResult(group, payment, options)
+  const orderValidation = validateMarketplaceOrder({
+    order,
+    payments: [payment],
+    settlementId: group.id,
+    tradeId: group.tradeId,
+    ...(context.now !== undefined ? { now: context.now } : {}),
+  })
+  return validatedOrderGroupResult(group, payment, orderValidation, options)
 }
 
 export async function resolveAndValidateOrderGroup(

@@ -3,8 +3,10 @@ import { describe, expect, test } from 'bun:test'
 import type { Event, EventTemplate } from './core.ts'
 import {
   MarketplacePaymentMethod,
-  EscrowService,
-  EscrowServiceSelection,
+  ArbitrationService,
+  ArbitrationServiceSelection,
+  GiftWrap,
+  MarketplaceAuction,
   MarketplaceAuctionBid,
   MarketplaceAuctionComplete,
   MarketplaceOrder,
@@ -14,10 +16,12 @@ import {
   MarketplacePaymentSettlement,
   MarketplaceReview,
   MarketplaceSeed,
+  MarketplaceShippingOption,
   StructuredMessage,
   isRegularKind,
 } from './kinds.ts'
 import * as marketplace from './marketplace/internal.ts'
+import { decrypt as decryptNip44, encrypt as encryptNip44, getConversationKey } from './nip44.ts'
 import { finalizeEvent, generateSecretKey, getPublicKey } from './pure.ts'
 
 const createdAt = 1712678400
@@ -27,6 +31,9 @@ const arbiterAddress = '0x2222222222222222222222222222222222222222'
 const contractAddress = '0x3333333333333333333333333333333333333333'
 const btcAssetId = '33:0x0000000000000000000000000000000000000000'
 const usdAssetId = '33:0xdAC17F958D2ee523a2206206994597C13D831ec7'
+const cashuMintUrl = 'https://mint.example'
+const cashuAssetId = `cashu:sat:${cashuMintUrl}`
+const cashuPolicyHash = `0x${'c'.repeat(64)}`
 
 function sign(template: EventTemplate, secretKey = generateSecretKey()): Event {
   return finalizeEvent(template, secretKey)
@@ -81,10 +88,10 @@ function listingEvent(secretKey = generateSecretKey()): Event {
   )
 }
 
-function paymentMethodEvent(sellerSecretKey: Uint8Array, escrowPubkey: string): Event {
+function paymentMethodEvent(sellerSecretKey: Uint8Array, arbiterPubkey: string): Event {
   return sign(
     marketplace.paymentMethod.template({
-      trustedEscrowPubkeys: [escrowPubkey],
+      trustedArbiterPubkeys: [arbiterPubkey],
       supportedContractBytecodeHashes: [bytecodeHash],
       acceptedPaymentForms: [
         { denomination: 'BTC', assetId: btcAssetId, appId: 'marketplace' },
@@ -98,12 +105,12 @@ function paymentMethodEvent(sellerSecretKey: Uint8Array, escrowPubkey: string): 
   )
 }
 
-function escrowServiceEvent(escrowSecretKey: Uint8Array): Event {
-  const escrowPubkey = getPublicKey(escrowSecretKey)
+function arbitrationServiceEvent(arbiterSecretKey: Uint8Array): Event {
+  const arbiterPubkey = getPublicKey(arbiterSecretKey)
   return sign(
-    marketplace.escrowServices.template({
+    marketplace.arbitrationServices.template({
       d: 'evm-rsk-regtest',
-      pubkey: escrowPubkey,
+      pubkey: arbiterPubkey,
       type: 'EVM',
       maxDuration: 1209600,
       fee: {
@@ -128,11 +135,97 @@ function escrowServiceEvent(escrowSecretKey: Uint8Array): Event {
       },
       createdAt,
     }),
-    escrowSecretKey,
+    arbiterSecretKey,
+  )
+}
+
+function cashuPaymentMethodEvent(sellerSecretKey: Uint8Array, arbiterPubkey: string): Event {
+  return sign(
+    marketplace.paymentMethod.template({
+      trustedArbiterPubkeys: [arbiterPubkey],
+      acceptedPaymentForms: [
+        { denomination: 'SAT', assetId: cashuAssetId, appId: 'marketplace' },
+      ],
+      cashuPubkey: '03'.padEnd(66, '1'),
+      createdAt,
+    }),
+    sellerSecretKey,
+  )
+}
+
+function cashuArbitrationServiceEvent(arbiterSecretKey: Uint8Array): Event {
+  const arbiterPubkey = getPublicKey(arbiterSecretKey)
+  return sign(
+    marketplace.arbitrationServices.template({
+      d: 'cashu-sat',
+      pubkey: arbiterPubkey,
+      type: 'CASHU',
+      maxDuration: 1209600,
+      fee: {
+        ppm: 0,
+        base: '0',
+        min: '0',
+        max: '0',
+      },
+      params: {
+        policyHash: cashuPolicyHash,
+        mintUrl: cashuMintUrl,
+        unit: 'sat',
+        cashuPubkey: '03'.padEnd(66, '2'),
+      },
+      createdAt,
+    }),
+    arbiterSecretKey,
   )
 }
 
 describe('marketplace listings', () => {
+  test('exposes provider-backed location helpers', async () => {
+    const pool = {
+      async querySync(): Promise<Event[]> {
+        return []
+      },
+      async get(): Promise<Event | null> {
+        return null
+      },
+    }
+    const api = marketplace.bind(pool, ['wss://relay.example'], {
+      locationProvider: {
+        async hierarchyForAddress(address: string) {
+          expect(address).toBe('1 Market St, San Francisco')
+          return [['g', '872830828ffffff']]
+        },
+        async coverArea(area: string) {
+          expect(area).toBe('Germany')
+          return [['g', '841f9d3ffffffff']]
+        },
+      },
+    })
+
+    expect(marketplace.locations.gTags(['abc', 'abc', 'def'])).toEqual([['g', 'abc'], ['g', 'def']])
+    expect(await api.locations.hierarchyForAddress('1 Market St, San Francisco')).toEqual([['g', '872830828ffffff']])
+    expect(await api.locations.coverArea('Germany')).toEqual([['g', '841f9d3ffffffff']])
+  })
+
+  test('fails clearly when location provider is not configured', async () => {
+    const pool = {
+      async querySync(): Promise<Event[]> {
+        return []
+      },
+      async get(): Promise<Event | null> {
+        return null
+      },
+    }
+    const api = marketplace.bind(pool, ['wss://relay.example'])
+
+    await expect(api.locations.hierarchyForAddress('1 Market St')).rejects.toThrow(
+      'Marketplace location provider is not configured',
+    )
+    await expect(api.locations.coverArea('Germany')).rejects.toThrow(
+      'Marketplace location provider is not configured',
+    )
+  })
+
   test('generates, validates, and parses an accommodation listing', () => {
     const event = listingEvent()
     const genericParsed = marketplace.listings.parse(event)
@@ -148,8 +241,8 @@ describe('marketplace listings', () => {
     expect(parsed.negotiable).toBe(false)
     expect(parsed.rentOrBuy).toBe('rent')
     expect(parsed.quantity).toBe(2)
-    expect(parsed.securityDeposit).toEqual({ value: '25000', denomination: 'BTC', decimals: 8 })
-    expect(parsed.minPaymentAmount).toEqual({ value: '10000', denomination: 'BTC', decimals: 8 })
+    expect(parsed.securityDeposit).toEqual({ value: '25000', currency: 'BTC', denomination: 'BTC', decimals: 8 })
+    expect(parsed.minPaymentAmount).toEqual({ value: '10000', currency: 'BTC', denomination: 'BTC', decimals: 8 })
     expect(parsed.maxDisputePeriod).toBe(1209600)
     expect(parsed.cancellationPolicies).toHaveLength(2)
     expect(parsed.accommodation?.type).toBe('villa')
@@ -199,54 +292,213 @@ describe('marketplace listings', () => {
     expect(filter['#B']).toEqual(['2'])
     expect(filter['#R']).toEqual(['2'])
   })
+
+  test('finds one listing by pubkey with the existing search query fields', async () => {
+    const sellerSecretKey = generateSecretKey()
+    const sellerPubkey = getPublicKey(sellerSecretKey)
+    const listing = listingEvent(sellerSecretKey)
+    let observedFilter: Record<string, any> | undefined
+    const pool = {
+      async querySync(_relays: string[], filter: Record<string, any>): Promise<Event[]> {
+        observedFilter = filter
+        return [listing]
+      },
+      async get(): Promise<Event | null> {
+        return null
+      },
+    }
+    const api = marketplace.bind(pool, ['wss://relay.example'])
+
+    const found = await api.listings.findOne(sellerPubkey, {
+      kinds: [listing.kind],
+      tagFilters: { d: ['villa-bali'] },
+    })
+
+    expect(found?.event.id).toBe(listing.id)
+    expect(observedFilter?.authors).toEqual([sellerPubkey])
+    expect(observedFilter?.kinds).toEqual([listing.kind])
+    expect(observedFilter?.['#d']).toEqual(['villa-bali'])
+    expect(observedFilter?.limit).toBe(1)
+  })
+
+  test('calculates listing prices with optional date range frequency', () => {
+    const listing = marketplace.listings.parse(listingEvent())
+    const defaultAmount = marketplace.listings.price(listing)
+    const amount = marketplace.listings.price(listing, {
+      start: '2026-06-01',
+      end: '2026-06-04',
+    })
+    const overrideAmount = marketplace.listings.price(listing, {
+      price: { amount: '12.50', currency: 'USD', frequency: 'P1D' },
+      start: '2026-06-01T12:00:00Z',
+      end: '2026-06-03T12:00:00Z',
+    })
+
+    expect(defaultAmount).toEqual({
+      value: '50000',
+      currency: 'BTC',
+      denomination: 'BTC',
+      decimals: 8,
+    })
+    expect(amount).toEqual({
+      value: '150000',
+      currency: 'BTC',
+      denomination: 'BTC',
+      decimals: 8,
+    })
+    expect(overrideAmount).toEqual({
+      value: '2500',
+      currency: 'USD',
+      denomination: 'USD',
+      decimals: 2,
+    })
+  })
 })
 
-describe('marketplace escrow records', () => {
+describe('marketplace shipping options', () => {
+  test('generates, validates, parses, and addresses shipping option events', () => {
+    const sellerSecretKey = generateSecretKey()
+    const event = sign(
+      marketplace.shippingOption.template({
+        d: 'standard-us',
+        title: 'Standard Shipping',
+        description: 'Tracked ground shipping within the United States.',
+        price: { amount: '5.99', currency: 'USD' },
+        countries: ['US', 'CA'],
+        regions: ['US-FL', 'US-GA'],
+        service: 'standard',
+        carrier: 'USPS',
+        duration: { min: '3', max: '7', unit: 'D' },
+        weightMax: { value: '30', unit: 'kg' },
+        dimMax: { dimensions: '120x60x60', unit: 'cm' },
+        priceWeight: { amount: '0.75', currency: 'USD', unit: 'kg' },
+        priceDistance: { amount: '0.05', unit: 'km' },
+        createdAt,
+      }),
+      sellerSecretKey,
+    )
+    const parsed = marketplace.shippingOption.parse(event)
+
+    expect(marketplace.shippingOption.kind).toBe(MarketplaceShippingOption)
+    expect(event.kind).toBe(MarketplaceShippingOption)
+    expect(marketplace.shippingOption.validate(event)).toBe(true)
+    expect(marketplace.shippingOption.address(event)).toBe(`${MarketplaceShippingOption}:${event.pubkey}:standard-us`)
+    expect(parsed.d).toBe('standard-us')
+    expect(parsed.title).toBe('Standard Shipping')
+    expect(parsed.description).toBe('Tracked ground shipping within the United States.')
+    expect(parsed.price).toEqual({ amount: '5.99', currency: 'USD' })
+    expect(parsed.countries).toEqual(['US', 'CA'])
+    expect(parsed.regions).toEqual(['US-FL', 'US-GA'])
+    expect(parsed.service).toBe('standard')
+    expect(parsed.carrier).toBe('USPS')
+    expect(parsed.duration).toEqual({ min: '3', max: '7', unit: 'D' })
+    expect(parsed.weightMax).toEqual({ value: '30', unit: 'kg' })
+    expect(parsed.dimMax).toEqual({ dimensions: '120x60x60', unit: 'cm' })
+    expect(parsed.priceWeight).toEqual({ amount: '0.75', currency: 'USD', unit: 'kg' })
+    expect(parsed.priceDistance).toEqual({ amount: '0.05', unit: 'km' })
+    expect(hasTag(event, ['country', 'US', 'CA'])).toBe(true)
+    expect(hasTag(event, ['region', 'US-FL', 'US-GA'])).toBe(true)
+    expect(hasTag(event, ['price-weight', '0.75', 'USD', 'kg'])).toBe(true)
+  })
+
+  test('rejects shipping options without required GammaMarkets fields', () => {
+    const event = sign(
+      marketplace.shippingOption.template({
+        d: 'standard-us',
+        title: 'Standard Shipping',
+        price: { amount: '5.99', currency: 'USD' },
+        countries: ['US'],
+        service: 'standard',
+        createdAt,
+      }),
+    )
+
+    for (const required of ['d', 'title', 'price', 'country', 'service']) {
+      expect(marketplace.shippingOption.validate({ ...event, tags: event.tags.filter(tag => tag[0] !== required) })).toBe(false)
+    }
+    expect(() =>
+      marketplace.shippingOption.template({
+        d: 'bad-empty-countries',
+        title: 'Bad shipping',
+        price: { amount: '5.99', currency: 'USD' },
+        countries: [],
+        service: 'standard',
+      }),
+    ).toThrow('Shipping option requires at least one country')
+  })
+
+  test('builds shipping option relay filters', () => {
+    const filter = marketplace.shippingOption.filters.search({
+      authors: ['a'.repeat(64), 'a'.repeat(64)],
+      ds: ['standard-us'],
+      countries: ['US'],
+      regions: ['US-FL'],
+      services: ['standard'],
+      carriers: ['USPS'],
+      since: createdAt,
+      until: createdAt + 100,
+      limit: 10,
+    })
+
+    expect(filter.kinds).toEqual([30406])
+    expect(filter.authors).toEqual(['a'.repeat(64)])
+    expect(filter['#d']).toEqual(['standard-us'])
+    expect(filter['#country']).toEqual(['US'])
+    expect(filter['#region']).toEqual(['US-FL'])
+    expect(filter['#service']).toEqual(['standard'])
+    expect(filter['#carrier']).toEqual(['USPS'])
+    expect(filter.since).toBe(createdAt)
+    expect(filter.until).toBe(createdAt + 100)
+    expect(filter.limit).toBe(10)
+  })
+})
+
+describe('marketplace arbitration records', () => {
   test('generates, validates, and parses payment methods', () => {
     const sellerSecretKey = generateSecretKey()
-    const escrowPubkey = getPublicKey(generateSecretKey())
-    const event = paymentMethodEvent(sellerSecretKey, escrowPubkey)
+    const arbiterPubkey = getPublicKey(generateSecretKey())
+    const event = paymentMethodEvent(sellerSecretKey, arbiterPubkey)
     const parsed = marketplace.paymentMethod.parse(event)
 
     expect(event.kind).toBe(MarketplacePaymentMethod)
     expect(marketplace.paymentMethod.validate(event)).toBe(true)
-    expect(parsed.trustedEscrowPubkeys).toEqual([escrowPubkey])
+    expect(parsed.trustedArbiterPubkeys).toEqual([arbiterPubkey])
     expect(parsed.supportedContractBytecodeHashes).toEqual([bytecodeHash])
     expect(parsed.evmAddress).toBe(sellerEvmAddress)
     expect(parsed.evmAddressProof).toBe('0xproof')
     expect(parsed.acceptedPaymentForms).toEqual([
-      { denomination: 'BTC', assetId: btcAssetId, appId: 'marketplace' },
-      { denomination: 'USD', assetId: usdAssetId, appId: 'marketplace' },
+      { currency: 'BTC', denomination: 'BTC', assetId: btcAssetId, appId: 'marketplace' },
+      { currency: 'USD', denomination: 'USD', assetId: usdAssetId, appId: 'marketplace' },
     ])
     expect(marketplace.paymentMethod.canonicalAssetId('33:0xDAC17F958D2EE523A2206206994597C13D831EC7')).toBe(
       usdAssetId.toLowerCase(),
     )
   })
 
-  test('generates, validates, parses, and calculates escrow service fees', () => {
-    const event = escrowServiceEvent(generateSecretKey())
-    const parsed = marketplace.escrowServices.parse(event)
+  test('generates, validates, parses, and calculates arbitration service fees', () => {
+    const event = arbitrationServiceEvent(generateSecretKey())
+    const parsed = marketplace.arbitrationServices.parse(event)
 
-    expect(event.kind).toBe(EscrowService)
-    expect(marketplace.escrowServices.validate(event)).toBe(true)
+    expect(event.kind).toBe(ArbitrationService)
+    expect(marketplace.arbitrationServices.validate(event)).toBe(true)
     expect(parsed.d).toBe('evm-rsk-regtest')
     expect(parsed.content.type).toBe('EVM')
     expect(parsed.content.params.chainId).toBe(33)
     expect(parsed.content.params.contractBytecodeHash).toBe(bytecodeHash)
-    expect(marketplace.escrowServices.calculateFee(parsed.content.fee, 1000n)).toBe(15n)
-    expect(marketplace.escrowServices.calculateFee(parsed.content.fee, 20000n)).toBe(100n)
+    expect(marketplace.arbitrationServices.calculateFee(parsed.content.fee, 1000n)).toBe(15n)
+    expect(marketplace.arbitrationServices.calculateFee(parsed.content.fee, 20000n)).toBe(100n)
     expect(
-      marketplace.escrowServices.calculateFee(parsed.content.fee, 1000n, usdAssetId.split(':')[1].toLowerCase()),
+      marketplace.arbitrationServices.calculateFee(parsed.content.fee, 1000n, usdAssetId.split(':')[1].toLowerCase()),
     ).toBe(21n)
   })
 
-  test('generates and parses escrow service selection child events', () => {
+  test('generates and parses arbitration service selection child events', () => {
     const sellerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
-    const service = escrowServiceEvent(escrowSecretKey)
-    const method = paymentMethodEvent(sellerSecretKey, getPublicKey(escrowSecretKey))
+    const arbiterSecretKey = generateSecretKey()
+    const service = arbitrationServiceEvent(arbiterSecretKey)
+    const method = paymentMethodEvent(sellerSecretKey, getPublicKey(arbiterSecretKey))
     const selection = sign(
-      marketplace.escrowServiceSelections.template({
+      marketplace.arbitrationServiceSelections.template({
         tradeId: 'trade-1',
         listingAnchor: `${30402}:${getPublicKey(sellerSecretKey)}:villa-bali`,
         service,
@@ -254,13 +506,75 @@ describe('marketplace escrow records', () => {
         createdAt,
       }),
     )
-    const parsed = marketplace.escrowServiceSelections.parse(selection)
+    const parsed = marketplace.arbitrationServiceSelections.parse(selection)
 
-    expect(selection.kind).toBe(EscrowServiceSelection)
-    expect(marketplace.escrowServiceSelections.validate(selection)).toBe(true)
+    expect(selection.kind).toBe(ArbitrationServiceSelection)
+    expect(marketplace.arbitrationServiceSelections.validate(selection)).toBe(true)
     expect(parsed.tradeId).toBe('trade-1')
     expect(parsed.content.service.id).toBe(service.id)
     expect(parsed.content.paymentMethod.id).toBe(method.id)
+  })
+
+  test('generates auction bids with trade id in d tag only', () => {
+    const buyerSecretKey = generateSecretKey()
+    const buyerPubkey = getPublicKey(buyerSecretKey)
+    const bid = sign(
+      marketplace.auctions.bidTemplate({
+        tradeId: 'auction-bid-trade-1',
+        auctionAnchor: `${MarketplaceAuction}:${'a'.repeat(64)}:auction-1`,
+        listingAnchor: `${30402}:${'b'.repeat(64)}:villa-bali`,
+        amount: { value: '2500', denomination: 'USD', decimals: 2 },
+        participants: [{ pubkey: buyerPubkey, role: 'buyer' }],
+        createdAt,
+      }),
+      buyerSecretKey,
+    )
+    const parsed = marketplace.auctions.parseBid(bid)
+
+    expect(parsed.tradeId).toBe('auction-bid-trade-1')
+    expect(hasTag(bid, ['d', 'auction-bid-trade-1'])).toBe(true)
+    expect(bid.tags.some(tag => tag[0] === 'trade')).toBe(false)
+    expect(
+      marketplace.auctions.validateBid({
+        ...bid,
+        tags: [...bid.tags, ['trade', 'auction-bid-trade-1']],
+      }),
+    ).toBe(false)
+    expect(() =>
+      marketplace.auctions.parseBid({
+        ...bid,
+        tags: [...bid.tags, ['trade', 'auction-bid-trade-1']],
+      }),
+    ).toThrow('Auction bid trade tag is not supported')
+  })
+
+  test('derives and parses auction bid chain ids', () => {
+    const buyerSecretKey = generateSecretKey()
+    const buyerPubkey = getPublicKey(buyerSecretKey)
+    const auctionAnchor = `${MarketplaceAuction}:${'a'.repeat(64)}:auction-chain`
+    const listingAnchor = `${30402}:${'b'.repeat(64)}:villa-bali`
+    const bidChainId = marketplace.auctions.bidChainId('7'.repeat(64), auctionAnchor)
+    const bid = sign(
+      marketplace.auctions.bidTemplate({
+        tradeId: 'auction-bid-chain-trade-1',
+        auctionAnchor,
+        listingAnchor,
+        bidChainId,
+        amount: { value: '2500', denomination: 'USD', decimals: 2 },
+        participants: [{ pubkey: buyerPubkey, role: 'buyer' }],
+        createdAt,
+      }),
+      buyerSecretKey,
+    )
+    const parsed = marketplace.auctions.parseBid(bid)
+
+    expect(bidChainId).toMatch(/^[a-f0-9]{64}$/)
+    expect(parsed.bidChainId).toBe(bidChainId)
+    expect(hasTag(bid, ['bid_chain', bidChainId])).toBe(true)
+    expect(marketplace.auctions.validateBid({
+      ...bid,
+      tags: bid.tags.map(tag => tag[0] === 'bid_chain' ? ['bid_chain', 'invalid'] : tag),
+    })).toBe(false)
   })
 })
 
@@ -269,14 +583,14 @@ describe('marketplace orders and messages', () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
     const buyerTempSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
     const buyerTempPubkey = getPublicKey(buyerTempSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
-    const method = paymentMethodEvent(sellerSecretKey, escrowPubkey)
-    const service = escrowServiceEvent(escrowSecretKey)
+    const method = paymentMethodEvent(sellerSecretKey, arbiterPubkey)
+    const service = arbitrationServiceEvent(arbiterSecretKey)
     const tradeId = 'trade-1'
     const terms = {
       start: '2026-06-01T00:00:00.000Z',
@@ -306,15 +620,7 @@ describe('marketplace orders and messages', () => {
       }),
       buyerSecretKey,
     )
-    const payload = JSON.stringify(tradeKeyAuthorization)
-    const participantProof = {
-      role: 'buyer',
-      participantPubkey: buyerTempPubkey,
-      recipientPubkey: sellerPubkey,
-      scheme: 'nip44',
-      payloadHash: marketplace.orders.hashParticipantProofPayload(payload),
-      payload: 'encrypted-payload',
-    }
+    const participantProof = marketplace.participantProofs.publicProof(tradeKeyAuthorization)
     const order = sign(
       marketplace.orders.template({
         tradeId,
@@ -324,7 +630,7 @@ describe('marketplace orders and messages', () => {
         participants: [
           { pubkey: sellerPubkey, role: 'seller' },
           { pubkey: buyerTempPubkey, role: 'buyer' },
-          { pubkey: escrowPubkey, role: 'escrow' },
+          { pubkey: arbiterPubkey, role: 'arbiter' },
         ],
         participantProofs: [participantProof],
         createdAt,
@@ -339,13 +645,14 @@ describe('marketplace orders and messages', () => {
         participants: [
           { pubkey: sellerPubkey, role: 'seller' },
           { pubkey: buyerTempPubkey, role: 'buyer' },
-          { pubkey: escrowPubkey, role: 'escrow' },
+          { pubkey: arbiterPubkey, role: 'arbiter' },
         ],
         refs: { orders: [order.id] },
+        amount: { value: '50000', denomination: 'BTC', decimals: 8 },
         proof: marketplace.paymentProofForEvm({
-          listing,
+          driver: 'evm',
           txHash: `0x${'b'.repeat(64)}`,
-          escrowService: service,
+          arbitrationService: service,
           paymentMethod: method,
         }),
         createdAt,
@@ -361,11 +668,12 @@ describe('marketplace orders and messages', () => {
     expect(marketplace.orders.commitHash(terms)).toBe(commitHash)
     expect(parsed.tradeId).toBe(tradeId)
     expect(parsed.listingAnchor).toBe(listingAnchor)
-    expect(parsed.content.amount).toEqual({ value: '50000', denomination: 'BTC', decimals: 8 })
+    expect(parsed.content.amount).toEqual({ value: '50000', currency: 'BTC', denomination: 'BTC', decimals: 8 })
     expect(parsedPayment.refs.orders).toEqual([order.id])
-    expect(parsedPayment.content.proof.paymentProof?.method).toBe('evm')
-    expect((parsedPayment.content.proof.escrow?.escrowService as Event).id).toBe(service.id)
-    expect(parsed.participants.map(tag => tag.role)).toEqual(['seller', 'buyer', 'escrow'])
+    expect(parsedPayment.content.amount).toEqual({ value: '50000', currency: 'BTC', denomination: 'BTC', decimals: 8 })
+    expect(parsedPayment.content.proof.paymentProof?.driver).toBe('evm')
+    expect((parsedPayment.content.proof.arbitration?.arbitrationService as Event).id).toBe(service.id)
+    expect(parsed.participants.map(tag => tag.role)).toEqual(['seller', 'buyer', 'arbiter'])
     expect(parsed.participantProofs[0]).toEqual(participantProof)
   })
 
@@ -396,20 +704,20 @@ describe('marketplace orders and messages', () => {
     expect(parsed.alt).toEqual(['Marketplace order message'])
   })
 
-  test('groups orders by trade id and canonical buyer seller escrow participants', () => {
+  test('groups orders by trade id and canonical buyer seller arbiter participants', () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
     const buyerPubkey = getPublicKey(buyerSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const tradeId = 'trade-group-1'
     const participants = [
       { pubkey: sellerPubkey, role: 'seller' },
       { pubkey: buyerPubkey, role: 'buyer' },
-      { pubkey: escrowPubkey, role: 'escrow' },
+      { pubkey: arbiterPubkey, role: 'arbiter' },
     ]
     const buyerOrder = sign(
       marketplace.orders.template({
@@ -427,9 +735,9 @@ describe('marketplace orders and messages', () => {
         listingAnchor,
         participants,
         refs: { orders: [buyerOrder.id] },
+        amount: { value: '50000', denomination: 'BTC', decimals: 8 },
         proof: {
-          listing,
-          paymentProof: { method: 'evm', params: { txHash: `0x${'c'.repeat(64)}` } },
+          paymentProof: { driver: 'evm', params: { txHash: `0x${'c'.repeat(64)}` } },
         },
         createdAt: createdAt + 1,
       }),
@@ -458,11 +766,38 @@ describe('marketplace orders and messages', () => {
       sellerSecretKey,
     )
     const reversedParticipants = [...participants].reverse()
-    const expectedParticipants = [buyerPubkey, escrowPubkey, sellerPubkey].sort((a, b) => a.localeCompare(b))
+    const expectedParticipants = [buyerPubkey, arbiterPubkey, sellerPubkey].sort((a, b) => a.localeCompare(b))
     const expectedGroupId = marketplace.orders.groups.id(tradeId, participants)
+    const auction = sign(
+      marketplace.auctions.template({
+        d: 'participant-group-auction',
+        listingAnchor,
+        arbiterPubkey,
+        currency: 'BTC',
+        decimals: 8,
+        createdAt,
+      }),
+      sellerSecretKey,
+    )
+    const bid = sign(
+      marketplace.auctions.bidTemplate({
+        tradeId,
+        auctionAnchor: marketplace.auctions.address(auction),
+        listingAnchor,
+        participants: reversedParticipants,
+        amount: { value: '50000', denomination: 'BTC', decimals: 8 },
+        createdAt,
+      }),
+      buyerSecretKey,
+    )
+    const parsedBid = marketplace.auctions.parseBid(bid)
 
     expect(marketplace.orders.groups.participants(buyerOrder)).toEqual(expectedParticipants)
+    expect(marketplace.orders.groups.participants(parsedBid)).toEqual(expectedParticipants)
     expect(marketplace.orders.groups.idForOrder(buyerOrder)).toBe(expectedGroupId)
+    expect(marketplace.orders.groups.idForEvent(parsedBid)).toBe(expectedGroupId)
+    expect(marketplace.orders.groups.idForEvent(bid)).toBe(expectedGroupId)
+    expect(marketplace.participants.groupId(tradeId, participants)).toBe(expectedGroupId)
     expect(
       marketplace.orders.groups.idForOrder(
         sign(
@@ -481,7 +816,7 @@ describe('marketplace orders and messages', () => {
     expect(group.id).toBe(expectedGroupId)
     expect(group.tradeId).toBe(tradeId)
     expect(group.sellerPubkey).toBe(sellerPubkey)
-    expect(group.escrowPubkeys).toEqual([escrowPubkey])
+    expect(group.arbiterPubkeys).toEqual([arbiterPubkey])
     expect(group.stage).toBe('commit')
     expect(group.confirmedCommitted).toBe(true)
     expect(group.buyerOrder?.event.id).toBe(buyerOrder.id)
@@ -540,15 +875,36 @@ describe('marketplace orders and messages', () => {
       async get(): Promise<Event | null> {
         return null
       },
+      subscribeMap(
+        requests: Array<{ filter: Record<string, any> }>,
+        handlers: { onevent: (event: Event) => void; oneose?: () => void },
+      ) {
+        filters.push(...requests.map(request => request.filter))
+        handlers.onevent(order)
+        handlers.oneose?.()
+        return { close() {} }
+      },
     }
     const api = marketplace.bind(pool, ['wss://relay.example'], {
       seed: buyerSeed,
       identity: { pubkey: buyerPubkey },
     })
     const buckets = await api.orders.groups.mine()
+    const bucketSnapshots: marketplace.OrderGroupBuckets[] = []
+    const mineStream = api.orders.groups.mine.stream()
+    mineStream.snapshot.subscribe(snapshot => bucketSnapshots.push(snapshot))
+    const orderSnapshots: marketplace.ParsedOrder[][] = []
+    const orderStream = api.orders.mine.stream()
+    orderStream.snapshot.subscribe(snapshot => orderSnapshots.push(snapshot))
 
     expect(buckets.buyer).toHaveLength(1)
     expect(buckets.buyer[0].tradeId).toBe(trade.tradeId)
+    expect(mineStream.currentStatus).toBeInstanceOf(marketplace.StreamLive)
+    expect(bucketSnapshots.at(-1)?.buyer).toHaveLength(1)
+    expect(bucketSnapshots.at(-1)?.buyer[0].tradeId).toBe(trade.tradeId)
+    expect(orderStream.currentStatus).toBeInstanceOf(marketplace.StreamLive)
+    expect(orderSnapshots.at(-1)).toHaveLength(1)
+    expect(orderSnapshots.at(-1)?.[0].tradeId).toBe(trade.tradeId)
     expect(filters.some(filter => filter['#p']?.includes(trade.tradePubkey))).toBe(true)
   })
 
@@ -556,9 +912,9 @@ describe('marketplace orders and messages', () => {
     const buyerPubkey = 'b'.repeat(64)
     const buyerSeed = '8'.repeat(64)
     const sellerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${sellerPubkey}:villa-bali`
     const trade = marketplace.seed.deriveTradeMaterial(buyerSeed, { index: 2, role: 'buyer', extra: 'auction-bid' })
@@ -569,11 +925,11 @@ describe('marketplace orders and messages', () => {
         participants: [
           { pubkey: trade.tradePubkey, role: 'buyer' },
           { pubkey: sellerPubkey, role: 'seller' },
-          { pubkey: escrowPubkey, role: 'escrow' },
+          { pubkey: arbiterPubkey, role: 'arbiter' },
         ],
         createdAt,
       }),
-      escrowSecretKey,
+      arbiterSecretKey,
     )
     const filters: Array<Record<string, any>> = []
     const pool = {
@@ -599,18 +955,18 @@ describe('marketplace orders and messages', () => {
   test('only allows participant-authored lifecycle events inside an order group', () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const outsiderSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
     const buyerPubkey = getPublicKey(buyerSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const tradeId = 'trade-group-2'
     const participants = [
       { pubkey: sellerPubkey, role: 'seller' },
       { pubkey: buyerPubkey, role: 'buyer' },
-      { pubkey: escrowPubkey, role: 'escrow' },
+      { pubkey: arbiterPubkey, role: 'arbiter' },
     ]
     const firstBuyerOrder = sign(
       marketplace.orders.template({
@@ -688,10 +1044,10 @@ describe('marketplace orders and messages', () => {
   test('marks buyer commits confirmed only when the payment proof validator accepts them', () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
     const buyerPubkey = getPublicKey(buyerSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const buyerOrder = sign(
@@ -701,7 +1057,7 @@ describe('marketplace orders and messages', () => {
         participants: [
           { pubkey: sellerPubkey, role: 'seller' },
           { pubkey: buyerPubkey, role: 'buyer' },
-          { pubkey: escrowPubkey, role: 'escrow' },
+          { pubkey: arbiterPubkey, role: 'arbiter' },
         ],
         createdAt,
       }),
@@ -714,12 +1070,12 @@ describe('marketplace orders and messages', () => {
         participants: [
           { pubkey: sellerPubkey, role: 'seller' },
           { pubkey: buyerPubkey, role: 'buyer' },
-          { pubkey: escrowPubkey, role: 'escrow' },
+          { pubkey: arbiterPubkey, role: 'arbiter' },
         ],
         refs: { orders: [buyerOrder.id] },
+        amount: { value: '50000', denomination: 'BTC', decimals: 8 },
         proof: {
-          listing,
-          paymentProof: { method: 'evm', params: { txHash: `0x${'d'.repeat(64)}` } },
+          paymentProof: { driver: 'evm', params: { txHash: `0x${'d'.repeat(64)}` } },
         },
         createdAt: createdAt + 1,
       }),
@@ -738,11 +1094,11 @@ describe('marketplace orders and messages', () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
     const buyerTempSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
     const buyerPubkey = getPublicKey(buyerSecretKey)
     const buyerTempPubkey = getPublicKey(buyerTempSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const tradeId = 'trade-group-4'
@@ -757,15 +1113,13 @@ describe('marketplace orders and messages', () => {
       }),
       buyerSecretKey,
     )
-    const plaintext = JSON.stringify(authorization)
-    const participantProof = {
-      role: 'buyer',
-      participantPubkey: buyerTempPubkey,
+    const sealed = marketplace.participantProofs.sealedProof(authorization, new Uint8Array(32).fill(7))
+    const participantProofKey = marketplace.participantProofs.keyWrap({
+      proofId: sealed.proof.proofId,
       recipientPubkey: sellerPubkey,
-      scheme: 'nip44',
-      payloadHash: marketplace.orders.hashParticipantProofPayload(plaintext),
-      payload: 'encrypted-proof',
-    }
+      senderSecretKey: buyerTempSecretKey,
+      disclosureKey: sealed.disclosureKey,
+    })
     const order = sign(
       marketplace.orders.template({
         tradeId,
@@ -773,9 +1127,10 @@ describe('marketplace orders and messages', () => {
         participants: [
           { pubkey: sellerPubkey, role: 'seller' },
           { pubkey: buyerTempPubkey, role: 'buyer' },
-          { pubkey: escrowPubkey, role: 'escrow' },
+          { pubkey: arbiterPubkey, role: 'arbiter' },
         ],
-        participantProofs: [participantProof],
+        participantProofs: [sealed.proof],
+        participantProofKeys: [participantProofKey],
         createdAt,
       }),
       buyerTempSecretKey,
@@ -789,8 +1144,8 @@ describe('marketplace orders and messages', () => {
         },
         async nip44Decrypt(pubkey: string, ciphertext: string) {
           expect(pubkey).toBe(buyerTempPubkey)
-          expect(ciphertext).toBe('encrypted-proof')
-          return plaintext
+          expect(ciphertext).toBe(participantProofKey.payload)
+          return decryptNip44(ciphertext, getConversationKey(sellerSecretKey, pubkey))
         },
       },
     })
@@ -806,20 +1161,22 @@ describe('marketplace orders and messages', () => {
   test('validates order group payments with the matching payment policy', async () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
     const buyerPubkey = getPublicKey(buyerSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const order = sign(
       marketplace.orders.template({
         tradeId: 'trade-group-5',
         listingAnchor,
+        listing,
+        amount: { value: '50000', denomination: 'BTC', decimals: 8 },
         participants: [
           { pubkey: sellerPubkey, role: 'seller' },
           { pubkey: buyerPubkey, role: 'buyer' },
-          { pubkey: escrowPubkey, role: 'escrow' },
+          { pubkey: arbiterPubkey, role: 'arbiter' },
         ],
         createdAt,
       }),
@@ -832,12 +1189,12 @@ describe('marketplace orders and messages', () => {
         participants: [
           { pubkey: sellerPubkey, role: 'seller' },
           { pubkey: buyerPubkey, role: 'buyer' },
-          { pubkey: escrowPubkey, role: 'escrow' },
+          { pubkey: arbiterPubkey, role: 'arbiter' },
         ],
         refs: { orders: [order.id] },
+        amount: { value: '50000', denomination: 'BTC', decimals: 8 },
         proof: {
-          listing,
-          paymentProof: { method: 'evm', params: { txHash: `0x${'f'.repeat(64)}` } },
+          paymentProof: { driver: 'evm', params: { txHash: `0x${'f'.repeat(64)}` } },
         },
         createdAt: createdAt + 1,
       }),
@@ -853,12 +1210,19 @@ describe('marketplace orders and messages', () => {
             request.proof.params.txHash === `0x${'f'.repeat(64)}`,
           async validatePayment(request: marketplace.MarketplacePaymentValidationRequest) {
             return {
-              method: request.proof.method,
+              driver: request.proof.driver,
               status: 'valid',
+              amount: request.expected.amount,
+              terms: {
+                settlementId: request.expected.settlementId,
+                paymentAmount: request.expected.amount,
+                securityBondAmount: { value: '25000', denomination: 'BTC', decimals: 8 },
+                unlockAt: createdAt + 3600,
+              },
               amountMatched: true,
               assetMatched: true,
               recipientMatched: true,
-              escrowMatched: true,
+              arbiterMatched: true,
               confirmations: 3,
             }
           },
@@ -869,24 +1233,97 @@ describe('marketplace orders and messages', () => {
     expect(missingPolicy.payment.status).toBe('unverifiable')
     expect(missingPolicy.group.confirmedCommitted).toBe(false)
     expect(validated.payment.status).toBe('valid')
+    expect(validated.order?.status).toBe('valid')
     expect(validated.group.stage).toBe('commit')
     expect(validated.group.confirmedCommitted).toBe(true)
     expect(validated.payment.confirmations).toBe(3)
   })
 
+  test('reports invalid embedded listing order terms without rejecting valid payments', async () => {
+    const sellerSecretKey = generateSecretKey()
+    const buyerSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
+    const sellerPubkey = getPublicKey(sellerSecretKey)
+    const buyerPubkey = getPublicKey(buyerSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
+    const listing = listingEvent(sellerSecretKey)
+    const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
+    const order = sign(
+      marketplace.orders.template({
+        tradeId: 'trade-group-order-validation',
+        listingAnchor,
+        listing,
+        amount: { value: '40000', denomination: 'BTC', decimals: 8 },
+        participants: [
+          { pubkey: sellerPubkey, role: 'seller' },
+          { pubkey: buyerPubkey, role: 'buyer' },
+          { pubkey: arbiterPubkey, role: 'arbiter' },
+        ],
+        createdAt,
+      }),
+      buyerSecretKey,
+    )
+    const payment = sign(
+      marketplace.orders.paymentTemplate({
+        tradeId: 'trade-group-order-validation',
+        listingAnchor,
+        participants: [
+          { pubkey: sellerPubkey, role: 'seller' },
+          { pubkey: buyerPubkey, role: 'buyer' },
+          { pubkey: arbiterPubkey, role: 'arbiter' },
+        ],
+        refs: { orders: [order.id] },
+        amount: { value: '40000', denomination: 'BTC', decimals: 8 },
+        proof: {
+          paymentProof: { driver: 'evm', params: { txHash: `0x${'e'.repeat(64)}` } },
+        },
+        createdAt: createdAt + 1,
+      }),
+      buyerSecretKey,
+    )
+    const group = marketplace.orders.groups.reduce([order, payment])
+    const validated = await marketplace.orders.groups.validatePayments(group, {
+      policies: [
+        {
+          method: 'evm',
+          async validatePayment(request: marketplace.MarketplacePaymentValidationRequest) {
+            return {
+              driver: request.proof.driver,
+              status: 'valid',
+              amount: request.expected.amount,
+              terms: {
+                settlementId: request.expected.settlementId,
+                paymentAmount: request.expected.amount,
+                securityBondAmount: { value: '25000', denomination: 'BTC', decimals: 8 },
+                unlockAt: createdAt + 3600,
+              },
+              amountMatched: true,
+            }
+          },
+        },
+      ],
+    })
+
+    expect(validated.payment.status).toBe('valid')
+    expect(validated.order?.status).toBe('invalid')
+    expect(validated.order?.errors).toContain('Order amount does not match embedded listing price')
+    expect(validated.group.confirmedCommitted).toBe(true)
+    expect(validated.group.stage).toBe('commit')
+  })
+
   test('payment nacks block committed status until settlement exists', async () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
     const buyerPubkey = getPublicKey(buyerSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const participants = [
       { pubkey: sellerPubkey, role: 'seller' as const },
       { pubkey: buyerPubkey, role: 'buyer' as const },
-      { pubkey: escrowPubkey, role: 'escrow' as const },
+      { pubkey: arbiterPubkey, role: 'arbiter' as const },
     ]
     const order = sign(
       marketplace.orders.template({
@@ -903,9 +1340,9 @@ describe('marketplace orders and messages', () => {
         listingAnchor,
         participants,
         refs: { orders: [order.id] },
+        amount: { value: '50000', denomination: 'BTC', decimals: 8 },
         proof: {
-          listing,
-          paymentProof: { method: 'evm', params: { txHash: `0x${'f'.repeat(64)}` } },
+          paymentProof: { driver: 'evm', params: { txHash: `0x${'f'.repeat(64)}` } },
         },
         createdAt: createdAt + 1,
       }),
@@ -921,7 +1358,7 @@ describe('marketplace orders and messages', () => {
         message: 'Payment proof is inadequate',
         createdAt: createdAt + 2,
       }),
-      escrowSecretKey,
+      arbiterSecretKey,
     )
 
     const [group] = marketplace.orders.groups.group([order, payment, nack], {
@@ -931,6 +1368,77 @@ describe('marketplace orders and messages', () => {
     expect(group.paymentNack?.event.id).toBe(nack.id)
     expect(group.stage).toBe('negotiate')
     expect(group.confirmedCommitted).toBe(false)
+  })
+
+  test('later arbiter payment ack supersedes an earlier nack for the current payment', () => {
+    const sellerSecretKey = generateSecretKey()
+    const buyerSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
+    const sellerPubkey = getPublicKey(sellerSecretKey)
+    const buyerPubkey = getPublicKey(buyerSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
+    const listing = listingEvent(sellerSecretKey)
+    const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
+    const participants = [
+      { pubkey: sellerPubkey, role: 'seller' as const },
+      { pubkey: buyerPubkey, role: 'buyer' as const },
+      { pubkey: arbiterPubkey, role: 'arbiter' as const },
+    ]
+    const order = sign(
+      marketplace.orders.template({
+        tradeId: 'trade-group-nack-then-ack',
+        listingAnchor,
+        participants,
+        createdAt,
+      }),
+      buyerSecretKey,
+    )
+    const payment = sign(
+      marketplace.orders.paymentTemplate({
+        tradeId: 'trade-group-nack-then-ack',
+        listingAnchor,
+        participants,
+        refs: { orders: [order.id] },
+        amount: { value: '50000', denomination: 'BTC', decimals: 8 },
+        proof: {
+          paymentProof: { driver: 'evm', params: { txHash: `0x${'f'.repeat(64)}` } },
+        },
+        createdAt: createdAt + 1,
+      }),
+      buyerSecretKey,
+    )
+    const nack = sign(
+      marketplace.orders.paymentNackTemplate({
+        tradeId: 'trade-group-nack-then-ack',
+        listingAnchor,
+        participants,
+        refs: { payments: [payment.id] },
+        status: 'rejected',
+        message: 'Payment amount does not match payment event amount',
+        createdAt: createdAt + 2,
+      }),
+      arbiterSecretKey,
+    )
+    const ack = sign(
+      marketplace.orders.paymentAckTemplate({
+        tradeId: 'trade-group-nack-then-ack',
+        listingAnchor,
+        participants,
+        refs: { payments: [payment.id] },
+        status: 'accepted',
+        createdAt: createdAt + 3,
+      }),
+      arbiterSecretKey,
+    )
+
+    const group = marketplace.orders.groups.reduce([order, payment, nack, ack])
+
+    expect(group.paymentNacks.map(item => item.event.id)).toEqual([nack.id])
+    expect(group.paymentAcks.map(item => item.event.id)).toEqual([ack.id])
+    expect(group.paymentNack).toBeUndefined()
+    expect(group.paymentAck?.event.id).toBe(ack.id)
+    expect(group.stage).toBe('commit')
+    expect(group.confirmedCommitted).toBe(true)
   })
 })
 
@@ -949,6 +1457,11 @@ describe('marketplace seeds', () => {
     const parsed = marketplace.seed.decryptEvent({ event, identitySecretKey, identityPubkey })
     const firstTrade = marketplace.seed.deriveTradeMaterial(seed, { index: 0, role: 'buyer' })
     const firstTradeAgain = marketplace.seed.deriveTradeMaterial(seed, { index: 0, role: 'buyer' })
+    const firstTradeAuctionKey = marketplace.seed.deriveTradeMaterial(seed, {
+      index: 0,
+      role: 'buyer',
+      extra: 'auction-bid',
+    })
     const secondTrade = marketplace.seed.deriveTradeMaterial(seed, { index: 1, role: 'buyer' })
     const pool = {
       async querySync(_relays: string[], filter: { kinds?: number[]; authors?: string[] }): Promise<Event[]> {
@@ -969,6 +1482,9 @@ describe('marketplace seeds', () => {
     })
     expect(firstTrade.tradeId).toBe(firstTradeAgain.tradeId)
     expect(firstTrade.tradePubkey).toBe(firstTradeAgain.tradePubkey)
+    expect(firstTradeAuctionKey.tradeId).toBe(firstTrade.tradeId)
+    expect(firstTradeAuctionKey.tradePubkey).not.toBe(firstTrade.tradePubkey)
+    expect(marketplace.seed.deriveTradeId(seed, { index: 0, role: 'seller', extra: 'ignored' })).toBe(firstTrade.tradeId)
     expect(firstTrade.tradeId).not.toBe(secondTrade.tradeId)
     expect(firstTrade.tradePubkey).not.toBe(secondTrade.tradePubkey)
   })
@@ -1151,9 +1667,24 @@ describe('marketplace seeds', () => {
 })
 
 describe('marketplace reviews and runtime facade', () => {
-  test('generates, validates, and parses reviews', () => {
+	  test('generates, validates, and parses reviews', () => {
     const listingAnchor = `${30402}:${'a'.repeat(64)}:villa-bali`
     const orderGroupId = 'b'.repeat(64)
+    const buyerSecretKey = generateSecretKey()
+    const buyerPubkey = getPublicKey(buyerSecretKey)
+    const buyerTempPubkey = 'c'.repeat(64)
+    const authorization = sign(
+      marketplace.orders.tradeKeyAuthorizationTemplate({
+        version: 1,
+        role: 'buyer',
+        participantPubkey: buyerTempPubkey,
+        listingAnchor,
+        tradeId: 'trade-1',
+        orderGroupId,
+        createdAt,
+      }),
+      buyerSecretKey,
+    )
     const review = sign(
       marketplace.reviews.template({
         orderGroupId,
@@ -1161,7 +1692,7 @@ describe('marketplace reviews and runtime facade', () => {
         listingAnchor,
         rating: 0.8,
         orderAnchor: `${MarketplaceOrder}:${'b'.repeat(64)}:${orderGroupId}`,
-        reviewProof: ['review_proof', 'buyer', 'c'.repeat(64), '{}'],
+        participantProofs: [marketplace.participantProofs.publicProof(authorization)],
         content: 'Clear terms and smooth payment.',
         createdAt,
       }),
@@ -1175,14 +1706,139 @@ describe('marketplace reviews and runtime facade', () => {
     expect(parsed.listingAnchor).toBe(listingAnchor)
     expect(parsed.rating).toBe(0.8)
     expect(parsed.content).toBe('Clear terms and smooth payment.')
-  })
+    expect(marketplace.reviews.resolveProof(parsed)).toMatchObject({
+      status: 'resolved',
+      role: 'buyer',
+      participantPubkey: buyerTempPubkey,
+      realPubkey: buyerPubkey,
+      authorizationEventId: authorization.id,
+    })
+	    expect(marketplace.reviews.revealedBuyerPubkey(parsed)).toBe(buyerPubkey)
+	  })
+
+	  test('publishes negotiation offers through the session orders API', async () => {
+	    const sellerSecretKey = generateSecretKey()
+	    const buyerSecretKey = generateSecretKey()
+	    const buyerPubkey = getPublicKey(buyerSecretKey)
+	    const listing = listingEvent(sellerSecretKey)
+	    const published: Event[] = []
+	    const pool = {
+	      async querySync(): Promise<Event[]> {
+	        return []
+	      },
+	      async get(): Promise<Event | null> {
+	        return null
+	      },
+	    }
+	    const api = marketplace.bind(pool, ['wss://relay.example'], {
+	      seed: '8'.repeat(64),
+	      identity: { pubkey: buyerPubkey },
+	      publish: event => published.push(event),
+	      signer: {
+	        async getPublicKey() {
+	          return buyerPubkey
+	        },
+	        async nip44Encrypt(pubkey: string, plaintext: string) {
+	          return encryptNip44(plaintext, getConversationKey(buyerSecretKey, pubkey))
+	        },
+	        async nip44Decrypt() {
+	          throw new Error('not used')
+	        },
+	        async signEvent(template: EventTemplate) {
+	          return sign(template, buyerSecretKey)
+	        },
+	      },
+	    })
+
+	    const result = await api.orders.negotiate(listing, {
+	      amount: { value: '10000', denomination: 'BTC', decimals: 8 },
+	      start: '2026-07-01',
+	      end: '2026-07-02',
+	      now: createdAt,
+	    })
+
+	    expect(result.accountIndex).toBe(0)
+	    expect(result.tradeId).toBe(marketplace.seed.deriveTradeId('8'.repeat(64), { index: 0 }))
+	    expect(result.order.kind).toBe(MarketplaceOrder)
+	    expect(result.message.kind).toBe(StructuredMessage)
+	    expect(result.giftWraps).toHaveLength(2)
+	    expect(published).toEqual(result.giftWraps)
+	    expect(published.map(event => event.kind)).toEqual([GiftWrap, GiftWrap])
+	    expect(new Set(published.map(event => event.tags.find(tag => tag[0] === 'p')?.[1]))).toEqual(new Set([
+	      buyerPubkey,
+	      listing.pubkey,
+	    ]))
+	  })
+
+	  test('discovers negotiation trade ids from sent inbox messages', async () => {
+	    const sellerSecretKey = generateSecretKey()
+	    const buyerSecretKey = generateSecretKey()
+	    const buyerPubkey = getPublicKey(buyerSecretKey)
+	    const listing = listingEvent(sellerSecretKey)
+	    const published: Event[] = []
+	    const pool = {
+	      async querySync(_relays: string[], filter: Record<string, unknown>): Promise<Event[]> {
+	        return published.filter(event => {
+	          const kinds = filter.kinds as number[] | undefined
+	          if (kinds && !kinds.includes(event.kind)) return false
+	          const pTags = filter['#p'] as string[] | undefined
+	          if (pTags && !event.tags.some(tag => tag[0] === 'p' && pTags.includes(tag[1]))) return false
+	          const authors = filter.authors as string[] | undefined
+	          if (authors && !authors.includes(event.pubkey)) return false
+	          return true
+	        })
+	      },
+	      async get(): Promise<Event | null> {
+	        return null
+	      },
+	    }
+	    const signer = {
+	      async getPublicKey() {
+	        return buyerPubkey
+	      },
+	      async nip44Encrypt(pubkey: string, plaintext: string) {
+	        return encryptNip44(plaintext, getConversationKey(buyerSecretKey, pubkey))
+	      },
+	      async nip44Decrypt(pubkey: string, ciphertext: string) {
+	        return decryptNip44(ciphertext, getConversationKey(buyerSecretKey, pubkey))
+	      },
+	      async signEvent(template: EventTemplate) {
+	        return sign(template, buyerSecretKey)
+	      },
+	    }
+	    const runtimeOptions = {
+	      seed: '8'.repeat(64),
+	      identity: { pubkey: buyerPubkey },
+	      publish: (event: Event) => published.push(event),
+	      signer,
+	    }
+
+	    const firstApi = marketplace.bind(pool, ['wss://relay.example'], runtimeOptions)
+	    const first = await firstApi.orders.negotiate(listing, {
+	      amount: { value: '10000', denomination: 'BTC', decimals: 8 },
+	      now: createdAt,
+	    })
+	    const secondApi = marketplace.bind(pool, ['wss://relay.example'], runtimeOptions)
+	    const second = await secondApi.orders.negotiate(listing, {
+	      amount: { value: '11000', denomination: 'BTC', decimals: 8 },
+	      now: createdAt + 1,
+	    })
+
+	    expect(first.accountIndex).toBe(0)
+	    expect(second.accountIndex).toBe(1)
+	    expect(first.tradeId).toBe(marketplace.seed.deriveTradeId('8'.repeat(64), { index: 0 }))
+	    expect(second.tradeId).toBe(marketplace.seed.deriveTradeId('8'.repeat(64), { index: 1 }))
+	  })
 
   test('auto-selects an implemented payment policy for pay stream', async () => {
     const sellerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const sellerPubkey = getPublicKey(sellerSecretKey)
+    const buyerSecretKey = generateSecretKey()
+    const buyerPubkey = getPublicKey(buyerSecretKey)
+    const arbiterSecretKey = generateSecretKey()
     const listing = listingEvent(sellerSecretKey)
-    const method = paymentMethodEvent(sellerSecretKey, getPublicKey(escrowSecretKey))
-    const service = escrowServiceEvent(escrowSecretKey)
+    const method = paymentMethodEvent(sellerSecretKey, getPublicKey(arbiterSecretKey))
+    const service = arbitrationServiceEvent(arbiterSecretKey)
     const unsupportedService = {
       ...service,
       content: JSON.stringify({
@@ -1197,7 +1853,7 @@ describe('marketplace reviews and runtime facade', () => {
     const pool = {
       async querySync(_relays: string[], filter: { kinds?: number[] }): Promise<Event[]> {
         if (filter.kinds?.includes(MarketplacePaymentMethod)) return [method]
-        if (filter.kinds?.includes(EscrowService)) return [unsupportedService, service]
+        if (filter.kinds?.includes(ArbitrationService)) return [unsupportedService, service]
         return []
       },
       async get(): Promise<Event | null> {
@@ -1210,7 +1866,7 @@ describe('marketplace reviews and runtime facade', () => {
     const policy: marketplace.MarketplaceOrderPolicy = {
       method: 'evm',
       id: 'evm-multi-escrow',
-      subject: 'order',
+      purpose: 'order',
       family: 'escrow',
       policies: () => [{
         method: 'evm',
@@ -1236,7 +1892,7 @@ describe('marketplace reviews and runtime facade', () => {
           type: 'paid' as const,
           proof: {
             method: 'evm',
-            params: { tradeId: intent.tradeId },
+            params: { tradeId: intent.tradeId, txHash: `0x${'5'.repeat(64)}` },
           },
           data: {
             tradeId: intent.tradeId,
@@ -1249,6 +1905,17 @@ describe('marketplace reviews and runtime facade', () => {
       seed: '4'.repeat(64),
       publish: event => published.push(event),
       orderPolicies: [policy],
+      signer: {
+        async getPublicKey() {
+          return buyerPubkey
+        },
+        async nip44Decrypt() {
+          throw new Error('not used')
+        },
+        async signEvent(template: EventTemplate) {
+          return sign(template, buyerSecretKey)
+        },
+      },
     })
 
     const result: marketplace.MarketplacePaymentState[] = []
@@ -1258,7 +1925,9 @@ describe('marketplace reviews and runtime facade', () => {
       amount: { value: '50000', denomination: 'BTC', decimals: 8 },
       createdAt,
     }, {
-      accountIndex: 3,
+      identityProof: 'public',
+      paymentProofPrivacy: 'sealed',
+      paymentAmountPrivacy: 'sealed',
     })) {
       result.push(state)
     }
@@ -1267,23 +1936,225 @@ describe('marketplace reviews and runtime facade', () => {
     expect(result[0]?.data).toEqual({ tradeId: 'trade-1', amount: '50000' })
     expect(published.map(event => event.kind)).toEqual([MarketplaceOrder, MarketplacePayment])
     expect(published[0].pubkey).toBe(marketplace.seed.deriveTradeMaterial('4'.repeat(64), {
-      index: 3,
+      index: 0,
       role: 'buyer',
     }).tradePubkey)
+    const parsedOrder = marketplace.orders.parse(published[0])
+    expect(parsedOrder.participantProofs).toHaveLength(1)
+    expect(parsedOrder.participantProofKeys).toHaveLength(0)
+    expect(marketplace.participantProofs.resolvePublic(parsedOrder.participantProofs[0], {
+      listingAnchor,
+      tradeId: parsedOrder.tradeId,
+      role: 'buyer',
+      participantPubkey: parsedOrder.event.pubkey,
+    })).toMatchObject({
+      status: 'resolved',
+      realPubkey: buyerPubkey,
+      participantPubkey: parsedOrder.event.pubkey,
+    })
+    const parsedPayment = marketplace.orders.parsePayment(published[1])
+    expect(parsedPayment.content.amount).toBeUndefined()
+    expect(parsedPayment.content.sealedAmount?.mode).toBe('sealed:v1')
+    expect(parsedPayment.paymentAmountKeys.map(key => key.recipientPubkey).sort()).toEqual([
+      sellerPubkey,
+      getPublicKey(arbiterSecretKey),
+      parsedPayment.event.pubkey,
+    ].sort())
+    expect(parsedPayment.content.proof).toBeUndefined()
+    expect(parsedPayment.content.sealedProof?.mode).toBe('sealed:v1')
+    expect(parsedPayment.paymentProofKeys.map(key => key.recipientPubkey).sort()).toEqual([
+      sellerPubkey,
+      getPublicKey(arbiterSecretKey),
+      parsedPayment.event.pubkey,
+    ].sort())
+    const resolvedPaymentProof = await marketplace.paymentProofs.resolve(parsedPayment, {
+      signerPubkey: sellerPubkey,
+      signer: {
+        async getPublicKey() {
+          return sellerPubkey
+        },
+        async nip44Decrypt(pubkey: string, ciphertext: string) {
+          return decryptNip44(ciphertext, getConversationKey(sellerSecretKey, pubkey))
+        },
+      },
+    })
+    const resolvedPaymentAmount = await marketplace.paymentAmounts.resolve(parsedPayment, {
+      signerPubkey: sellerPubkey,
+      signer: {
+        async getPublicKey() {
+          return sellerPubkey
+        },
+        async nip44Decrypt(pubkey: string, ciphertext: string) {
+          return decryptNip44(ciphertext, getConversationKey(sellerSecretKey, pubkey))
+        },
+      },
+    })
+    expect(resolvedPaymentAmount.status).toBe('resolved')
+    expect(resolvedPaymentAmount.amount).toEqual({ value: '50000', currency: 'BTC', denomination: 'BTC', decimals: 8 })
+    expect(resolvedPaymentProof.status).toBe('resolved')
+    expect(resolvedPaymentProof.proof?.paymentProof?.params.tradeId).toBe('trade-1')
     expect(receivedSeed).toBe('4'.repeat(64))
     expect(receivedBytecodeHash).toBe(`0x${bytecodeHash}`)
   })
 
+  test('can seal only payment proof params and resolve them with proof keys', async () => {
+    const senderSecretKey = generateSecretKey()
+    const recipientSecretKey = generateSecretKey()
+    const recipientPubkey = getPublicKey(recipientSecretKey)
+    const proof: marketplace.PaymentProof = {
+      paymentProof: {
+        driver: 'evm:multi-escrow',
+        params: {
+          txHash: `0x${'5'.repeat(64)}`,
+          tradeId: 'trade-1',
+          paymentAmount: '50000',
+          denomination: 'BTC',
+          decimals: 8,
+        },
+      },
+    }
+
+    const payload = marketplace.paymentProofs.build(proof, {
+      mode: 'params',
+      senderSecretKey,
+      recipientPubkeys: [recipientPubkey],
+    })
+
+    expect('paymentProof' in payload.proof).toBe(true)
+    const publicProof = payload.proof as marketplace.PaymentProof
+    expect(publicProof.paymentProof?.driver).toBe('evm:multi-escrow')
+    const encryptedParams = publicProof.paymentProof?.params as Record<string, unknown>
+    expect(encryptedParams.encrypted).toBe(true)
+    expect(String(encryptedParams.payload)).not.toContain('trade-1')
+    expect(payload.paymentProofKeys.map(key => key.recipientPubkey)).toEqual([recipientPubkey])
+
+    const resolved = await marketplace.paymentProofs.resolveParams(publicProof.paymentProof!, {
+      keys: payload.paymentProofKeys,
+      signerPubkey: recipientPubkey,
+      signer: {
+        async getPublicKey() {
+          return recipientPubkey
+        },
+        async nip44Decrypt(pubkey: string, ciphertext: string) {
+          return decryptNip44(ciphertext, getConversationKey(recipientSecretKey, pubkey))
+        },
+      },
+    })
+
+    expect(resolved.status).toBe('resolved')
+    expect(resolved.params?.tradeId).toBe('trade-1')
+    expect(resolved.params?.paymentAmount).toBe('50000')
+  })
+
+  test('publishes BTC amounts for SAT-denominated payment routes', async () => {
+    const sellerSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
+    const buyerSecretKey = generateSecretKey()
+    const buyerPubkey = getPublicKey(buyerSecretKey)
+    const listing = listingEvent(sellerSecretKey)
+    const method = cashuPaymentMethodEvent(sellerSecretKey, getPublicKey(arbiterSecretKey))
+    const service = cashuArbitrationServiceEvent(arbiterSecretKey)
+    const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
+    expect(method.tags).toContainEqual(['o', 'BTC', cashuAssetId, 'marketplace'])
+    expect(method.tags.some(tag => tag[0] === 'o' && tag[1] === 'SAT')).toBe(false)
+    const pool = {
+      async querySync(_relays: string[], filter: { kinds?: number[] }): Promise<Event[]> {
+        if (filter.kinds?.includes(MarketplacePaymentMethod)) return [method]
+        if (filter.kinds?.includes(ArbitrationService)) return [service]
+        return []
+      },
+      async get(): Promise<Event | null> {
+        return null
+      },
+    }
+    let receivedAmount: marketplace.MarketplaceAmount | undefined
+    const published: Event[] = []
+    const policy: marketplace.MarketplaceOrderPolicy = {
+      method: 'cashu',
+      id: 'cashu:p2pk-escrow-v1',
+      purpose: 'order',
+      family: 'escrow',
+      policies: () => [{
+        method: 'cashu',
+        id: 'cashu:p2pk-escrow-v1',
+        type: 'cashu:p2pk-escrow-v1',
+        hash: cashuPolicyHash,
+        data: { mintUrl: cashuMintUrl, unit: 'sat' },
+      }],
+      assets: () => [{
+        method: 'cashu',
+        assetId: cashuAssetId,
+        denomination: 'SAT',
+        decimals: 0,
+        appId: 'marketplace',
+        data: { mintUrl: cashuMintUrl, unit: 'sat' },
+      }],
+      async *pay(intent: marketplace.MarketplacePaymentIntent) {
+        receivedAmount = intent.amount
+        yield {
+          type: 'paid' as const,
+          proof: {
+            driver: 'cashu',
+            params: {
+              policyType: 'cashu:p2pk-escrow-v1',
+              mint: cashuMintUrl,
+              unit: 'sat',
+              amount: intent.amount.value,
+              denomination: intent.amount.denomination,
+              decimals: intent.amount.decimals,
+            },
+          },
+        }
+      },
+    }
+    const api = marketplace.bind(pool, ['wss://relay.example'], {
+      seed: '8'.repeat(64),
+      publish: event => published.push(event),
+      orderPolicies: [policy],
+      signer: {
+        async getPublicKey() {
+          return buyerPubkey
+        },
+        async nip44Decrypt() {
+          throw new Error('not used')
+        },
+        async signEvent(template: EventTemplate) {
+          return sign(template, buyerSecretKey)
+        },
+      },
+    })
+
+    const result: marketplace.MarketplacePaymentState[] = []
+    for await (const state of api.pay(listing, {
+      tradeId: 'cashu-trade-1',
+      listingAnchor,
+      amount: { value: '600000', denomination: 'BTC', decimals: 8 },
+      createdAt,
+    }, {
+      identityProof: 'public',
+    })) {
+      result.push(state)
+    }
+
+    expect(result.map(state => state.type)).toEqual(['order_published', 'payment_published', 'completed'])
+    expect(receivedAmount).toEqual({ value: '600000', currency: 'BTC', denomination: 'SAT', decimals: 0 })
+    expect(published.map(event => event.kind)).toEqual([MarketplaceOrder, MarketplacePayment])
+    const parsedOrder = marketplace.orders.parse(published[0])
+    const parsedPayment = marketplace.orders.parsePayment(published[1])
+    expect(parsedOrder.content.amount).toEqual({ value: '600000', currency: 'BTC', denomination: 'BTC', decimals: 8 })
+    expect(parsedPayment.content.amount).toEqual({ value: '600000', currency: 'BTC', denomination: 'BTC', decimals: 8 })
+  })
+
   test('uses an explicitly selected payment route for pay stream', async () => {
     const sellerSecretKey = generateSecretKey()
-    const firstEscrowSecretKey = generateSecretKey()
-    const secondEscrowSecretKey = generateSecretKey()
-    const firstEscrowPubkey = getPublicKey(firstEscrowSecretKey)
-    const secondEscrowPubkey = getPublicKey(secondEscrowSecretKey)
+    const firstArbiterSecretKey = generateSecretKey()
+    const secondArbiterSecretKey = generateSecretKey()
+    const firstArbiterPubkey = getPublicKey(firstArbiterSecretKey)
+    const secondArbiterPubkey = getPublicKey(secondArbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const method = sign(
       marketplace.paymentMethod.template({
-        trustedEscrowPubkeys: [firstEscrowPubkey, secondEscrowPubkey],
+        trustedArbiterPubkeys: [firstArbiterPubkey, secondArbiterPubkey],
         supportedContractBytecodeHashes: [bytecodeHash],
         acceptedPaymentForms: [{ denomination: 'BTC', assetId: btcAssetId, appId: 'marketplace' }],
         evmAddress: sellerEvmAddress,
@@ -1291,15 +2162,15 @@ describe('marketplace reviews and runtime facade', () => {
       }),
       sellerSecretKey,
     )
-    const firstService = escrowServiceEvent(firstEscrowSecretKey)
-    const secondService = escrowServiceEvent(secondEscrowSecretKey)
+    const firstService = arbitrationServiceEvent(firstArbiterSecretKey)
+    const secondService = arbitrationServiceEvent(secondArbiterSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const pool = {
       async querySync(_relays: string[], filter: { kinds?: number[]; authors?: string[] }): Promise<Event[]> {
         if (filter.kinds?.includes(MarketplacePaymentMethod)) return [method]
-        if (filter.kinds?.includes(EscrowService)) {
-          if (filter.authors?.includes(firstEscrowPubkey)) return [firstService]
-          if (filter.authors?.includes(secondEscrowPubkey)) return [secondService]
+        if (filter.kinds?.includes(ArbitrationService)) {
+          if (filter.authors?.includes(firstArbiterPubkey)) return [firstService]
+          if (filter.authors?.includes(secondArbiterPubkey)) return [secondService]
           return [firstService, secondService]
         }
         return []
@@ -1308,12 +2179,12 @@ describe('marketplace reviews and runtime facade', () => {
         return null
       },
     }
-    let receivedEscrowPubkey: string | undefined
+    let receivedArbiterPubkey: string | undefined
     const published: Event[] = []
     const policy: marketplace.MarketplaceOrderPolicy = {
       method: 'evm',
       id: 'evm-multi-escrow',
-      subject: 'order',
+      purpose: 'order',
       family: 'escrow',
       policies: () => [{
         method: 'evm',
@@ -1333,10 +2204,10 @@ describe('marketplace reviews and runtime facade', () => {
         assetAddress: btcAssetId.split(':')[1],
       }],
       async *pay(intent: marketplace.MarketplacePaymentIntent) {
-        receivedEscrowPubkey = intent.participants.escrow.pubkey
+        receivedArbiterPubkey = intent.participants.arbiter.pubkey
         yield {
           type: 'paid' as const,
-          proof: { method: 'evm', params: { tradeId: intent.tradeId } },
+          proof: { driver: 'evm-multi-escrow', params: { tradeId: intent.tradeId } },
         }
       },
     }
@@ -1351,13 +2222,15 @@ describe('marketplace reviews and runtime facade', () => {
       amount: { value: '50000', denomination: 'BTC', decimals: 8 },
       createdAt,
     }
-    const routes = await api.paymentRoutes.forListing(listing, order)
-    const selectedRoute = routes.find(route => route.escrowService.event.pubkey === secondEscrowPubkey)
+    const routes = await api.paymentRoutes.forListing(listing, {
+      amount: order.amount,
+      purpose: 'order',
+    })
+    const selectedRoute = routes.find(route => route.arbitrationService.event.pubkey === secondArbiterPubkey)
 
     expect(selectedRoute).toBeDefined()
     const states: marketplace.MarketplacePaymentState[] = []
     for await (const state of api.pay(listing, order, {
-      accountIndex: 4,
       route: selectedRoute,
     })) {
       states.push(state)
@@ -1365,20 +2238,20 @@ describe('marketplace reviews and runtime facade', () => {
 
     expect(states.map(state => state.type)).toEqual(['order_published', 'payment_published', 'completed'])
     expect(published.map(event => event.kind)).toEqual([MarketplaceOrder, MarketplacePayment])
-    expect(receivedEscrowPubkey).toBe(secondEscrowPubkey)
+    expect(receivedArbiterPubkey).toBe(secondArbiterPubkey)
   })
 
   test('routes cashu payments through the same pay stream interface', async () => {
     const sellerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterSecretKey = generateSecretKey()
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const policyHash = 'cashu-escrow-script-v1'
     const assetId = 'cashu:https://mint.example:sat'
     const method = sign(
       marketplace.paymentMethod.template({
-        trustedEscrowPubkeys: [escrowPubkey],
+        trustedArbiterPubkeys: [arbiterPubkey],
         supportedContractBytecodeHashes: [policyHash],
         acceptedPaymentForms: [{ denomination: 'SAT', assetId, appId: 'cashu' }],
         createdAt,
@@ -1386,9 +2259,9 @@ describe('marketplace reviews and runtime facade', () => {
       sellerSecretKey,
     )
     const service = sign(
-      marketplace.escrowServices.template({
+      marketplace.arbitrationServices.template({
         d: 'cashu-script-escrow',
-        pubkey: escrowPubkey,
+        pubkey: arbiterPubkey,
         type: 'CASHU',
         maxDuration: 1209600,
         fee: { ppm: 0, base: '0', min: '0', max: '0' },
@@ -1398,12 +2271,12 @@ describe('marketplace reviews and runtime facade', () => {
         },
         createdAt,
       }),
-      escrowSecretKey,
+      arbiterSecretKey,
     )
     const pool = {
       async querySync(_relays: string[], filter: { kinds?: number[] }): Promise<Event[]> {
         if (filter.kinds?.includes(MarketplacePaymentMethod)) return [method]
-        if (filter.kinds?.includes(EscrowService)) return [service]
+        if (filter.kinds?.includes(ArbitrationService)) return [service]
         return []
       },
       async get(): Promise<Event | null> {
@@ -1415,7 +2288,7 @@ describe('marketplace reviews and runtime facade', () => {
     const cashuPolicy: marketplace.MarketplaceOrderPolicy = {
       method: 'cashu',
       id: 'cashu-script',
-      subject: 'order',
+      purpose: 'order',
       family: 'escrow',
       policies: () => [{ method: 'cashu', id: 'cashu-script', hash: policyHash }],
       assets: () => [{ method: 'cashu', assetId, denomination: 'SAT', decimals: 0, appId: 'cashu' }],
@@ -1445,8 +2318,6 @@ describe('marketplace reviews and runtime facade', () => {
       listingAnchor,
       amount: { value: '1000', denomination: 'SAT', decimals: 0 },
       createdAt,
-    }, {
-      accountIndex: 8,
     })) {
       result.push(state)
     }
@@ -1456,19 +2327,31 @@ describe('marketplace reviews and runtime facade', () => {
     expect(receivedIntent?.policy.hash).toBe(policyHash)
     expect(result.map(state => state.type)).toEqual(['order_published', 'payment_published', 'completed'])
     expect(published.map(event => event.kind)).toEqual([MarketplaceOrder, MarketplacePayment])
+    expect(marketplace.orders.parse(published[0]).content.amount).toEqual({
+      value: '1000',
+      currency: 'BTC',
+      denomination: 'BTC',
+      decimals: 8,
+    })
+    expect(marketplace.orders.parsePayment(published[1]).content.amount).toEqual({
+      value: '1000',
+      currency: 'BTC',
+      denomination: 'BTC',
+      decimals: 8,
+    })
   })
 
   test('routes BTC marketplace amounts through SAT Cashu assets', async () => {
     const sellerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterSecretKey = generateSecretKey()
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const policyHash = 'cashu-escrow-script-v1'
     const assetId = 'cashu:https://mint.example:sat'
     const method = sign(
       marketplace.paymentMethod.template({
-        trustedEscrowPubkeys: [escrowPubkey],
+        trustedArbiterPubkeys: [arbiterPubkey],
         supportedContractBytecodeHashes: [policyHash],
         acceptedPaymentForms: [{ denomination: 'SAT', assetId, appId: 'cashu' }],
         createdAt,
@@ -1476,9 +2359,9 @@ describe('marketplace reviews and runtime facade', () => {
       sellerSecretKey,
     )
     const service = sign(
-      marketplace.escrowServices.template({
+      marketplace.arbitrationServices.template({
         d: 'cashu-script-escrow',
-        pubkey: escrowPubkey,
+        pubkey: arbiterPubkey,
         type: 'CASHU',
         maxDuration: 1209600,
         fee: { ppm: 0, base: '0', min: '0', max: '0' },
@@ -1488,12 +2371,12 @@ describe('marketplace reviews and runtime facade', () => {
         },
         createdAt,
       }),
-      escrowSecretKey,
+      arbiterSecretKey,
     )
     const pool = {
       async querySync(_relays: string[], filter: { kinds?: number[] }): Promise<Event[]> {
         if (filter.kinds?.includes(MarketplacePaymentMethod)) return [method]
-        if (filter.kinds?.includes(EscrowService)) return [service]
+        if (filter.kinds?.includes(ArbitrationService)) return [service]
         return []
       },
       async get(): Promise<Event | null> {
@@ -1505,7 +2388,7 @@ describe('marketplace reviews and runtime facade', () => {
     const cashuPolicy: marketplace.MarketplaceOrderPolicy = {
       method: 'cashu',
       id: 'cashu-script',
-      subject: 'order',
+      purpose: 'order',
       family: 'escrow',
       policies: () => [{ method: 'cashu', id: 'cashu-script', hash: policyHash }],
       assets: () => [{ method: 'cashu', assetId, denomination: 'SAT', decimals: 0, appId: 'cashu' }],
@@ -1530,10 +2413,8 @@ describe('marketplace reviews and runtime facade', () => {
     })
 
     const routes = await api.paymentRoutes.forListing(listing, {
-      tradeId: 'cashu-btc-route-1',
-      listingAnchor,
       amount: { value: '100000', denomination: 'BTC', decimals: 8 },
-      createdAt,
+      purpose: 'order',
     })
     expect(routes).toHaveLength(1)
     expect(routes[0].asset.denomination).toBe('SAT')
@@ -1544,17 +2425,127 @@ describe('marketplace reviews and runtime facade', () => {
       listingAnchor,
       amount: { value: '100000', denomination: 'BTC', decimals: 8 },
       createdAt,
-    }, {
-      accountIndex: 8,
     })) {
       result.push(state)
     }
 
-    expect(receivedIntent?.amount).toEqual({ value: '100000', denomination: 'SAT', decimals: 0 })
+    expect(receivedIntent?.amount).toEqual({ value: '100000', currency: 'BTC', denomination: 'SAT', decimals: 0 })
     expect(result.map(state => state.type)).toEqual(['order_published', 'payment_published', 'completed'])
     expect(published.map(event => event.kind)).toEqual([MarketplaceOrder, MarketplacePayment])
     expect(marketplace.orders.parse(published[0]).content.amount).toEqual({
       value: '100000',
+      currency: 'BTC',
+      denomination: 'BTC',
+      decimals: 8,
+    })
+    expect(marketplace.orders.parsePayment(published[1]).content.amount).toEqual({
+      value: '100000',
+      currency: 'BTC',
+      denomination: 'BTC',
+      decimals: 8,
+    })
+  })
+
+  test('routes SAT marketplace amounts through BTC Cashu assets', async () => {
+    const sellerSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
+    const listing = listingEvent(sellerSecretKey)
+    const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
+    const policyHash = 'cashu-escrow-script-v1'
+    const assetId = 'cashu:https://mint.example:sat'
+    const method = sign(
+      marketplace.paymentMethod.template({
+        trustedArbiterPubkeys: [arbiterPubkey],
+        supportedContractBytecodeHashes: [policyHash],
+        acceptedPaymentForms: [{ denomination: 'SAT', assetId, appId: 'cashu' }],
+        createdAt,
+      }),
+      sellerSecretKey,
+    )
+    const service = sign(
+      marketplace.arbitrationServices.template({
+        d: 'cashu-script-escrow',
+        pubkey: arbiterPubkey,
+        type: 'CASHU',
+        maxDuration: 1209600,
+        fee: { ppm: 0, base: '0', min: '0', max: '0' },
+        params: {
+          policyHash,
+          mints: ['https://mint.example'],
+        },
+        createdAt,
+      }),
+      arbiterSecretKey,
+    )
+    const pool = {
+      async querySync(_relays: string[], filter: { kinds?: number[] }): Promise<Event[]> {
+        if (filter.kinds?.includes(MarketplacePaymentMethod)) return [method]
+        if (filter.kinds?.includes(ArbitrationService)) return [service]
+        return []
+      },
+      async get(): Promise<Event | null> {
+        return null
+      },
+    }
+    let receivedIntent: marketplace.MarketplacePaymentIntent | undefined
+    const published: Event[] = []
+    const cashuPolicy: marketplace.MarketplaceOrderPolicy = {
+      method: 'cashu',
+      id: 'cashu-script',
+      purpose: 'order',
+      family: 'escrow',
+      policies: () => [{ method: 'cashu', id: 'cashu-script', hash: policyHash }],
+      assets: () => [{ method: 'cashu', assetId, denomination: 'BTC', decimals: 8, appId: 'cashu' }],
+      async *pay(intent: marketplace.MarketplacePaymentIntent) {
+        receivedIntent = intent
+        yield {
+          type: 'paid' as const,
+          proof: {
+            method: 'cashu',
+            params: {
+              tokenCommitment: 'proof-commitment',
+              policyHash,
+            },
+          },
+        }
+      },
+    }
+    const api = marketplace.bind(pool, ['wss://relay.example'], {
+      seed: '6'.repeat(64),
+      publish: event => published.push(event),
+      orderPolicies: [cashuPolicy],
+    })
+
+    const routes = await api.paymentRoutes.forListing(listing, {
+      amount: { value: '10000', denomination: 'SAT', decimals: 0 },
+      purpose: 'order',
+    })
+    expect(routes).toHaveLength(1)
+    expect(routes[0].asset.denomination).toBe('BTC')
+
+    const result: marketplace.MarketplacePaymentState[] = []
+    for await (const state of api.pay(listing, {
+      tradeId: 'cashu-sat-trade-1',
+      listingAnchor,
+      amount: { value: '10000', denomination: 'SAT', decimals: 0 },
+      createdAt,
+    })) {
+      result.push(state)
+    }
+
+    expect(receivedIntent?.amount).toEqual({ value: '10000', currency: 'BTC', denomination: 'BTC', decimals: 8 })
+    expect(result.map(state => state.type)).toEqual(['order_published', 'payment_published', 'completed'])
+    expect(published.map(event => event.kind)).toEqual([MarketplaceOrder, MarketplacePayment])
+    expect(marketplace.orders.parse(published[0]).content.amount).toEqual({
+      value: '10000',
+      currency: 'BTC',
+      denomination: 'BTC',
+      decimals: 8,
+    })
+    expect(marketplace.orders.parsePayment(published[1]).content.amount).toEqual({
+      value: '10000',
+      currency: 'BTC',
       denomination: 'BTC',
       decimals: 8,
     })
@@ -1562,15 +2553,18 @@ describe('marketplace reviews and runtime facade', () => {
 
   test('routes marketplace auction bids through bid policies', async () => {
     const sellerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const buyerSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
+    const sellerPubkey = getPublicKey(sellerSecretKey)
+    const buyerPubkey = getPublicKey(buyerSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const auction = sign(
       marketplace.auctions.template({
         d: 'auction-cashu-1',
         listingAnchor,
-        arbiterPubkey: escrowPubkey,
+        arbiterPubkey: arbiterPubkey,
         currency: 'USD',
         decimals: 2,
         createdAt,
@@ -1581,7 +2575,7 @@ describe('marketplace reviews and runtime facade', () => {
     const assetId = 'cashu:https://mint.example:usd'
     const method = sign(
       marketplace.paymentMethod.template({
-        trustedEscrowPubkeys: [escrowPubkey],
+        trustedArbiterPubkeys: [arbiterPubkey],
         supportedContractBytecodeHashes: [policyHash],
         acceptedPaymentForms: [{ denomination: 'USD', assetId, appId: 'cashu' }],
         createdAt,
@@ -1589,9 +2583,9 @@ describe('marketplace reviews and runtime facade', () => {
       sellerSecretKey,
     )
     const service = sign(
-      marketplace.escrowServices.template({
+      marketplace.arbitrationServices.template({
         d: 'cashu-script-auction',
-        pubkey: escrowPubkey,
+        pubkey: arbiterPubkey,
         type: 'CASHU',
         maxDuration: 1209600,
         fee: { ppm: 0, base: '0', min: '0', max: '0' },
@@ -1602,12 +2596,12 @@ describe('marketplace reviews and runtime facade', () => {
         },
         createdAt,
       }),
-      escrowSecretKey,
+      arbiterSecretKey,
     )
     const pool = {
       async querySync(_relays: string[], filter: { kinds?: number[] }): Promise<Event[]> {
         if (filter.kinds?.includes(MarketplacePaymentMethod)) return [method]
-        if (filter.kinds?.includes(EscrowService)) return [service]
+        if (filter.kinds?.includes(ArbitrationService)) return [service]
         return []
       },
       async get(): Promise<Event | null> {
@@ -1619,10 +2613,175 @@ describe('marketplace reviews and runtime facade', () => {
     const cashuBidPolicy: marketplace.MarketplaceBidPolicy = {
       method: 'cashu',
       id: 'cashu-auction-script',
-      subject: 'bid',
+      purpose: 'bid',
       family: 'auction',
       policies: () => [{ method: 'cashu', id: 'cashu-auction-script', type: 'cashu:p2pk-auction-v1', hash: policyHash }],
       assets: () => [{ method: 'cashu', assetId, denomination: 'USD', decimals: 2, appId: 'cashu' }],
+      async *pay(intent: marketplace.MarketplacePaymentIntent) {
+        receivedIntent = intent
+        yield {
+          type: 'paid' as const,
+          proof: {
+            driver: 'cashu-auction-script',
+            params: {
+              tokenCommitment: 'auction-proof-commitment',
+              policyType: 'cashu:p2pk-auction-v1',
+              policyHash,
+            },
+          },
+        }
+      },
+    }
+    const api = marketplace.bind(pool, ['wss://relay.example'], {
+      seed: '7'.repeat(64),
+      publish: event => published.push(event),
+      bidPolicies: [cashuBidPolicy],
+      signer: {
+        async getPublicKey() {
+          return buyerPubkey
+        },
+        async nip44Decrypt() {
+          throw new Error('not used')
+        },
+        async signEvent(template: EventTemplate) {
+          return sign(template, buyerSecretKey)
+        },
+      },
+    })
+
+    const orderRoutes = await api.paymentRoutes.forListing(listing, {
+      amount: { value: '2500', denomination: 'USD', decimals: 2 },
+      purpose: 'order',
+    })
+    expect(orderRoutes).toHaveLength(0)
+
+    const result: marketplace.MarketplaceAuctionBidState[] = []
+    for await (const state of api.auctions.bid(listing, {
+      amount: { value: '2500', denomination: 'USD', decimals: 2 },
+      createdAt,
+    }, {
+      auction,
+      identityProof: 'public',
+      paymentProofPrivacy: 'sealed',
+    })) {
+      result.push(state)
+    }
+
+    expect(receivedIntent?.method).toBe('cashu')
+    expect(receivedIntent?.purpose).toBe('bid')
+    expect(receivedIntent?.asset.assetId).toBe(assetId)
+    expect(receivedIntent?.policy.hash).toBe(policyHash)
+    expect(result.map(state => state.type)).toEqual(['bid_published', 'payment_published', 'completed'])
+    expect(published.map(event => event.kind)).toEqual([MarketplaceAuctionBid, MarketplacePayment])
+    const parsedBid = marketplace.auctions.parseBid(published[0])
+    const parsedPayment = marketplace.orders.parsePayment(published[1])
+    const expectedBidChainId = marketplace.auctions.bidChainId('7'.repeat(64), marketplace.auctions.address(auction))
+    expect(parsedBid.auctionAnchor).toBe(marketplace.auctions.address(auction))
+    expect(parsedBid.listingAnchor).toBe(listingAnchor)
+    expect(parsedBid.bidChainId).toBe(expectedBidChainId)
+    expect(hasTag(published[0], ['bid_chain', expectedBidChainId])).toBe(true)
+    expect(parsedBid.participantProofs).toHaveLength(1)
+    expect(parsedBid.participantProofKeys).toHaveLength(0)
+    expect(marketplace.participantProofs.resolvePublic(parsedBid.participantProofs[0], {
+      listingAnchor,
+      tradeId: parsedBid.tradeId,
+      role: 'buyer',
+      participantPubkey: parsedBid.event.pubkey,
+    })).toMatchObject({
+      status: 'resolved',
+      realPubkey: buyerPubkey,
+      participantPubkey: parsedBid.event.pubkey,
+    })
+    expect(published[0].tags.find(tag => tag[0] === 'd')?.[1]).toBe(parsedBid.tradeId)
+    expect(published[0].tags.some(tag => tag[0] === 'trade')).toBe(false)
+    expect(parsedPayment.refs.auctionBids).toEqual([published[0].id])
+    expect(parsedPayment.content.proof).toBeUndefined()
+    expect(parsedPayment.content.sealedProof?.mode).toBe('sealed:v1')
+    expect(parsedPayment.paymentProofKeys.map(key => key.recipientPubkey).sort()).toEqual([
+      sellerPubkey,
+      arbiterPubkey,
+      parsedPayment.event.pubkey,
+    ].sort())
+    const resolvedPaymentProof = await marketplace.paymentProofs.resolve(parsedPayment, {
+      signerPubkey: sellerPubkey,
+      signer: {
+        async getPublicKey() {
+          return sellerPubkey
+        },
+        async nip44Decrypt(pubkey: string, ciphertext: string) {
+          return decryptNip44(ciphertext, getConversationKey(sellerSecretKey, pubkey))
+        },
+      },
+    })
+    expect(resolvedPaymentProof.status).toBe('resolved')
+    expect(resolvedPaymentProof.proof?.paymentProof?.driver).toBe('cashu-auction-script')
+    expect(resolvedPaymentProof.proof?.paymentProof?.params.policyType).toBe('cashu:p2pk-auction-v1')
+    expect(receivedIntent?.settlementId).toBe(parsedBid.tradeId)
+  })
+
+  test('routes BTC auction bids through SAT Cashu assets', async () => {
+    const sellerSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
+    const listing = listingEvent(sellerSecretKey)
+    const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
+    const auction = sign(
+      marketplace.auctions.template({
+        d: 'auction-cashu-btc-1',
+        listingAnchor,
+        arbiterPubkey,
+        currency: 'BTC',
+        decimals: 8,
+        createdAt,
+      }),
+      sellerSecretKey,
+    )
+    const policyHash = 'cashu-auction-script-v1'
+    const assetId = 'cashu:https://mint.example:sat'
+    const method = sign(
+      marketplace.paymentMethod.template({
+        trustedArbiterPubkeys: [arbiterPubkey],
+        supportedContractBytecodeHashes: [policyHash],
+        acceptedPaymentForms: [{ denomination: 'SAT', assetId, appId: 'cashu' }],
+        createdAt,
+      }),
+      sellerSecretKey,
+    )
+    const service = sign(
+      marketplace.arbitrationServices.template({
+        d: 'cashu-script-auction',
+        pubkey: arbiterPubkey,
+        type: 'CASHU',
+        maxDuration: 1209600,
+        fee: { ppm: 0, base: '0', min: '0', max: '0' },
+        params: {
+          policyType: 'cashu:p2pk-auction-v1',
+          policyHash,
+          mints: ['https://mint.example'],
+        },
+        createdAt,
+      }),
+      arbiterSecretKey,
+    )
+    const pool = {
+      async querySync(_relays: string[], filter: { kinds?: number[] }): Promise<Event[]> {
+        if (filter.kinds?.includes(MarketplacePaymentMethod)) return [method]
+        if (filter.kinds?.includes(ArbitrationService)) return [service]
+        return []
+      },
+      async get(): Promise<Event | null> {
+        return null
+      },
+    }
+    let receivedIntent: marketplace.MarketplacePaymentIntent | undefined
+    const published: Event[] = []
+    const cashuBidPolicy: marketplace.MarketplaceBidPolicy = {
+      method: 'cashu',
+      id: 'cashu-auction-script',
+      purpose: 'bid',
+      family: 'auction',
+      policies: () => [{ method: 'cashu', id: 'cashu-auction-script', type: 'cashu:p2pk-auction-v1', hash: policyHash }],
+      assets: () => [{ method: 'cashu', assetId, denomination: 'SAT', decimals: 0, appId: 'cashu' }],
       async *pay(intent: marketplace.MarketplacePaymentIntent) {
         receivedIntent = intent
         yield {
@@ -1644,54 +2803,54 @@ describe('marketplace reviews and runtime facade', () => {
       bidPolicies: [cashuBidPolicy],
     })
 
-    const orderRoutes = await api.paymentRoutes.forListing(listing, {
-      tradeId: 'cashu-bid-1',
-      listingAnchor,
-      amount: { value: '2500', denomination: 'USD', decimals: 2 },
-      createdAt,
+    const routes = await api.paymentRoutes.forListing(listing, {
+      amount: { value: '10000', denomination: 'BTC', decimals: 8 },
+      purpose: 'bid',
     })
-    expect(orderRoutes).toHaveLength(0)
+    expect(routes).toHaveLength(1)
+    expect(routes[0].asset.denomination).toBe('SAT')
 
     const result: marketplace.MarketplaceAuctionBidState[] = []
     for await (const state of api.auctions.bid(listing, {
-      amount: { value: '2500', denomination: 'USD', decimals: 2 },
+      amount: { value: '10000', denomination: 'BTC', decimals: 8 },
       createdAt,
     }, {
-      accountIndex: 12,
       auction,
     })) {
       result.push(state)
     }
 
-    expect(receivedIntent?.method).toBe('cashu')
-    expect(receivedIntent?.subject).toBe('bid')
-    expect(receivedIntent?.asset.assetId).toBe(assetId)
-    expect(receivedIntent?.policy.hash).toBe(policyHash)
+    expect(receivedIntent?.amount).toEqual({ value: '10000', currency: 'BTC', denomination: 'SAT', decimals: 0 })
     expect(result.map(state => state.type)).toEqual(['bid_published', 'payment_published', 'completed'])
     expect(published.map(event => event.kind)).toEqual([MarketplaceAuctionBid, MarketplacePayment])
-    const parsedBid = marketplace.auctions.parseBid(published[0])
-    const parsedPayment = marketplace.orders.parsePayment(published[1])
-    expect(parsedBid.auctionAnchor).toBe(marketplace.auctions.address(auction))
-    expect(parsedBid.listingAnchor).toBe(listingAnchor)
-    expect(parsedPayment.content.purpose).toBe('auction_bid')
-    expect(parsedPayment.refs.auctionBids).toEqual([published[0].id])
-    expect(receivedIntent?.settlementId).toBe(parsedBid.bidId)
+    expect(marketplace.auctions.parseBid(published[0]).amount).toEqual({
+      value: '10000',
+      currency: 'BTC',
+      denomination: 'BTC',
+      decimals: 8,
+    })
+    expect(marketplace.orders.parsePayment(published[1]).content.amount).toEqual({
+      value: '10000',
+      currency: 'BTC',
+      denomination: 'BTC',
+      decimals: 8,
+    })
   })
 
   test('groups auction bids with their payment lifecycle events', async () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
     const buyerPubkey = getPublicKey(buyerSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const auction = sign(
       marketplace.auctions.template({
         d: 'auction-groups-1',
         listingAnchor,
-        arbiterPubkey: escrowPubkey,
+        arbiterPubkey: arbiterPubkey,
         currency: 'USD',
         decimals: 2,
         createdAt,
@@ -1702,12 +2861,11 @@ describe('marketplace reviews and runtime facade', () => {
     const participants = [
       { pubkey: sellerPubkey, role: 'seller' as const },
       { pubkey: buyerPubkey, role: 'buyer' as const },
-      { pubkey: escrowPubkey, role: 'escrow' as const },
+      { pubkey: arbiterPubkey, role: 'arbiter' as const },
     ]
     const bid = sign(
       marketplace.auctions.bidTemplate({
         tradeId: 'auction-groups-bid-1',
-        bidId: 'auction-groups-bid-1',
         auctionAnchor,
         listingAnchor,
         amount: { value: '12500', denomination: 'USD', decimals: 2 },
@@ -1724,15 +2882,27 @@ describe('marketplace reviews and runtime facade', () => {
         anchorMarker: 'auction',
         participants,
         refs: { auctionBids: [bid.id] },
-        purpose: 'auction_bid',
         extraTags: [['a', listingAnchor, '', 'listing']],
+        amount: { value: '12500', denomination: 'USD', decimals: 2 },
         proof: {
-          listing,
-          paymentProof: { method: 'evm', params: { txHash: `0x${'9'.repeat(64)}` } },
+          paymentProof: { driver: 'evm', params: { txHash: `0x${'9'.repeat(64)}` } },
         },
         createdAt: createdAt + 2,
       }),
       buyerSecretKey,
+    )
+    const staleNack = sign(
+      marketplace.orders.paymentNackTemplate({
+        tradeId: 'auction-groups-bid-1',
+        orderGroupId: 'auction-groups-bid-1',
+        listingAnchor: auctionAnchor,
+        anchorMarker: 'auction',
+        participants,
+        refs: { payments: [payment.id] },
+        status: 'rejected',
+        createdAt: createdAt + 2,
+      }),
+      arbiterSecretKey,
     )
     const ack = sign(
       marketplace.orders.paymentAckTemplate({
@@ -1745,7 +2915,7 @@ describe('marketplace reviews and runtime facade', () => {
         status: 'accepted',
         createdAt: createdAt + 3,
       }),
-      escrowSecretKey,
+      arbiterSecretKey,
     )
     const settlement = sign(
       marketplace.orders.paymentSettlementTemplate({
@@ -1757,13 +2927,44 @@ describe('marketplace reviews and runtime facade', () => {
         refs: { auctionBids: [bid.id], payments: [payment.id] },
         method: 'evm',
         action: 'auction_promote',
-        data: { proof: { method: 'evm', params: { txHash: `0x${'8'.repeat(64)}` } } },
+        data: { proof: { driver: 'evm', params: { txHash: `0x${'8'.repeat(64)}` } } },
         createdAt: createdAt + 4,
       }),
-      escrowSecretKey,
+      arbiterSecretKey,
+    )
+    const nack = sign(
+      marketplace.orders.paymentNackTemplate({
+        tradeId: 'auction-groups-unmatched-nack',
+        orderGroupId: 'auction-groups-unmatched-nack',
+        listingAnchor: auctionAnchor,
+        anchorMarker: 'auction',
+        participants,
+        refs: {},
+        status: 'rejected',
+        createdAt: createdAt + 5,
+      }),
+      arbiterSecretKey,
+    )
+    const complete = sign(
+      marketplace.auctions.completeTemplate({
+        auctionAnchor,
+        listingAnchor,
+        status: 'closed',
+        winningBidId: bid.id,
+        winningPaymentId: payment.id,
+        promotedSettlementId: settlement.id,
+        createdAt: createdAt + 6,
+      }),
+      arbiterSecretKey,
     )
 
-    const groups = marketplace.auctionBidGroups.group([bid, payment, ack, settlement])
+    const retriedGroup = marketplace.auctionBidGroups.group([bid, payment, staleNack, ack])[0]
+    expect(retriedGroup.paymentNacks.map(item => item.event.id)).toEqual([staleNack.id])
+    expect(retriedGroup.paymentNack).toBeUndefined()
+    expect(retriedGroup.paymentAck?.event.id).toBe(ack.id)
+    expect(retriedGroup.stage).toBe('accepted')
+
+    const groups = marketplace.auctionBidGroups.group([bid, payment, staleNack, ack, settlement])
     expect(groups).toHaveLength(1)
     expect(groups[0].id).toBe('auction-groups-bid-1')
     expect(groups[0].auctionAnchor).toBe(auctionAnchor)
@@ -1797,16 +2998,248 @@ describe('marketplace reviews and runtime facade', () => {
     subscriptions[0].onevent(payment)
     subscriptions[0].onevent(ack)
     expect(seenGroups.at(-1)?.[0].stage).toBe('accepted')
+
+    const requests: Array<{ url: string; filter: { kinds?: number[]; '#a'?: string[]; '#d'?: string[]; authors?: string[] } }> = []
+    const streamEvents: Record<string, number> = {}
+    const streamEose = new Set<string>()
+    const scopePool = {
+      async querySync(): Promise<Event[]> {
+        return []
+      },
+      async get(): Promise<Event | null> {
+        return null
+      },
+      subscribeMap(
+        nextRequests: Array<{ url: string; filter: { kinds?: number[]; '#a'?: string[]; '#d'?: string[]; authors?: string[] } }>,
+        handlers: { onevent: (event: Event) => void; oneose?: () => void },
+      ) {
+        requests.push(...nextRequests)
+        for (const event of [auction, bid, payment, ack, nack, settlement, complete]) handlers.onevent(event)
+        handlers.oneose?.()
+        return { close() {} }
+      },
+    }
+    const api = marketplace.bind(scopePool, ['wss://relay.example'])
+    const scope = api.auctions.scope({ auctionAnchor })
+    const stream = scope.stream()
+    const typedStreams = {
+      bids: stream.filter(marketplace.auctionScopes.isBid),
+      completes: stream.filter(marketplace.auctionScopes.isComplete),
+      payments: stream.filter(marketplace.auctionScopes.isPayment),
+      paymentAcks: stream.filter(marketplace.auctionScopes.isPaymentAck),
+      paymentNacks: stream.filter(marketplace.auctionScopes.isPaymentNack),
+      paymentSettlements: stream.filter(marketplace.auctionScopes.isPaymentSettlement),
+    }
+    for (const [name, typedStream] of Object.entries(typedStreams)) {
+      typedStream.events.subscribe(() => {
+        streamEvents[name] = (streamEvents[name] ?? 0) + 1
+      })
+      typedStream.status.subscribe(status => {
+        if (status instanceof marketplace.StreamLive) streamEose.add(name)
+      })
+    }
+    stream.snapshot.subscribe(() => {})
+    stream.status.subscribe(status => {
+      if (status instanceof marketplace.StreamLive) streamEose.add('snapshot')
+    })
+
+    expect(requests).toHaveLength(3)
+    expect(requests[0].filter.kinds).toEqual([MarketplaceAuction])
+    expect(requests[0].filter.authors).toEqual([sellerPubkey])
+    expect(requests[0].filter['#d']).toEqual(['auction-groups-1'])
+    expect(requests[1].filter.kinds).toEqual([MarketplaceAuctionComplete])
+    expect(requests[1].filter['#a']).toEqual([auctionAnchor])
+    expect(requests[2].filter.kinds).toEqual(marketplace.auctionBidGroups.eventKinds)
+    expect(requests[2].filter['#a']).toEqual([auctionAnchor])
+    expect(streamEvents).toEqual({
+      bids: 1,
+      completes: 1,
+      payments: 1,
+      paymentAcks: 1,
+      paymentNacks: 1,
+      paymentSettlements: 1,
+    })
+    expect([...streamEose].sort()).toEqual([
+      'bids',
+      'completes',
+      'paymentAcks',
+      'paymentNacks',
+      'paymentSettlements',
+      'payments',
+      'snapshot',
+    ].sort())
+
+    const snapshot = await scope.query()
+    expect(snapshot.auction?.auctionAnchor).toBe(auctionAnchor)
+    expect(snapshot.bidGroups).toHaveLength(1)
+    expect(snapshot.bidChains).toHaveLength(1)
+    expect(snapshot.payments.map(item => item.event.id)).toEqual([payment.id])
+    expect(snapshot.paymentAcks.map(item => item.event.id)).toEqual([ack.id])
+    expect(snapshot.paymentNacks.map(item => item.event.id)).toEqual([nack.id])
+    expect(snapshot.paymentSettlements.map(item => item.event.id)).toEqual([settlement.id])
+    expect(snapshot.complete?.event.id).toBe(complete.id)
+  })
+
+  test('auction scope ignores terminal completion events created before auction end', async () => {
+    const sellerSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
+    const listing = listingEvent(sellerSecretKey)
+    const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
+    const auction = sign(
+      marketplace.auctions.template({
+        d: 'auction-premature-complete',
+        listingAnchor,
+        arbiterPubkey,
+        currency: 'USD',
+        decimals: 2,
+        startAt: createdAt,
+        endAt: createdAt + 3600,
+        createdAt,
+      }),
+      sellerSecretKey,
+    )
+    const auctionAnchor = marketplace.auctions.address(auction)
+    const prematureComplete = sign(
+      marketplace.auctions.completeTemplate({
+        auctionAnchor,
+        listingAnchor,
+        status: 'reserve_not_met',
+        createdAt: createdAt + 60,
+      }),
+      arbiterSecretKey,
+    )
+    const scopePool = {
+      async querySync(): Promise<Event[]> {
+        return []
+      },
+      async get(): Promise<Event | null> {
+        return null
+      },
+      subscribeMap(
+        _requests: unknown[],
+        handlers: { onevent: (event: Event) => void; oneose?: () => void },
+      ) {
+        for (const event of [auction, prematureComplete]) handlers.onevent(event)
+        handlers.oneose?.()
+        return { close() {} }
+      },
+    }
+    const snapshot = await marketplace.bind(scopePool, ['wss://relay.example'])
+      .auctions.scope({ auctionAnchor })
+      .query()
+
+    expect(snapshot.auction?.auctionAnchor).toBe(auctionAnchor)
+    expect(snapshot.completes.map(item => item.event.id)).toEqual([prematureComplete.id])
+    expect(snapshot.complete).toBeUndefined()
+    expect(snapshot.status).toBe('ended')
+  })
+
+  test('builds auction bid chains from linked bid legs', () => {
+    const sellerSecretKey = generateSecretKey()
+    const buyerSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
+    const sellerPubkey = getPublicKey(sellerSecretKey)
+    const buyerPubkey = getPublicKey(buyerSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
+    const listing = listingEvent(sellerSecretKey)
+    const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
+    const auction = sign(
+      marketplace.auctions.template({
+        d: 'auction-chain-1',
+        listingAnchor,
+        arbiterPubkey,
+        currency: 'USD',
+        decimals: 2,
+        createdAt,
+      }),
+      sellerSecretKey,
+    )
+    const auctionAnchor = marketplace.auctions.address(auction)
+    const participants = [
+      { pubkey: sellerPubkey, role: 'seller' as const },
+      { pubkey: buyerPubkey, role: 'buyer' as const },
+      { pubkey: arbiterPubkey, role: 'arbiter' as const },
+    ]
+    const firstBid = sign(
+      marketplace.auctions.bidTemplate({
+        tradeId: 'auction-chain-bid-1',
+        auctionAnchor,
+        listingAnchor,
+        amount: { value: '10000', denomination: 'USD', decimals: 2 },
+        participants,
+        createdAt: createdAt + 1,
+      }),
+      buyerSecretKey,
+    )
+    const secondBid = sign(
+      marketplace.auctions.bidTemplate({
+        tradeId: 'auction-chain-bid-2',
+        auctionAnchor,
+        listingAnchor,
+        amount: { value: '2500', denomination: 'USD', decimals: 2 },
+        participants,
+        extraTags: [
+          ['prev_bid', firstBid.id],
+          ['e', firstBid.id, '', 'prev_bid'],
+        ],
+        createdAt: createdAt + 2,
+      }),
+      buyerSecretKey,
+    )
+    const firstPayment = sign(
+      marketplace.orders.paymentTemplate({
+        tradeId: 'auction-chain-bid-1',
+        orderGroupId: 'auction-chain-bid-1',
+        listingAnchor: auctionAnchor,
+        anchorMarker: 'auction',
+        participants,
+        refs: { auctionBids: [firstBid.id] },
+        amount: { value: '10000', denomination: 'USD', decimals: 2 },
+        proof: {
+          paymentProof: { driver: 'evm', params: { txHash: `0x${'6'.repeat(64)}` } },
+        },
+        createdAt: createdAt + 3,
+      }),
+      buyerSecretKey,
+    )
+    const secondPayment = sign(
+      marketplace.orders.paymentTemplate({
+        tradeId: 'auction-chain-bid-2',
+        orderGroupId: 'auction-chain-bid-2',
+        listingAnchor: auctionAnchor,
+        anchorMarker: 'auction',
+        participants,
+        refs: { auctionBids: [secondBid.id] },
+        amount: { value: '2500', denomination: 'USD', decimals: 2 },
+        proof: {
+          paymentProof: { driver: 'evm', params: { txHash: `0x${'7'.repeat(64)}` } },
+        },
+        createdAt: createdAt + 4,
+      }),
+      buyerSecretKey,
+    )
+
+    const groups = marketplace.auctionBidGroups.group([firstBid, secondBid, firstPayment, secondPayment])
+    const chains = marketplace.auctionBidGroups.chains(groups)
+
+    expect(chains).toHaveLength(1)
+    expect(chains[0].id).toBe(secondBid.id)
+    expect(chains[0].head.bid.event.id).toBe(secondBid.id)
+    expect(chains[0].bidEventIds).toEqual([firstBid.id, secondBid.id])
+    expect(chains[0].paymentEventIds).toEqual([firstPayment.id, secondPayment.id])
+    expect(chains[0].amount).toEqual({ value: '12500', currency: 'USD', denomination: 'USD', decimals: 2 })
+    expect(chains[0].complete).toBe(true)
   })
 
   test('settles an auction by promoting the highest valid bid and refunding the rest', async () => {
     const sellerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const lowBuyerSecretKey = generateSecretKey()
     const winningBuyerSecretKey = generateSecretKey()
     const invalidBuyerSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const auctionId = 'auction-settle-1'
@@ -1814,7 +3247,7 @@ describe('marketplace reviews and runtime facade', () => {
       marketplace.auctions.template({
         d: auctionId,
         listingAnchor,
-        arbiterPubkey: escrowPubkey,
+        arbiterPubkey: arbiterPubkey,
         currency: 'USD',
         decimals: 2,
         startAt: createdAt,
@@ -1833,21 +3266,24 @@ describe('marketplace reviews and runtime facade', () => {
       const participants = [
         { pubkey: sellerPubkey, role: 'seller' as const },
         { pubkey: buyerPubkey, role: 'buyer' as const },
-        { pubkey: escrowPubkey, role: 'escrow' as const },
+        { pubkey: arbiterPubkey, role: 'arbiter' as const },
       ]
-      const participantProof = {
-        role: 'buyer',
-        participantPubkey: buyerPubkey,
-        recipientPubkey: escrowPubkey,
-        scheme: 'nip44',
-        payloadHash: marketplace.orders.hashParticipantProofPayload(`proof-${buyerPubkey}`),
-        payload: `proof-${buyerPubkey}`,
-      }
       const tradeId = `${auctionId}:bid:${input.offset}`
+      const authorization = sign(
+        marketplace.participantProofs.tradeKeyAuthorizationTemplate({
+          listingAnchor,
+          tradeId,
+          version: 1,
+          role: 'buyer',
+          participantPubkey: buyerPubkey,
+          createdAt: createdAt + input.offset,
+        }),
+        input.secretKey,
+      )
+      const participantProof = marketplace.participantProofs.publicProof(authorization)
       const bid = sign(
         marketplace.auctions.bidTemplate({
           tradeId,
-          bidId: tradeId,
           auctionAnchor,
           listingAnchor,
           participants,
@@ -1866,15 +3302,13 @@ describe('marketplace reviews and runtime facade', () => {
           anchorMarker: 'auction',
           participants,
           refs: { auctionBids: [bid.id] },
-          purpose: 'auction_bid',
           extraTags: [['a', listingAnchor, '', 'listing']],
+          amount: { value: input.amount, denomination: 'USD', decimals: 2 },
           proof: {
-            listing,
             paymentProof: {
-              method: 'evm',
+              driver: policyId,
               params: {
                 policyId,
-                subject: 'bid',
                 txHash: input.tx,
                 valid: input.valid,
                 recycleArgs: {
@@ -1928,7 +3362,7 @@ describe('marketplace reviews and runtime facade', () => {
     const bidPolicy: marketplace.MarketplaceBidPolicy = {
       method: 'evm',
       id: policyId,
-      subject: 'bid',
+      purpose: 'bid',
       family: 'auction',
       policies: () => [{ method: 'evm', id: policyId }],
       assets: () => [],
@@ -1938,12 +3372,13 @@ describe('marketplace reviews and runtime facade', () => {
       async validatePayment(request: marketplace.MarketplacePaymentValidationRequest) {
         const valid = request.proof.params.valid !== false
         return {
-          method: request.method,
+          driver: request.driver,
           status: valid ? 'valid' : 'invalid',
+          ...(request.expected.amount ? { amount: request.expected.amount } : {}),
           amountMatched: valid,
           assetMatched: valid,
           recipientMatched: valid,
-          escrowMatched: valid,
+          arbiterMatched: valid,
           proofEventId: request.proof.params.txHash as string,
           ...(valid ? {} : { error: 'bid lock was rejected' }),
         }
@@ -1951,7 +3386,7 @@ describe('marketplace reviews and runtime facade', () => {
       async refundPayment(intent) {
         return {
           proof: {
-            method: 'evm',
+            driver: policyId,
             params: {
               ...intent.proof.params,
               action: 'auction_refund',
@@ -1965,12 +3400,11 @@ describe('marketplace reviews and runtime facade', () => {
       async recyclePayment(intent) {
         return {
           proof: {
-            method: 'evm',
+            driver: policyId,
             params: {
               ...intent.proof.params,
               action: 'auction_promote',
               policyType: 'evm:multi-escrow',
-              subject: 'order',
               tradeId: intent.targetTradeId,
               settlementId: intent.targetOrderGroupId,
               unlockAt: intent.targetUnlockAt,
@@ -1997,10 +3431,10 @@ describe('marketplace reviews and runtime facade', () => {
       ['wss://relay.example'],
       {
         seed: '9'.repeat(64),
-        identity: { pubkey: escrowPubkey },
+        identity: { pubkey: arbiterPubkey },
         signer: {
           async getPublicKey() {
-            return escrowPubkey
+            return arbiterPubkey
           },
           async nip44Encrypt(_pubkey: string, plaintext: string) {
             return plaintext
@@ -2009,7 +3443,7 @@ describe('marketplace reviews and runtime facade', () => {
             return ciphertext
           },
           async signEvent(template: EventTemplate) {
-            return sign(template, escrowSecretKey)
+            return sign(template, arbiterSecretKey)
           },
         },
         publish: event => published.push(event),
@@ -2022,24 +3456,24 @@ describe('marketplace reviews and runtime facade', () => {
       auctionId,
       auctionAnchor,
       listingAnchor,
-      arbiterPubkey: escrowPubkey,
+      arbiterPubkey: arbiterPubkey,
       currency: 'USD',
       decimals: 2,
       startAt: createdAt,
       endAt: createdAt + 3600,
       startingBid: '10000',
       bids: [lowBid, winningBid, preStartHighBid, invalidHighBid],
-      targetTradeId: 'auction-settle-1-order',
       targetUnlockAt: createdAt + 3600,
+      targetOrder: { tradeId: 'auction-settle-1-order', quantity: 1 },
     })) {
       states.push(state)
     }
 
     const completed = states.find(state => state.type === 'completed')
-    expect(completed?.winner?.bid.bidId).toBe(winningBid.bid.bidId)
+    expect(completed?.winner?.bid.tradeId).toBe(winningBid.bid.tradeId)
     expect(states.some(state =>
       state.type === 'bid_validated' &&
-      state.bid.bid.bidId === preStartHighBid.bid.bidId &&
+      state.bid.bid.tradeId === preStartHighBid.bid.tradeId &&
       state.bid.validation.error === 'Bid was created before the auction started',
     )).toBe(true)
     expect(published).toHaveLength(8)
@@ -2051,14 +3485,14 @@ describe('marketplace reviews and runtime facade', () => {
     const refunded = settlements.filter(settlement => settlement.content.action === 'auction_refund')
     expect(promoted).toHaveLength(1)
     expect(refunded).toHaveLength(3)
-    expect(promoted[0].orderGroupId).toBe(winningBid.bid.bidId)
-    expect(promoted[0].content.data?.winnerBidId).toBe(winningBid.bid.bidId)
-    expect(promoted[0].content.data?.targetTradeId).toBe('auction-settle-1-order')
+    expect(promoted[0].orderGroupId).toBe(winningBid.bid.tradeId)
+    expect(promoted[0].content.data?.winnerTradeId).toBe(winningBid.bid.tradeId)
+    expect(promoted[0].content.data?.targetTradeId).toBe(winningBid.bid.tradeId)
     expect((promoted[0].content.data?.proof as { params?: Record<string, unknown> }).params?.action).toBe('auction_promote')
     expect(refunded.map(settlement => settlement.orderGroupId).sort()).toEqual([
-      invalidHighBid.bid.bidId,
-      lowBid.bid.bidId,
-      preStartHighBid.bid.bidId,
+      invalidHighBid.bid.tradeId,
+      lowBid.bid.tradeId,
+      preStartHighBid.bid.tradeId,
     ].sort())
     expect(refunded.every(settlement =>
       (settlement.content.data?.proof as { params?: Record<string, unknown> }).params?.refundPercent === 100,
@@ -2074,48 +3508,58 @@ describe('marketplace reviews and runtime facade', () => {
     const promotedOrder = marketplace.orders.parse(promotedOrderEvent!)
     const winningBuyerPubkey = winningBid.bid.participants.find(participant => participant.role === 'buyer')?.pubkey
     if (!winningBuyerPubkey) throw new Error('Expected winning bid buyer pubkey')
-    expect(promotedOrder.tradeId).toBe('auction-settle-1-order')
+    expect(promotedOrder.tradeId).toBe(winningBid.bid.tradeId)
     expect(promotedOrder.content.recipient).toBe(winningBuyerPubkey)
     expect(promotedOrder.participantProofs).toHaveLength(1)
     expect(promotedOrder.participantProofs[0]?.participantPubkey).toBe(winningBuyerPubkey)
 
     const promotedPayment = marketplace.orders.parsePayment(promotedPaymentEvent!)
-    expect(promotedPayment.tradeId).toBe('auction-settle-1-order')
-    expect(promotedPayment.content.purpose).toBe('order_payment')
-    expect(promotedPayment.content.proof.paymentProof?.params.subject).toBe('order')
+    expect(promotedPayment.tradeId).toBe(winningBid.bid.tradeId)
+    expect(promotedPayment.content.proof.paymentProof?.driver).toBe(policyId)
     expect(promotedPayment.content.proof.paymentProof?.params.action).toBe('auction_promote')
     expect(promotedPayment.refs.orders).toEqual([promotedOrder.event.id])
+    expect(promotedPayment.event.tags).toContainEqual(['a', auctionAnchor, '', 'auction'])
 
     const promotedAck = marketplace.orders.parsePaymentAck(promotedAckEvent!)
-    expect(promotedAck.tradeId).toBe('auction-settle-1-order')
+    expect(promotedAck.tradeId).toBe(winningBid.bid.tradeId)
     expect(promotedAck.content.status).toBe('accepted')
     expect(promotedAck.refs.payments).toEqual([promotedPayment.event.id])
+    expect(promotedAck.event.tags).toContainEqual(['a', auctionAnchor, '', 'auction'])
   })
 
-  test('escrow runtime validates seen payments and publishes an ack', async () => {
+  test('arbitration runtime validates seen payments and publishes an ack', async () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
     const buyerPubkey = getPublicKey(buyerSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
-    const tradeId = 'trade-escrow-start'
+    const tradeId = 'trade-arbitration-start'
     const participants = [
       { pubkey: sellerPubkey, role: 'seller' as const },
       { pubkey: buyerPubkey, role: 'buyer' as const },
-      { pubkey: escrowPubkey, role: 'escrow' as const },
+      { pubkey: arbiterPubkey, role: 'arbiter' as const },
     ]
     const order = sign(
       marketplace.orders.template({
         tradeId,
         listingAnchor,
+        listing,
         participants,
         amount: { value: '50000', denomination: 'BTC', decimals: 8 },
         createdAt,
       }),
       buyerSecretKey,
+    )
+    const paymentAmountPayload = marketplace.paymentAmounts.build(
+      { value: '50000', denomination: 'BTC', decimals: 8 },
+      {
+        mode: 'sealed',
+        senderSecretKey: buyerSecretKey,
+        recipientPubkeys: [buyerPubkey, sellerPubkey, arbiterPubkey],
+      },
     )
     const payment = sign(
       marketplace.orders.paymentTemplate({
@@ -2123,9 +3567,9 @@ describe('marketplace reviews and runtime facade', () => {
         listingAnchor,
         participants,
         refs: { orders: [order.id] },
+        ...paymentAmountPayload,
         proof: {
-          listing,
-          paymentProof: { method: 'evm', params: { txHash: `0x${'d'.repeat(64)}` } },
+          paymentProof: { driver: 'evm-escrow', params: { txHash: `0x${'d'.repeat(64)}` } },
         },
         createdAt: createdAt + 1,
       }),
@@ -2145,11 +3589,11 @@ describe('marketplace reviews and runtime facade', () => {
       },
     }
     const published: Event[] = []
-    const states: marketplace.MarketplaceEscrowStartEvent[] = []
+    const states: marketplace.MarketplaceArbitrationStartEvent[] = []
     const policy: marketplace.MarketplaceOrderPolicy = {
       method: 'evm',
       id: 'evm-escrow',
-      subject: 'order',
+      purpose: 'order',
       family: 'escrow',
       policies: () => [{ method: 'evm', id: 'evm-escrow' }],
       assets: () => [],
@@ -2158,38 +3602,45 @@ describe('marketplace reviews and runtime facade', () => {
       },
       async validatePayment(request: marketplace.MarketplacePaymentValidationRequest) {
         return {
-          method: request.method,
+          driver: request.driver,
           status: 'valid',
           proofEventId: payment.id,
+          amount: request.expected.amount,
+          terms: {
+            settlementId: request.expected.settlementId,
+            paymentAmount: request.expected.amount,
+            securityBondAmount: { value: '25000', denomination: 'BTC', decimals: 8 },
+            unlockAt: createdAt + 3600,
+          },
           amountMatched: true,
           assetMatched: true,
           recipientMatched: true,
-          escrowMatched: true,
+          arbiterMatched: true,
         }
       },
     }
     const api = marketplace.bind(pool, ['wss://relay.example'], {
       seed: '7'.repeat(64),
-      identity: { pubkey: escrowPubkey },
+      identity: { pubkey: arbiterPubkey },
       signer: {
         async getPublicKey() {
-          return escrowPubkey
+          return arbiterPubkey
         },
         async nip44Encrypt(_pubkey: string, plaintext: string) {
           return plaintext
         },
-        async nip44Decrypt(_pubkey: string, ciphertext: string) {
-          return ciphertext
+        async nip44Decrypt(pubkey: string, ciphertext: string) {
+          return decryptNip44(ciphertext, getConversationKey(arbiterSecretKey, pubkey))
         },
         async signEvent(template: EventTemplate) {
-          return sign(template, escrowSecretKey)
+          return sign(template, arbiterSecretKey)
         },
       },
       publish: event => published.push(event),
       orderPolicies: [policy],
     })
 
-    api.escrow.start({
+    api.arbitration.start({
       onstate: state => {
         states.push(state)
       },
@@ -2200,26 +3651,168 @@ describe('marketplace reviews and runtime facade', () => {
 
     expect(published).toHaveLength(1)
     expect(published[0].kind).toBe(MarketplacePaymentAck)
-    expect(published[0].pubkey).toBe(escrowPubkey)
+    expect(published[0].pubkey).toBe(arbiterPubkey)
     expect(hasTag(published[0], ['e', payment.id, '', 'payment'])).toBe(true)
     expect(states.some(state => state.type === 'payment_validated')).toBe(true)
     expect(states.some(state => state.type === 'payment_ack_published')).toBe(true)
   })
 
+  test('arbitration runtime suppresses duplicate ack when replayed ack arrives during validation', async () => {
+    const sellerSecretKey = generateSecretKey()
+    const buyerSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
+    const sellerPubkey = getPublicKey(sellerSecretKey)
+    const buyerPubkey = getPublicKey(buyerSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
+    const listing = listingEvent(sellerSecretKey)
+    const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
+    const tradeId = 'trade-arbitration-replayed-ack'
+    const participants = [
+      { pubkey: sellerPubkey, role: 'seller' as const },
+      { pubkey: buyerPubkey, role: 'buyer' as const },
+      { pubkey: arbiterPubkey, role: 'arbiter' as const },
+    ]
+    const order = sign(
+      marketplace.orders.template({
+        tradeId,
+        listingAnchor,
+        listing,
+        participants,
+        amount: { value: '50000', denomination: 'BTC', decimals: 8 },
+        createdAt,
+      }),
+      buyerSecretKey,
+    )
+    const payment = sign(
+      marketplace.orders.paymentTemplate({
+        tradeId,
+        listingAnchor,
+        participants,
+        refs: { orders: [order.id] },
+        amount: { value: '50000', denomination: 'BTC', decimals: 8 },
+        proof: {
+          paymentProof: { driver: 'evm-escrow', params: { txHash: `0x${'d'.repeat(64)}` } },
+        },
+        createdAt: createdAt + 1,
+      }),
+      buyerSecretKey,
+    )
+    const replayedAck = sign(
+      marketplace.orders.paymentAckTemplate({
+        tradeId,
+        listingAnchor,
+        participants,
+        refs: { payments: [payment.id] },
+        status: 'accepted',
+        createdAt: createdAt + 2,
+      }),
+      arbiterSecretKey,
+    )
+    const subscriptions: Array<{ onevent: (event: Event) => void }> = []
+    const pool = {
+      async querySync(): Promise<Event[]> {
+        return []
+      },
+      async get(): Promise<Event | null> {
+        return null
+      },
+      subscribeMap(_requests: unknown[], handlers: { onevent: (event: Event) => void }) {
+        subscriptions.push(handlers)
+        return { close() {} }
+      },
+    }
+    const published: Event[] = []
+    const states: marketplace.MarketplaceArbitrationStartEvent[] = []
+    const pendingValidations: Array<{
+      request: marketplace.MarketplacePaymentValidationRequest
+      resolve: (result: marketplace.MarketplacePaymentValidationResult) => void
+    }> = []
+    const policy: marketplace.MarketplaceOrderPolicy = {
+      method: 'evm',
+      id: 'evm-escrow',
+      purpose: 'order',
+      family: 'escrow',
+      policies: () => [{ method: 'evm', id: 'evm-escrow' }],
+      assets: () => [],
+      async *pay() {
+        yield { type: 'completed' as const }
+      },
+      async validatePayment(request: marketplace.MarketplacePaymentValidationRequest) {
+        return await new Promise<marketplace.MarketplacePaymentValidationResult>(resolve => {
+          pendingValidations.push({ request, resolve })
+        })
+      },
+    }
+    const api = marketplace.bind(pool, ['wss://relay.example'], {
+      seed: '7'.repeat(64),
+      identity: { pubkey: arbiterPubkey },
+      signer: {
+        async getPublicKey() {
+          return arbiterPubkey
+        },
+        async nip44Encrypt(_pubkey: string, plaintext: string) {
+          return plaintext
+        },
+        async nip44Decrypt(_pubkey: string, ciphertext: string) {
+          return ciphertext
+        },
+        async signEvent(template: EventTemplate) {
+          return sign(template, arbiterSecretKey)
+        },
+      },
+      publish: event => published.push(event),
+      orderPolicies: [policy],
+    })
+
+    api.arbitration.start({
+      onstate: state => {
+        states.push(state)
+      },
+    })
+    subscriptions[0].onevent(order)
+    subscriptions[0].onevent(payment)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    subscriptions[0].onevent(replayedAck)
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    for (const pending of [...pendingValidations]) {
+      pending.resolve({
+        driver: pending.request.driver,
+        status: 'valid',
+        proofEventId: payment.id,
+        amount: pending.request.expected.amount,
+        terms: {
+          settlementId: pending.request.expected.settlementId,
+          paymentAmount: pending.request.expected.amount,
+          securityBondAmount: { value: '25000', denomination: 'BTC', decimals: 8 },
+          unlockAt: createdAt + 3600,
+        },
+        amountMatched: true,
+        assetMatched: true,
+        recipientMatched: true,
+        arbiterMatched: true,
+      })
+    }
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(published).toHaveLength(0)
+    expect(states.some(state => state.type === 'ignored' && state.reason === 'payment already acked by arbiter')).toBe(true)
+  })
+
   test('arbitration runtime validates auction bid payments and publishes an ack', async () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
     const buyerPubkey = getPublicKey(buyerSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const auction = sign(
       marketplace.auctions.template({
         d: 'auction-runtime-ack',
         listingAnchor,
-        arbiterPubkey: escrowPubkey,
+        arbiterPubkey: arbiterPubkey,
         currency: 'USD',
         decimals: 2,
         startAt: createdAt - 60,
@@ -2233,12 +3826,11 @@ describe('marketplace reviews and runtime facade', () => {
     const participants = [
       { pubkey: sellerPubkey, role: 'seller' as const },
       { pubkey: buyerPubkey, role: 'buyer' as const },
-      { pubkey: escrowPubkey, role: 'escrow' as const },
+      { pubkey: arbiterPubkey, role: 'arbiter' as const },
     ]
     const bid = sign(
       marketplace.auctions.bidTemplate({
         tradeId: 'auction-runtime-ack-bid',
-        bidId: 'auction-runtime-ack-bid',
         auctionAnchor,
         listingAnchor,
         participants,
@@ -2256,15 +3848,13 @@ describe('marketplace reviews and runtime facade', () => {
         anchorMarker: 'auction',
         participants,
         refs: { auctionBids: [bid.id] },
-        purpose: 'auction_bid',
         extraTags: [['a', listingAnchor, '', 'listing']],
+        amount: { value: '12000', denomination: 'USD', decimals: 2 },
         proof: {
-          listing,
           paymentProof: {
-            method: 'evm',
+            driver: 'evm-auction-runtime',
             params: {
               policyId: 'evm-auction-runtime',
-              subject: 'bid',
               txHash: `0x${'a'.repeat(64)}`,
               recycleArgs: {
                 version: 1,
@@ -2285,12 +3875,12 @@ describe('marketplace reviews and runtime facade', () => {
     )
     const group = marketplace.auctionBidGroups.reduce([bid, payment])
     const published: Event[] = []
-    const states: marketplace.MarketplaceEscrowStartEvent[] = []
+    const states: marketplace.MarketplaceArbitrationStartEvent[] = []
     let validationRequest: marketplace.MarketplacePaymentValidationRequest | undefined
     const bidPolicy: marketplace.MarketplaceBidPolicy = {
       method: 'evm',
       id: 'evm-auction-runtime',
-      subject: 'bid',
+      purpose: 'bid',
       family: 'auction',
       policies: () => [{ method: 'evm', id: 'evm-auction-runtime' }],
       assets: () => [],
@@ -2300,13 +3890,14 @@ describe('marketplace reviews and runtime facade', () => {
       async validatePayment(request: marketplace.MarketplacePaymentValidationRequest) {
         validationRequest = request
         return {
-          method: request.method,
+          driver: request.driver,
           status: 'valid',
           proofEventId: payment.id,
+          amount: request.expected.amount,
           amountMatched: true,
           assetMatched: true,
           recipientMatched: true,
-          escrowMatched: true,
+          arbiterMatched: true,
         }
       },
     }
@@ -2322,10 +3913,10 @@ describe('marketplace reviews and runtime facade', () => {
       ['wss://relay.example'],
       {
         seed: '8'.repeat(64),
-        identity: { pubkey: escrowPubkey },
+        identity: { pubkey: arbiterPubkey },
         signer: {
           async getPublicKey() {
-            return escrowPubkey
+            return arbiterPubkey
           },
           async nip44Encrypt(_pubkey: string, plaintext: string) {
             return plaintext
@@ -2334,7 +3925,7 @@ describe('marketplace reviews and runtime facade', () => {
             return ciphertext
           },
           async signEvent(template: EventTemplate) {
-            return sign(template, escrowSecretKey)
+            return sign(template, arbiterSecretKey)
           },
         },
         publish: event => published.push(event),
@@ -2342,7 +3933,7 @@ describe('marketplace reviews and runtime facade', () => {
       },
     )
 
-    const runtime = api.escrow.start({
+    const runtime = api.arbitration.start({
       orders: false,
       auctions: false,
       now: createdAt + 120,
@@ -2353,8 +3944,8 @@ describe('marketplace reviews and runtime facade', () => {
     await runtime.processAuctionBidGroup(parsedAuction, group)
 
     expect(validationRequest?.expected.listingAnchor).toBe(auctionAnchor)
-    expect(validationRequest?.expected.amount).toEqual({ value: '12000', denomination: 'USD', decimals: 2 })
-    expect(validationRequest?.expected.participants?.escrow?.pubkey).toBe(escrowPubkey)
+    expect(validationRequest?.expected.amount).toEqual({ value: '12000', currency: 'USD', denomination: 'USD', decimals: 2 })
+    expect(validationRequest?.expected.participants?.arbiter?.pubkey).toBe(arbiterPubkey)
     expect(published).toHaveLength(1)
     expect(published[0].kind).toBe(MarketplacePaymentAck)
     const ack = marketplace.orders.parsePaymentAck(published[0])
@@ -2368,17 +3959,17 @@ describe('marketplace reviews and runtime facade', () => {
   test('arbitration runtime rejects auction bid payments without recycle covenant params', async () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
     const buyerPubkey = getPublicKey(buyerSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const auction = sign(
       marketplace.auctions.template({
         d: 'auction-runtime-nack',
         listingAnchor,
-        arbiterPubkey: escrowPubkey,
+        arbiterPubkey: arbiterPubkey,
         currency: 'USD',
         decimals: 2,
         startAt: createdAt - 60,
@@ -2392,12 +3983,11 @@ describe('marketplace reviews and runtime facade', () => {
     const participants = [
       { pubkey: sellerPubkey, role: 'seller' as const },
       { pubkey: buyerPubkey, role: 'buyer' as const },
-      { pubkey: escrowPubkey, role: 'escrow' as const },
+      { pubkey: arbiterPubkey, role: 'arbiter' as const },
     ]
     const bid = sign(
       marketplace.auctions.bidTemplate({
         tradeId: 'auction-runtime-nack-bid',
-        bidId: 'auction-runtime-nack-bid',
         auctionAnchor,
         listingAnchor,
         participants,
@@ -2414,15 +4004,13 @@ describe('marketplace reviews and runtime facade', () => {
         anchorMarker: 'auction',
         participants,
         refs: { auctionBids: [bid.id] },
-        purpose: 'auction_bid',
         extraTags: [['a', listingAnchor, '', 'listing']],
+        amount: { value: '15000', denomination: 'USD', decimals: 2 },
         proof: {
-          listing,
           paymentProof: {
-            method: 'evm',
+            driver: 'evm-auction-runtime',
             params: {
               policyId: 'evm-auction-runtime',
-              subject: 'bid',
               txHash: `0x${'c'.repeat(64)}`,
             },
           },
@@ -2433,7 +4021,7 @@ describe('marketplace reviews and runtime facade', () => {
     )
     const group = marketplace.auctionBidGroups.reduce([bid, payment])
     const published: Event[] = []
-    const states: marketplace.MarketplaceEscrowStartEvent[] = []
+    const states: marketplace.MarketplaceArbitrationStartEvent[] = []
     const api = marketplace.bind(
       {
         async querySync(): Promise<Event[]> {
@@ -2446,10 +4034,10 @@ describe('marketplace reviews and runtime facade', () => {
       ['wss://relay.example'],
       {
         seed: '8'.repeat(64),
-        identity: { pubkey: escrowPubkey },
+        identity: { pubkey: arbiterPubkey },
         signer: {
           async getPublicKey() {
-            return escrowPubkey
+            return arbiterPubkey
           },
           async nip44Encrypt(_pubkey: string, plaintext: string) {
             return plaintext
@@ -2458,7 +4046,7 @@ describe('marketplace reviews and runtime facade', () => {
             return ciphertext
           },
           async signEvent(template: EventTemplate) {
-            return sign(template, escrowSecretKey)
+            return sign(template, arbiterSecretKey)
           },
         },
         publish: event => published.push(event),
@@ -2466,7 +4054,7 @@ describe('marketplace reviews and runtime facade', () => {
       },
     )
 
-    const runtime = api.escrow.start({
+    const runtime = api.arbitration.start({
       orders: false,
       auctions: false,
       now: createdAt + 120,
@@ -2493,10 +4081,10 @@ describe('marketplace reviews and runtime facade', () => {
   test('arbitration runtime settles ended auctions assigned to the arbiter', async () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
     const buyerPubkey = getPublicKey(buyerSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const auctionId = 'auction-runtime-settle'
@@ -2504,7 +4092,7 @@ describe('marketplace reviews and runtime facade', () => {
       marketplace.auctions.template({
         d: auctionId,
         listingAnchor,
-        arbiterPubkey: escrowPubkey,
+        arbiterPubkey: arbiterPubkey,
         currency: 'USD',
         decimals: 2,
         startAt: createdAt - 120,
@@ -2518,12 +4106,11 @@ describe('marketplace reviews and runtime facade', () => {
     const participants = [
       { pubkey: sellerPubkey, role: 'seller' as const },
       { pubkey: buyerPubkey, role: 'buyer' as const },
-      { pubkey: escrowPubkey, role: 'escrow' as const },
+      { pubkey: arbiterPubkey, role: 'arbiter' as const },
     ]
     const bid = sign(
       marketplace.auctions.bidTemplate({
         tradeId: 'auction-runtime-settle-bid',
-        bidId: 'auction-runtime-settle-bid',
         auctionAnchor,
         listingAnchor,
         participants,
@@ -2541,15 +4128,13 @@ describe('marketplace reviews and runtime facade', () => {
         anchorMarker: 'auction',
         participants,
         refs: { auctionBids: [bid.id] },
-        purpose: 'auction_bid',
         extraTags: [['a', listingAnchor, '', 'listing']],
+        amount: { value: '18000', denomination: 'USD', decimals: 2 },
         proof: {
-          listing,
           paymentProof: {
-            method: 'evm',
+            driver: 'evm-auction-runtime-settle',
             params: {
               policyId: 'evm-auction-runtime-settle',
-              subject: 'bid',
               txHash: `0x${'d'.repeat(64)}`,
               recycleArgs: {
                 version: 1,
@@ -2569,7 +4154,7 @@ describe('marketplace reviews and runtime facade', () => {
       buyerSecretKey,
     )
     const published: Event[] = []
-    const states: marketplace.MarketplaceEscrowStartEvent[] = []
+    const states: marketplace.MarketplaceArbitrationStartEvent[] = []
     const pool = {
       async querySync(_relays: string[], filter: { kinds?: number[] }): Promise<Event[]> {
         const kinds = filter.kinds ?? []
@@ -2585,7 +4170,7 @@ describe('marketplace reviews and runtime facade', () => {
     const bidPolicy: marketplace.MarketplaceBidPolicy = {
       method: 'evm',
       id: 'evm-auction-runtime-settle',
-      subject: 'bid',
+      purpose: 'bid',
       family: 'auction',
       policies: () => [{ method: 'evm', id: 'evm-auction-runtime-settle' }],
       assets: () => [],
@@ -2594,13 +4179,14 @@ describe('marketplace reviews and runtime facade', () => {
       },
       async validatePayment(request: marketplace.MarketplacePaymentValidationRequest) {
         return {
-          method: request.method,
+          driver: request.driver,
           status: 'valid',
           proofEventId: payment.id,
+          amount: request.expected.amount,
           amountMatched: true,
           assetMatched: true,
           recipientMatched: true,
-          escrowMatched: true,
+          arbiterMatched: true,
         }
       },
       async refundPayment() {
@@ -2609,11 +4195,10 @@ describe('marketplace reviews and runtime facade', () => {
       async recyclePayment(intent) {
         return {
           proof: {
-            method: 'evm',
+            driver: 'evm-auction-runtime-settle',
             params: {
               ...intent.proof.params,
               action: 'auction_promote',
-              subject: 'order',
               tradeId: intent.targetTradeId,
               settlementId: intent.targetOrderGroupId,
               txHash: `0x${'f'.repeat(64)}`,
@@ -2625,10 +4210,10 @@ describe('marketplace reviews and runtime facade', () => {
     }
     const api = marketplace.bind(pool, ['wss://relay.example'], {
       seed: '8'.repeat(64),
-      identity: { pubkey: escrowPubkey },
+      identity: { pubkey: arbiterPubkey },
       signer: {
         async getPublicKey() {
-          return escrowPubkey
+          return arbiterPubkey
         },
         async nip44Encrypt(_pubkey: string, plaintext: string) {
           return plaintext
@@ -2637,20 +4222,20 @@ describe('marketplace reviews and runtime facade', () => {
           return ciphertext
         },
         async signEvent(template: EventTemplate) {
-          return sign(template, escrowSecretKey)
+          return sign(template, arbiterSecretKey)
         },
       },
       publish: event => published.push(event),
       bidPolicies: [bidPolicy],
     })
 
-    const runtime = api.escrow.start({
+    const runtime = api.arbitration.start({
       orders: false,
       auctions: false,
       now: createdAt + 10,
       auctionSettlement: {
-        targetTradeId: 'auction-runtime-settle-order',
         targetUnlockAt: createdAt + 3600,
+        targetOrder: { tradeId: 'auction-runtime-settle-order', quantity: 1 },
       },
       onstate: state => {
         states.push(state)
@@ -2661,32 +4246,33 @@ describe('marketplace reviews and runtime facade', () => {
       await new Promise(resolve => setTimeout(resolve, 0))
     }
 
-    expect(states.some(state => state.type === 'auction_scheduled')).toBe(true)
+    expect(states.some(state => state.type === 'auction_settlement_started')).toBe(true)
     expect(states.some(state => state.type === 'auction_settlement_completed')).toBe(true)
     expect(published.some(event => event.kind === MarketplaceAuctionComplete)).toBe(true)
     expect(published.some(event => event.kind === MarketplacePaymentSettlement)).toBe(true)
     const promotedOrder = published.find(event => event.kind === MarketplaceOrder)
-    const promotedPayment = published.find(event => event.kind === MarketplacePayment && event.pubkey === escrowPubkey)
+    const promotedPayment = published.find(event => event.kind === MarketplacePayment && event.pubkey === arbiterPubkey)
     expect(promotedOrder).toBeDefined()
     expect(promotedPayment).toBeDefined()
-    expect(marketplace.orders.parse(promotedOrder!).tradeId).toBe('auction-runtime-settle-order')
-    expect(marketplace.orders.parsePayment(promotedPayment!).content.purpose).toBe('order_payment')
+    expect(marketplace.orders.parse(promotedOrder!).tradeId).toBe('auction-runtime-settle-bid')
+    expect(marketplace.orders.parsePayment(promotedPayment!).content.proof.paymentProof?.driver)
+      .toBe('evm-auction-runtime-settle')
   })
 
-  test('escrow arbitration routes to the matching policy and publishes a settlement', async () => {
+  test('payment arbitration routes to the matching policy and publishes a settlement', async () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
-    const escrowSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
     const sellerPubkey = getPublicKey(sellerSecretKey)
     const buyerPubkey = getPublicKey(buyerSecretKey)
-    const escrowPubkey = getPublicKey(escrowSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
     const tradeId = 'trade-arbitrate'
     const participants = [
       { pubkey: sellerPubkey, role: 'seller' as const },
       { pubkey: buyerPubkey, role: 'buyer' as const },
-      { pubkey: escrowPubkey, role: 'escrow' as const },
+      { pubkey: arbiterPubkey, role: 'arbiter' as const },
     ]
     const order = sign(
       marketplace.orders.template({
@@ -2704,9 +4290,9 @@ describe('marketplace reviews and runtime facade', () => {
         listingAnchor,
         participants,
         refs: { orders: [order.id] },
+        amount: { value: '50000', denomination: 'BTC', decimals: 8 },
         proof: {
-          listing,
-          paymentProof: { method: 'evm', params: { txHash: `0x${'e'.repeat(64)}` } },
+          paymentProof: { driver: 'evm-escrow', params: { txHash: `0x${'e'.repeat(64)}` } },
         },
         createdAt: createdAt + 1,
       }),
@@ -2718,19 +4304,19 @@ describe('marketplace reviews and runtime facade', () => {
     const policy: marketplace.MarketplaceOrderPolicy = {
       method: 'evm',
       id: 'evm-escrow',
-      subject: 'order',
+      purpose: 'order',
       family: 'escrow',
       policies: () => [{ method: 'evm', id: 'evm-escrow' }],
       assets: () => [],
       async *pay() {
         yield { type: 'completed' as const }
       },
-      async *arbitrate(intent: marketplace.MarketplaceEscrowArbitrationIntent) {
+      async *arbitrate(intent: marketplace.MarketplacePaymentArbitrationIntent) {
         receivedAction = intent.action
         yield {
           type: 'settlement_ready' as const,
           proof: {
-            method: 'evm',
+            driver: 'evm-escrow',
             params: { txHash: `0x${'f'.repeat(64)}` },
           },
           data: { settled: true },
@@ -2749,10 +4335,10 @@ describe('marketplace reviews and runtime facade', () => {
       ['wss://relay.example'],
       {
         seed: '8'.repeat(64),
-        identity: { pubkey: escrowPubkey },
+        identity: { pubkey: arbiterPubkey },
         signer: {
           async getPublicKey() {
-            return escrowPubkey
+            return arbiterPubkey
           },
           async nip44Encrypt(_pubkey: string, plaintext: string) {
             return plaintext
@@ -2761,7 +4347,7 @@ describe('marketplace reviews and runtime facade', () => {
             return ciphertext
           },
           async signEvent(template: EventTemplate) {
-            return sign(template, escrowSecretKey)
+            return sign(template, arbiterSecretKey)
           },
         },
         publish: event => published.push(event),
@@ -2769,15 +4355,15 @@ describe('marketplace reviews and runtime facade', () => {
       },
     )
 
-    const states: marketplace.MarketplaceEscrowArbitrationRuntimeState[] = []
-    for await (const state of api.escrow.arbitrate({ group, action: 'split' })) {
+    const states: marketplace.MarketplacePaymentArbitrationRuntimeState[] = []
+    for await (const state of api.arbitration.arbitrate({ group, action: 'split' })) {
       states.push(state)
     }
 
     expect(receivedAction).toBe('split')
     expect(published).toHaveLength(1)
     expect(published[0].kind).toBe(MarketplacePaymentSettlement)
-    expect(published[0].pubkey).toBe(escrowPubkey)
+    expect(published[0].pubkey).toBe(arbiterPubkey)
     expect(hasTag(published[0], ['e', payment.id, '', 'payment'])).toBe(true)
     expect(states.some(state => state.type === 'settlement_published')).toBe(true)
   })
@@ -2795,7 +4381,7 @@ describe('marketplace reviews and runtime facade', () => {
     const evmPolicy: marketplace.MarketplaceOrderPolicy = {
       id: 'evm-main',
       method: 'evm',
-      subject: 'order',
+      purpose: 'order',
       family: 'escrow',
       policies: () => [],
       assets: () => [],
@@ -2814,7 +4400,7 @@ describe('marketplace reviews and runtime facade', () => {
     const cashuPolicy: marketplace.MarketplaceOrderPolicy = {
       id: 'cashu-script',
       method: 'cashu',
-      subject: 'order',
+      purpose: 'order',
       family: 'escrow',
       policies: () => [],
       assets: () => [],
@@ -2848,5 +4434,81 @@ describe('marketplace reviews and runtime facade', () => {
       'cashu:7',
     ])
     expect(calls.every(call => call.seed === '5'.repeat(64))).toBe(true)
+  })
+
+  test('seeds high-water mark discovery from existing Nostr orders and bids', async () => {
+    const seed = '6'.repeat(64)
+    const orderTrade = marketplace.deriveMarketplaceTradeMaterial(seed, { index: 2, role: 'buyer' })
+    const bidTrade = marketplace.deriveMarketplaceTradeMaterial(seed, { index: 5, role: 'buyer', extra: 'auction-bid' })
+    const listingAnchor = `${30402}:${'a'.repeat(64)}:villa-bali`
+    const order = sign(
+      marketplace.orders.template({
+        tradeId: orderTrade.tradeId,
+        listingAnchor,
+        participants: [{ pubkey: orderTrade.tradePubkey, role: 'buyer' }],
+        amount: { value: '1000', denomination: 'BTC', decimals: 8 },
+        createdAt,
+      }),
+      orderTrade.tradeSecretKey,
+    )
+    const bid = sign(
+      marketplace.auctions.bidTemplate({
+        tradeId: bidTrade.tradeId,
+        auctionAnchor: `${MarketplaceAuction}:${'b'.repeat(64)}:auction-1`,
+        listingAnchor,
+        amount: { value: '2000', denomination: 'BTC', decimals: 8 },
+        participants: [{ pubkey: bidTrade.tradePubkey, role: 'buyer' }],
+        createdAt,
+      }),
+      bidTrade.tradeSecretKey,
+    )
+    const calls: number[] = []
+    const queriedKinds: number[][] = []
+    const events = [order, bid]
+    const pool = {
+      async querySync(_relays: string[], filter: { kinds?: number[]; authors?: string[]; '#p'?: string[] }): Promise<Event[]> {
+        queriedKinds.push(filter.kinds ?? [])
+        return events.filter(event => {
+          if (filter.kinds && !filter.kinds.includes(event.kind)) return false
+          if (filter.authors && filter.authors.includes(event.pubkey)) return true
+          if (filter['#p'] && event.tags.some(tag => tag[0] === 'p' && filter['#p']!.includes(tag[1]))) return true
+          return false
+        })
+      },
+      async get(): Promise<Event | null> {
+        return null
+      },
+    }
+    const policy: marketplace.MarketplaceOrderPolicy = {
+      id: 'noop-policy',
+      method: 'evm',
+      purpose: 'order',
+      family: 'escrow',
+      policies: () => [],
+      assets: () => [],
+      async discoverHighWatermark(ctx: marketplace.MarketplacePolicyWatermarkContext) {
+        calls.push(ctx.highWaterMark)
+        return {
+          policy: 'noop-policy',
+          maxUsedIndex: ctx.highWaterMark,
+          scannedThrough: ctx.highWaterMark + ctx.unusedWindow,
+        }
+      },
+      async *pay() {
+        yield { type: 'completed' as const }
+      },
+    }
+
+    const api = marketplace.bind(pool, ['wss://relay.example'], {
+      seed,
+      orderPolicies: [policy],
+    })
+    const discovery = await api.discoverHighWatermark({ unusedWindow: 3 })
+
+    expect(discovery.maxUsedIndex).toBe(5)
+    expect(discovery.nextUnusedIndex).toBe(6)
+    expect(calls).toEqual([5])
+    expect(queriedKinds.some(kinds => kinds.includes(MarketplaceOrder))).toBe(true)
+    expect(queriedKinds.some(kinds => kinds.includes(MarketplaceAuctionBid))).toBe(true)
   })
 })

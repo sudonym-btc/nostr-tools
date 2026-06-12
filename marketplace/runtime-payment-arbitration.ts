@@ -14,19 +14,19 @@ import {
   type ParsedPaymentMethod,
 } from './paymentmethod.ts'
 import {
-  escrowServiceFilter,
-  findEscrowService,
-  generateEscrowServiceEventTemplate,
-  parseEscrowServiceEvent,
-  parseEscrowServiceSelectionEvent,
-  searchEscrowServices,
-  validateEscrowServiceEvent,
-  validateEscrowServiceSelectionEvent,
-  generateEscrowServiceSelectionEventTemplate,
-  calculateEscrowFee,
-  type EscrowServiceFindQuery,
-  type ParsedEscrowService,
-} from './escrowservice.ts'
+  arbitrationServiceFilter,
+  findArbitrationService,
+  generateArbitrationServiceEventTemplate,
+  parseArbitrationServiceEvent,
+  parseArbitrationServiceSelectionEvent,
+  searchArbitrationServices,
+  validateArbitrationServiceEvent,
+  validateArbitrationServiceSelectionEvent,
+  generateArbitrationServiceSelectionEventTemplate,
+  calculateArbitrationFee,
+  type ArbitrationServiceFindQuery,
+  type ParsedArbitrationService,
+} from './arbitrationservice.ts'
 import {
   generateListingEventTemplate,
   listingSearchFilter,
@@ -152,6 +152,8 @@ import type {
   MarketplacePaymentValidationRequest,
   MarketplacePaymentValidationResult,
 } from './payment-validation.ts'
+import { isPaymentValidationAccepted } from './payment-validation.ts'
+import { resolvePaymentAmount } from './payment-amount.ts'
 import type {
   MarketplacePolicyWatermarkRecoveryAction,
   MarketplacePolicyWatermarkContext,
@@ -175,10 +177,10 @@ import type {
   MarketplacePaymentIntent,
   MarketplacePaymentRecoveryItem,
   MarketplacePaymentRecoveryState,
-  MarketplaceEscrowArbitrationIntent,
-  MarketplaceEscrowArbitrationState,
-  MarketplaceEscrowArbitrationRequest,
-  MarketplaceEscrowArbitrationRuntimeState,
+  MarketplacePaymentArbitrationIntent,
+  MarketplacePaymentArbitrationState,
+  MarketplacePaymentArbitrationRequest,
+  MarketplacePaymentArbitrationRuntimeState,
   MarketplaceAuctionSettlementRequest,
   MarketplaceAuctionBidSettlementInput,
   MarketplaceAuctionBidValidation,
@@ -212,16 +214,16 @@ import type {
   MarketplaceRuntimeIdentity,
   MarketplaceRuntimePool,
   MarketplaceRuntimeOptions,
-  MarketplaceEscrowStartEvent,
-  MarketplaceEscrowStartOptions,
-  MarketplaceEscrowRuntime,
+  MarketplaceArbitrationStartEvent,
+  MarketplaceArbitrationStartOptions,
+  MarketplaceArbitrationRuntime,
   MarketplaceSessionIdentity,
   MarketplaceBindOptions,
   MarketplaceSessionOptions,
   MarketplaceListingsApi,
   MarketplacePaymentMethodApi,
-  MarketplaceEscrowServicesApi,
-  MarketplaceEscrowServiceSelectionsApi,
+  MarketplaceArbitrationServicesApi,
+  MarketplaceArbitrationServiceSelectionsApi,
   MarketplaceOrderGroupsApi,
   MarketplaceOrdersApi,
   MarketplaceReviewsApi,
@@ -230,7 +232,7 @@ import type {
   MarketplaceAuctionsApi,
   MarketplaceAuctionBidGroupsApi,
   MarketplacePaymentsApi,
-  MarketplaceEscrowApi,
+  MarketplaceArbitrationApi,
   MarketplaceClient,
   MarketplaceSessionSeedEnsureOptions,
   MarketplaceSessionSeedEnsureResult,
@@ -241,7 +243,7 @@ import {
   paymentRecoveryItemForGroup,
   policyForPayment,
   publishMarketplaceTemplate,
-  requireEscrowPublisher,
+  requireArbitrationPublisher,
   requireSubscribePool,
   runtimeIdentity,
   runtimeMyOrderQuery,
@@ -260,20 +262,27 @@ export function hasPaymentNackFrom(group: ParsedOrderGroup, payment: ParsedOrder
   )
 }
 
-export function escrowStartIdentity(
+type ArbitrationPaymentDecisionTracker = {
+  hasAck: (group: ParsedOrderGroup, payment: ParsedOrderPayment, pubkey: string) => boolean
+  hasNack: (group: ParsedOrderGroup, payment: ParsedOrderPayment, pubkey: string) => boolean
+  markAck: (group: ParsedOrderGroup, payment: ParsedOrderPayment, pubkey: string) => void
+  markNack: (group: ParsedOrderGroup, payment: ParsedOrderPayment, pubkey: string) => void
+}
+
+export function arbitrationStartIdentity(
   opts: MarketplaceRuntimeOptions,
-  options: MarketplaceEscrowStartOptions,
+  options: MarketplaceArbitrationStartOptions,
 ): MarketplaceOrderIdentity {
   const identity = runtimeIdentity(opts, options.identity)
   return {
     ...identity,
-    roles: options.identity?.roles ?? ['escrow'],
+    roles: options.identity?.roles ?? ['arbiter'],
     tempKeyWindow: options.identity?.tempKeyWindow ?? 0,
   }
 }
 
-export function escrowStartQuery(
-  options: MarketplaceEscrowStartOptions,
+export function arbitrationStartQuery(
+  options: MarketplaceArbitrationStartOptions,
   identity: MarketplaceOrderIdentity,
 ): MyOrderGroupQuery {
   const {
@@ -294,7 +303,7 @@ export function escrowStartQuery(
   return { ...query, identity }
 }
 
-export function escrowSubscribeOptions(options: MarketplaceEscrowStartOptions): OrderSubscribeOptions & ReduceOrderGroupOptions {
+export function arbitrationSubscribeOptions(options: MarketplaceArbitrationStartOptions): OrderSubscribeOptions & ReduceOrderGroupOptions {
   return {
     ...(options.maxWait !== undefined ? { maxWait: options.maxWait } : {}),
     ...(options.id ? { id: options.id } : {}),
@@ -306,9 +315,9 @@ export function escrowSubscribeOptions(options: MarketplaceEscrowStartOptions): 
   }
 }
 
-export async function emitEscrowState(
-  options: MarketplaceEscrowStartOptions,
-  event: MarketplaceEscrowStartEvent,
+export async function emitArbitrationState(
+  options: MarketplaceArbitrationStartOptions,
+  event: MarketplaceArbitrationStartEvent,
 ): Promise<void> {
   await options.onstate?.(event)
 }
@@ -318,34 +327,45 @@ export function errorFromUnknown(error: unknown): Error {
 }
 
 export function shouldAck(validation: MarketplacePaymentValidationResult): boolean {
-  return validation.status === 'valid'
+  return isPaymentValidationAccepted(validation)
 }
 
 export function shouldNack(validation: MarketplacePaymentValidationResult): boolean {
   return validation.status === 'invalid' || validation.status === 'expired'
 }
 
-export async function processEscrowGroupPayment(
+export async function processArbitrationGroupPayment(
   opts: MarketplaceRuntimeOptions,
-  options: MarketplaceEscrowStartOptions,
+  options: MarketplaceArbitrationStartOptions,
   identity: MarketplaceOrderIdentity,
   group: ParsedOrderGroup,
   payment: ParsedOrderPayment,
+  tracker?: ArbitrationPaymentDecisionTracker,
 ): Promise<void> {
-  const escrowPubkey = identity.pubkey
-  if (!escrowPubkey) throw new Error('Marketplace escrow identity pubkey is required')
-  await emitEscrowState(options, { type: 'payment_seen', group, payment })
-  const item = paymentRecoveryItemForGroup(group, payment, options.now)
+  const arbiterPubkey = identity.pubkey
+  if (!arbiterPubkey) throw new Error('Marketplace arbiter identity pubkey is required')
+  await emitArbitrationState(options, { type: 'payment_seen', group, payment })
+  const amount = await resolvePaymentAmount(payment, { signer: opts.signer, signerPubkey: arbiterPubkey })
+  if (amount.status !== 'resolved' || !amount.amount) {
+    await emitArbitrationState(options, {
+      type: 'ignored',
+      group,
+      payment,
+      reason: amount.error ?? 'payment amount could not be resolved',
+    })
+    return
+  }
+  const item = paymentRecoveryItemForGroup(group, payment, options.now, amount.amount)
   if (!item) {
-    await emitEscrowState(options, { type: 'ignored', group, payment, reason: 'payment has no recoverable proof' })
+    await emitArbitrationState(options, { type: 'ignored', group, payment, reason: 'payment has no recoverable proof' })
     return
   }
   const validation = await validateMarketplacePayment(opts, item)
-  await emitEscrowState(options, { type: 'payment_validated', group, payment, validation })
+  await emitArbitrationState(options, { type: 'payment_validated', group, payment, validation })
 
   if ((options.autoAck ?? true) && shouldAck(validation)) {
-    if (hasPaymentAckFrom(group, payment, escrowPubkey)) {
-      await emitEscrowState(options, { type: 'ignored', group, payment, reason: 'payment already acked by escrow' })
+    if (tracker?.hasAck(group, payment, arbiterPubkey) || hasPaymentAckFrom(group, payment, arbiterPubkey)) {
+      await emitArbitrationState(options, { type: 'ignored', group, payment, reason: 'payment already acked by arbiter' })
       return
     }
     const event = await publishMarketplaceTemplate(
@@ -359,10 +379,11 @@ export async function processEscrowGroupPayment(
         status: 'accepted',
       }),
     )
-    await emitEscrowState(options, { type: 'payment_ack_published', group, payment, validation, event })
+    tracker?.markAck(group, payment, arbiterPubkey)
+    await emitArbitrationState(options, { type: 'payment_ack_published', group, payment, validation, event })
   } else if ((options.autoNack ?? true) && shouldNack(validation)) {
-    if (hasPaymentNackFrom(group, payment, escrowPubkey)) {
-      await emitEscrowState(options, { type: 'ignored', group, payment, reason: 'payment already nacked by escrow' })
+    if (tracker?.hasNack(group, payment, arbiterPubkey) || hasPaymentNackFrom(group, payment, arbiterPubkey)) {
+      await emitArbitrationState(options, { type: 'ignored', group, payment, reason: 'payment already nacked by arbiter' })
       return
     }
     const event = await publishMarketplaceTemplate(
@@ -377,28 +398,60 @@ export async function processEscrowGroupPayment(
         ...(validation.error ? { message: validation.error } : {}),
       }),
     )
-    await emitEscrowState(options, { type: 'payment_nack_published', group, payment, validation, event })
+    tracker?.markNack(group, payment, arbiterPubkey)
+    await emitArbitrationState(options, { type: 'payment_nack_published', group, payment, validation, event })
   }
 }
 
-export function startMarketplaceEscrow(
+export function startMarketplaceOrderArbitration(
   opts: MarketplaceRuntimeOptions,
-  options: MarketplaceEscrowStartOptions = {},
-): MarketplaceEscrowRuntime {
-  requireEscrowPublisher(opts)
-  const identity = escrowStartIdentity(opts, options)
+  options: MarketplaceArbitrationStartOptions = {},
+): MarketplaceArbitrationRuntime {
+  requireArbitrationPublisher(opts)
+  const identity = arbitrationStartIdentity(opts, options)
   const processed = new Set<string>()
+  const observedAcks = new Set<string>()
+  const observedNacks = new Set<string>()
+
+  const decisionKey = (group: ParsedOrderGroup, paymentId: string, pubkey: string) =>
+    `${group.id}:${paymentId}:${pubkey}`
+  const tracker: ArbitrationPaymentDecisionTracker = {
+    hasAck(group, payment, pubkey) {
+      return observedAcks.has(decisionKey(group, payment.event.id, pubkey))
+    },
+    hasNack(group, payment, pubkey) {
+      return observedNacks.has(decisionKey(group, payment.event.id, pubkey))
+    },
+    markAck(group, payment, pubkey) {
+      observedAcks.add(decisionKey(group, payment.event.id, pubkey))
+    },
+    markNack(group, payment, pubkey) {
+      observedNacks.add(decisionKey(group, payment.event.id, pubkey))
+    },
+  }
+
+  function noteGroupDecisions(group: ParsedOrderGroup): void {
+    for (const ack of group.paymentAcks) {
+      if (ack.event.pubkey !== identity.pubkey) continue
+      for (const paymentId of ack.refs.payments) observedAcks.add(decisionKey(group, paymentId, ack.event.pubkey))
+    }
+    for (const nack of group.paymentNacks) {
+      if (nack.event.pubkey !== identity.pubkey) continue
+      for (const paymentId of nack.refs.payments) observedNacks.add(decisionKey(group, paymentId, nack.event.pubkey))
+    }
+  }
 
   async function processGroup(group: ParsedOrderGroup): Promise<void> {
-    await emitEscrowState(options, { type: 'group', group })
+    await emitArbitrationState(options, { type: 'group', group })
+    noteGroupDecisions(group)
     for (const payment of group.payments) {
       const key = `${group.id}:${payment.event.id}:${payment.event.created_at}:${group.paymentAcks.length}:${group.paymentNacks.length}`
       if (processed.has(key)) continue
       processed.add(key)
       try {
-        await processEscrowGroupPayment(opts, options, identity, group, payment)
+        await processArbitrationGroupPayment(opts, options, identity, group, payment, tracker)
       } catch (error) {
-        await emitEscrowState(options, { type: 'error', group, payment, error: errorFromUnknown(error) })
+        await emitArbitrationState(options, { type: 'error', group, payment, error: errorFromUnknown(error) })
       }
     }
   }
@@ -406,24 +459,24 @@ export function startMarketplaceEscrow(
   const closer = subscribeMyOrderGroups(
     requireSubscribePool(opts.pool),
     opts.relays,
-    escrowStartQuery(options, identity),
+    arbitrationStartQuery(options, identity),
     {
       ongroup(group) {
         void processGroup(group)
       },
       oneose() {
-        void emitEscrowState(options, { type: 'eose' })
+        void emitArbitrationState(options, { type: 'eose' })
       },
       onclose(reasons) {
-        void emitEscrowState(options, { type: 'closed', reasons })
+        void emitArbitrationState(options, { type: 'closed', reasons })
       },
       oninvalid(event, error) {
-        void emitEscrowState(options, { type: 'error', error })
+        void emitArbitrationState(options, { type: 'error', error })
       },
     },
-    escrowSubscribeOptions(options),
+    arbitrationSubscribeOptions(options),
   )
-  void emitEscrowState(options, { type: 'started', identity })
+  void emitArbitrationState(options, { type: 'started', identity })
 
   return {
     close(reason?: string) {
@@ -433,29 +486,34 @@ export function startMarketplaceEscrow(
     async processAuction() {},
     async processAuctionBidGroup() {},
     async settleAuction() {},
+    async settleDueAuctions() {},
   }
 }
 
-export async function* arbitrateMarketplaceEscrow(
+export async function* arbitrateMarketplacePayment(
   opts: MarketplaceRuntimeOptions,
-  request: MarketplaceEscrowArbitrationRequest,
-): AsyncIterable<MarketplaceEscrowArbitrationRuntimeState> {
-  requireEscrowPublisher(opts)
+  request: MarketplacePaymentArbitrationRequest,
+): AsyncIterable<MarketplacePaymentArbitrationRuntimeState> {
+  requireArbitrationPublisher(opts)
   const payment = request.payment ?? request.group.payment
-  if (!payment) throw new Error('Escrow arbitration requires a payment')
-  const item = paymentRecoveryItemForGroup(request.group, payment, request.now)
-  if (!item) throw new Error('Escrow arbitration requires a recoverable payment proof')
+  if (!payment) throw new Error('Payment arbitration requires a payment')
+  const amount = await resolvePaymentAmount(payment, { signer: opts.signer })
+  if (amount.status !== 'resolved' || !amount.amount) {
+    throw new Error(amount.error ?? 'Payment arbitration requires a resolvable payment amount')
+  }
+  const item = paymentRecoveryItemForGroup(request.group, payment, request.now, amount.amount)
+  if (!item) throw new Error('Payment arbitration requires a recoverable payment proof')
   const policy = policyForPayment(opts, item)
   if (!policy?.arbitrate) {
     throw new Error(policy ? 'Payment policy does not support arbitration' : 'No matching payment policy')
   }
   const stream = await policy.arbitrate({
-    subject: 'order',
+    purpose: 'order',
     group: request.group,
     payment,
     proof: item.proof,
-    expected: item.expected,
     action: request.action,
+    ...(item.expected ? { expected: item.expected } : {}),
     ...(request.outputs ? { outputs: request.outputs } : {}),
     ...(request.reason ? { reason: request.reason } : {}),
     ...(request.data ? { data: request.data } : {}),
@@ -472,7 +530,7 @@ export async function* arbitrateMarketplaceEscrow(
           listingAnchor: request.group.listingAnchor,
           participants: request.group.participants,
           refs: { payments: [payment.event.id] },
-          method: item.proof.method,
+          method: item.proof.driver,
           action: request.action,
           ...(state.inputs ? { inputs: state.inputs } : {}),
           ...(state.outputs ?? request.outputs ? { outputs: state.outputs ?? request.outputs } : {}),

@@ -8,25 +8,26 @@ import {
   parsePaymentMethodEvent,
   validatePaymentMethodEvent,
   canonicalAssetId,
+  normalizePaymentFormForNostr,
   paymentMethodFilter,
   type PaymentMethodFindQuery,
   type AcceptedPaymentForm,
   type ParsedPaymentMethod,
 } from './paymentmethod.ts'
 import {
-  escrowServiceFilter,
-  findEscrowService,
-  generateEscrowServiceEventTemplate,
-  parseEscrowServiceEvent,
-  parseEscrowServiceSelectionEvent,
-  searchEscrowServices,
-  validateEscrowServiceEvent,
-  validateEscrowServiceSelectionEvent,
-  generateEscrowServiceSelectionEventTemplate,
-  calculateEscrowFee,
-  type EscrowServiceFindQuery,
-  type ParsedEscrowService,
-} from './escrowservice.ts'
+  arbitrationServiceFilter,
+  findArbitrationService,
+  generateArbitrationServiceEventTemplate,
+  parseArbitrationServiceEvent,
+  parseArbitrationServiceSelectionEvent,
+  searchArbitrationServices,
+  validateArbitrationServiceEvent,
+  validateArbitrationServiceSelectionEvent,
+  generateArbitrationServiceSelectionEventTemplate,
+  calculateArbitrationFee,
+  type ArbitrationServiceFindQuery,
+  type ParsedArbitrationService,
+} from './arbitrationservice.ts'
 import {
   generateListingEventTemplate,
   listingSearchFilter,
@@ -175,10 +176,10 @@ import type {
   MarketplacePaymentIntent,
   MarketplacePaymentRecoveryItem,
   MarketplacePaymentRecoveryState,
-  MarketplaceEscrowArbitrationIntent,
-  MarketplaceEscrowArbitrationState,
-  MarketplaceEscrowArbitrationRequest,
-  MarketplaceEscrowArbitrationRuntimeState,
+  MarketplacePaymentArbitrationIntent,
+  MarketplacePaymentArbitrationState,
+  MarketplacePaymentArbitrationRequest,
+  MarketplacePaymentArbitrationRuntimeState,
   MarketplaceAuctionSettlementRequest,
   MarketplaceAuctionBidSettlementInput,
   MarketplaceAuctionBidValidation,
@@ -212,16 +213,16 @@ import type {
   MarketplaceRuntimeIdentity,
   MarketplaceRuntimePool,
   MarketplaceRuntimeOptions,
-  MarketplaceEscrowStartEvent,
-  MarketplaceEscrowStartOptions,
-  MarketplaceEscrowRuntime,
+  MarketplaceArbitrationStartEvent,
+  MarketplaceArbitrationStartOptions,
+  MarketplaceArbitrationRuntime,
   MarketplaceSessionIdentity,
   MarketplaceBindOptions,
   MarketplaceSessionOptions,
   MarketplaceListingsApi,
   MarketplacePaymentMethodApi,
-  MarketplaceEscrowServicesApi,
-  MarketplaceEscrowServiceSelectionsApi,
+  MarketplaceArbitrationServicesApi,
+  MarketplaceArbitrationServiceSelectionsApi,
   MarketplaceOrderGroupsApi,
   MarketplaceOrdersApi,
   MarketplaceReviewsApi,
@@ -230,7 +231,7 @@ import type {
   MarketplaceAuctionsApi,
   MarketplaceAuctionBidGroupsApi,
   MarketplacePaymentsApi,
-  MarketplaceEscrowApi,
+  MarketplaceArbitrationApi,
   MarketplaceClient,
   MarketplaceSessionSeedEnsureOptions,
   MarketplaceSessionSeedEnsureResult,
@@ -241,7 +242,7 @@ import {
   allPolicyAssets,
   allPolicyDescriptors,
   paymentPolicies,
-  requireEscrowPublisher,
+  requireArbitrationPublisher,
 } from './runtime-common.ts'
 import { canonicalPolicyHash } from './runtime-routes.ts'
 
@@ -255,27 +256,29 @@ export function normalizeTrustInput(input: string | string[] | undefined): strin
 }
 
 export function paymentFormKey(form: AcceptedPaymentForm): string {
+  const normalized = normalizePaymentFormForNostr(form)
   return [
-    form.denomination,
-    canonicalAssetId(form.assetId),
-    form.appId ?? '',
+    normalized.denomination,
+    canonicalAssetId(normalized.assetId),
+    normalized.appId ?? '',
   ].join('\u0000')
 }
 
 export function uniquePaymentForms(forms: AcceptedPaymentForm[]): AcceptedPaymentForm[] {
   const byKey = new Map<string, AcceptedPaymentForm>()
   for (const form of forms) {
-    byKey.set(paymentFormKey(form), {
-      denomination: form.denomination,
-      assetId: canonicalAssetId(form.assetId),
-      ...(form.appId ? { appId: form.appId } : {}),
+    const normalized = normalizePaymentFormForNostr(form)
+    byKey.set(paymentFormKey(normalized), {
+      denomination: normalized.denomination,
+      assetId: canonicalAssetId(normalized.assetId),
+      ...(normalized.appId ? { appId: normalized.appId } : {}),
     })
   }
   return [...byKey.values()].sort((a, b) => paymentFormKey(a).localeCompare(paymentFormKey(b)))
 }
 
 type PaymentMethodSnapshot = {
-  trustedEscrowPubkeys: string[]
+  trustedArbiterPubkeys: string[]
   supportedContractBytecodeHashes: string[]
   acceptedPaymentForms: AcceptedPaymentForm[]
   evmAddress?: string
@@ -285,7 +288,7 @@ type PaymentMethodSnapshot = {
 
 export function snapshotPaymentMethod(method: ParsedPaymentMethod): PaymentMethodSnapshot {
   return {
-    trustedEscrowPubkeys: uniqueSorted(method.trustedEscrowPubkeys),
+    trustedArbiterPubkeys: uniqueSorted(method.trustedArbiterPubkeys),
     supportedContractBytecodeHashes: uniqueSorted(method.supportedContractBytecodeHashes.map(canonicalPolicyHash)),
     acceptedPaymentForms: uniquePaymentForms(method.acceptedPaymentForms),
     ...(method.evmAddress ? { evmAddress: method.evmAddress.toLowerCase() } : {}),
@@ -326,13 +329,13 @@ export async function ensurePaymentMethodUpToDate(
     if (listings.length === 0) return { status: 'skipped', reason: 'no_listings' }
   }
 
-  const current = await findPaymentMethod(opts.pool, opts.relays, { author: pubkey, limit: 5 })
-  const trustedEscrowPubkeys = uniqueSorted([
-    ...normalizeTrustInput(opts.autoTrustEscrow),
-    ...(opts.paymentMethod?.trustedEscrowPubkeys ?? []),
-    ...(options.trustedEscrowPubkeys ?? []),
+  const current = await findPaymentMethod(opts.pool, opts.relays, { author: pubkey })
+  const trustedArbiterPubkeys = uniqueSorted([
+    ...normalizeTrustInput(opts.autoTrustArbiter),
+    ...(opts.paymentMethod?.trustedArbiterPubkeys ?? []),
+    ...(options.trustedArbiterPubkeys ?? []),
   ])
-  if (trustedEscrowPubkeys.length === 0) return { status: 'skipped', reason: 'no_trusted_escrows' }
+  if (trustedArbiterPubkeys.length === 0) return { status: 'skipped', reason: 'no_trusted_arbiters' }
 
   const policies = paymentPolicies(opts)
   const supportedContractBytecodeHashes = paymentMethodPolicyHashes(policies)
@@ -342,7 +345,7 @@ export async function ensurePaymentMethodUpToDate(
   }
 
   const desired: PaymentMethodSnapshot = {
-    trustedEscrowPubkeys,
+    trustedArbiterPubkeys,
     supportedContractBytecodeHashes,
     acceptedPaymentForms,
     ...(options.evmAddress ?? opts.paymentMethod?.evmAddress ?? current?.evmAddress
@@ -361,7 +364,7 @@ export async function ensurePaymentMethodUpToDate(
   }
 
   const template = generatePaymentMethodEventTemplate({
-    trustedEscrowPubkeys: desired.trustedEscrowPubkeys,
+    trustedArbiterPubkeys: desired.trustedArbiterPubkeys,
     supportedContractBytecodeHashes: desired.supportedContractBytecodeHashes,
     acceptedPaymentForms: desired.acceptedPaymentForms,
     ...(desired.evmAddress ? { evmAddress: desired.evmAddress } : {}),
@@ -369,7 +372,7 @@ export async function ensurePaymentMethodUpToDate(
     ...(desired.cashuPubkey ? { cashuPubkey: desired.cashuPubkey } : {}),
     ...(options.createdAt !== undefined ? { createdAt: options.createdAt } : {}),
   })
-  const { signer, publish } = requireEscrowPublisher(opts)
+  const { signer, publish } = requireArbitrationPublisher(opts)
   const event = await signer.signEvent(template)
   await publish(event)
   return current

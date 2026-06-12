@@ -1,40 +1,29 @@
-import { sha256Hex, sortedJson, type PTag } from './helper.ts'
+import {
+  isMarketplaceParticipantGroupRole,
+  marketplaceParticipantEntries,
+  participantGroupIdForParticipants,
+  type MarketplaceParticipantEntry,
+  type MarketplaceParticipantGroupRole,
+  type MarketplaceParticipantTag,
+} from './participant.ts'
 
-export type OrderGroupRole = 'buyer' | 'seller' | 'escrow'
+export type OrderGroupRole = MarketplaceParticipantGroupRole
 
-export type OrderGroupParticipantEntry = {
-  role: OrderGroupRole
-  pubkey: string
-}
-
-const orderGroupRoles = new Set<OrderGroupRole>(['buyer', 'seller', 'escrow'])
+export type OrderGroupParticipantEntry = MarketplaceParticipantEntry
 
 export function isOrderGroupRole(role: string | undefined): role is OrderGroupRole {
-  return !!role && orderGroupRoles.has(role as OrderGroupRole)
+  return isMarketplaceParticipantGroupRole(role)
 }
 
-export function orderGroupParticipantEntries(participants: Iterable<PTag>): OrderGroupParticipantEntry[] {
-  const entries: OrderGroupParticipantEntry[] = []
-  for (const participant of participants) {
-    if (!isOrderGroupRole(participant.role)) continue
-    entries.push({ role: participant.role, pubkey: participant.pubkey })
-  }
-  return entries.sort((left, right) => {
-    const role = left.role.localeCompare(right.role)
-    return role === 0 ? left.pubkey.localeCompare(right.pubkey) : role
-  })
+export function orderGroupParticipantEntries(
+  participants: Iterable<MarketplaceParticipantTag | OrderGroupParticipantEntry>,
+): OrderGroupParticipantEntry[] {
+  return marketplaceParticipantEntries(participants)
 }
 
 export function orderGroupIdForRoleParticipants(
   tradeId: string,
-  participants: Iterable<PTag | OrderGroupParticipantEntry>,
+  participants: Iterable<MarketplaceParticipantTag | OrderGroupParticipantEntry>,
 ): string {
-  const normalized: PTag[] = []
-  for (const participant of participants) {
-    normalized.push({
-      pubkey: participant.pubkey,
-      role: participant.role,
-    })
-  }
-  return sha256Hex(sortedJson([tradeId, orderGroupParticipantEntries(normalized)]))
+  return participantGroupIdForParticipants(tradeId, participants)
 }

@@ -1,39 +1,329 @@
 import {
-  isTransactionHash,
+  isMarketplaceDriverEncryptedPaymentProofParams,
+  type MarketplaceDriverPaymentProofParamsDecryptor,
+  type MarketplaceDriverEncryptedPaymentProofParams,
+} from '@sudonym-btc/marketplace-driver-interface'
+import {
   parseEventJson,
   requireString,
+  sha256Hex,
+  sortedJson,
   type PaymentProof,
   type PaymentProofEvidence,
 } from './helper.ts'
+import {
+  openSealedProofPayload,
+  proofDisclosureKeyWrap,
+  sealProofPayload,
+  unwrapProofDisclosureKey,
+  type ParticipantProofDecryptSigner,
+  type ProofDisclosureKeyTag,
+} from './participant-proof.ts'
+
+export type PaymentProofPrivacy = 'public' | 'sealed' | 'params'
+
+export type SealedPaymentProof = {
+  version: 1
+  mode: 'sealed:v1'
+  proofId: string
+  payload: string
+}
+
+export type EncryptedPaymentProofParams = MarketplaceDriverEncryptedPaymentProofParams
+export type PaymentProofKeyTag = ProofDisclosureKeyTag
+
+export type PaymentProofResolutionStatus = 'missing' | 'invalid' | 'not_for_us' | 'resolved'
+export type PaymentProofParamsResolutionStatus = 'clear' | 'invalid' | 'not_for_us' | 'resolved'
+
+export type PaymentProofResolution = {
+  status: PaymentProofResolutionStatus
+  proofId?: string
+  proof?: PaymentProof
+  error?: string
+}
+
+export type PaymentProofParamsResolution = {
+  status: PaymentProofParamsResolutionStatus
+  proofId?: string
+  params?: Record<string, unknown>
+  error?: string
+}
+
+export type ResolvePaymentProofOptions = {
+  keys?: PaymentProofKeyTag[]
+  signer?: ParticipantProofDecryptSigner
+  signerPubkey?: string
+}
+
+export type PaymentProofFields = {
+  proof?: PaymentProof
+  sealedProof?: SealedPaymentProof
+}
+
+export type PaymentProofContainer = (PaymentProofFields & {
+  paymentProofKeys?: PaymentProofKeyTag[]
+}) | {
+  content: PaymentProofFields
+  paymentProofKeys?: PaymentProofKeyTag[]
+}
+
+export type BuildPaymentProofPayloadOptions = {
+  mode?: PaymentProofPrivacy
+  senderSecretKey: Uint8Array
+  recipientPubkeys: Iterable<string | undefined>
+}
 
 export function parsePaymentProof(json: unknown): PaymentProof | null | undefined {
   if (json === null) return null
   if (!json || typeof json !== 'object' || Array.isArray(json)) return undefined
   const record = json as Record<string, unknown>
-  const listing = parseEventJson(record.listing, 'proof listing')
   const rawPaymentProof = record.paymentProof
   let paymentProof: PaymentProofEvidence | null = null
   if (rawPaymentProof && typeof rawPaymentProof === 'object' && !Array.isArray(rawPaymentProof)) {
     const proofRecord = rawPaymentProof as Record<string, unknown>
     paymentProof = {
-      method: requireString(proofRecord.method, 'paymentProof.method'),
+      driver: requireString(proofRecord.driver, 'paymentProof.driver'),
       params:
         proofRecord.params && typeof proofRecord.params === 'object' && !Array.isArray(proofRecord.params)
           ? (proofRecord.params as Record<string, unknown>)
           : {},
     }
-    if (paymentProof.method === 'evm') {
-      const txHash = paymentProof.params.txHash
-      if (typeof txHash !== 'string' || !isTransactionHash(txHash)) throw new Error('Invalid EVM txHash')
+  }
+  let arbitration: PaymentProof['arbitration']
+  if (record.arbitration && typeof record.arbitration === 'object' && !Array.isArray(record.arbitration)) {
+    const arbitrationRecord = record.arbitration as Record<string, unknown>
+    arbitration = {
+      arbitrationService: parseEventJson(arbitrationRecord.arbitrationService, 'arbitrationService'),
+      paymentMethod: parseEventJson(arbitrationRecord.paymentMethod, 'paymentMethod'),
     }
   }
-  let escrow: PaymentProof['escrow']
-  if (record.escrow && typeof record.escrow === 'object' && !Array.isArray(record.escrow)) {
-    const escrowRecord = record.escrow as Record<string, unknown>
-    escrow = {
-      escrowService: parseEventJson(escrowRecord.escrowService, 'escrowService'),
-      paymentMethod: parseEventJson(escrowRecord.paymentMethod, 'paymentMethod'),
+  return { paymentProof, ...(arbitration ? { arbitration } : {}) }
+}
+
+export function paymentProofId(proof: PaymentProof): string {
+  return sha256Hex(sortedJson(proof))
+}
+
+export function paymentProofParamsId(params: Record<string, unknown>): string {
+  return sha256Hex(sortedJson(params))
+}
+
+export function isSealedPaymentProof(value: unknown): value is SealedPaymentProof {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    (value as Record<string, unknown>).version === 1 &&
+    (value as Record<string, unknown>).mode === 'sealed:v1' &&
+    typeof (value as Record<string, unknown>).proofId === 'string' &&
+    typeof (value as Record<string, unknown>).payload === 'string',
+  )
+}
+
+export function parseSealedPaymentProof(value: unknown): SealedPaymentProof | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const record = value as Record<string, unknown>
+  if (record.mode === undefined) return undefined
+  if (!isSealedPaymentProof(value)) throw new Error('Invalid sealed payment proof')
+  return value
+}
+
+export function sealPaymentProofParams(params: Record<string, unknown>, disclosureKey?: Uint8Array): {
+  params: EncryptedPaymentProofParams
+  disclosureKey: Uint8Array
+} {
+  const sealed = sealProofPayload(JSON.stringify(params), disclosureKey)
+  return {
+    params: {
+      encrypted: true,
+      version: 1,
+      scheme: 'nip44',
+      proofId: paymentProofParamsId(params),
+      payload: sealed.payload,
+    },
+    disclosureKey: sealed.disclosureKey,
+  }
+}
+
+export function sealPaymentProof(proof: PaymentProof, disclosureKey?: Uint8Array): {
+  proof: SealedPaymentProof
+  disclosureKey: Uint8Array
+} {
+  const payload = JSON.stringify(proof)
+  const sealed = sealProofPayload(payload, disclosureKey)
+  return {
+    proof: {
+      version: 1,
+      mode: 'sealed:v1',
+      proofId: paymentProofId(proof),
+      payload: sealed.payload,
+    },
+    disclosureKey: sealed.disclosureKey,
+  }
+}
+
+export function paymentProofKeyTag(key: PaymentProofKeyTag): string[] {
+  return [
+    'payment_proof_key',
+    key.version.toString(),
+    key.proofId,
+    key.recipientPubkey,
+    key.senderPubkey,
+    key.scheme,
+    key.payload,
+  ]
+}
+
+export function parsePaymentProofKeyTag(tag: string[]): PaymentProofKeyTag | null {
+  if (tag.length < 7 || tag[0] !== 'payment_proof_key') return null
+  if (tag[1] !== '1') throw new Error('Unsupported payment proof key version')
+  if (tag[5] !== 'nip44') throw new Error('Unsupported payment proof key scheme')
+  return {
+    version: 1,
+    proofId: tag[2],
+    recipientPubkey: tag[3],
+    senderPubkey: tag[4],
+    scheme: 'nip44',
+    payload: tag[6],
+  }
+}
+
+export function buildPaymentProofPayload(
+  proof: PaymentProof,
+  options: BuildPaymentProofPayloadOptions,
+): { proof: PaymentProof | SealedPaymentProof; paymentProofKeys: PaymentProofKeyTag[] } {
+  if ((options.mode ?? 'public') === 'public') return { proof, paymentProofKeys: [] }
+  const recipientPubkeys = [...new Set([...options.recipientPubkeys].filter((pubkey): pubkey is string =>
+    typeof pubkey === 'string' && pubkey.length > 0,
+  ))]
+  if (options.mode === 'params') {
+    if (!proof.paymentProof || isMarketplaceDriverEncryptedPaymentProofParams(proof.paymentProof.params)) {
+      return { proof, paymentProofKeys: [] }
+    }
+    const sealed = sealPaymentProofParams(proof.paymentProof.params as Record<string, unknown>)
+    return {
+      proof: {
+        ...proof,
+        paymentProof: {
+          ...proof.paymentProof,
+          params: sealed.params,
+        },
+      },
+      paymentProofKeys: recipientPubkeys.map(recipientPubkey => proofDisclosureKeyWrap({
+        proofId: sealed.params.proofId,
+        recipientPubkey,
+        senderSecretKey: options.senderSecretKey,
+        disclosureKey: sealed.disclosureKey,
+      })),
     }
   }
-  return { listing, paymentProof, ...(escrow ? { escrow } : {}) }
+  const sealed = sealPaymentProof(proof)
+  return {
+    proof: sealed.proof,
+    paymentProofKeys: recipientPubkeys.map(recipientPubkey => proofDisclosureKeyWrap({
+      proofId: sealed.proof.proofId,
+      recipientPubkey,
+      senderSecretKey: options.senderSecretKey,
+      disclosureKey: sealed.disclosureKey,
+    })),
+  }
+}
+
+function paymentProofFields(container: PaymentProofContainer): PaymentProofFields & {
+  paymentProofKeys?: PaymentProofKeyTag[]
+} {
+  if ('content' in container) {
+    return {
+      ...container.content,
+      paymentProofKeys: container.paymentProofKeys,
+    }
+  }
+  return container
+}
+
+export async function resolvePaymentProofParams(
+  proof: PaymentProofEvidence,
+  options: ResolvePaymentProofOptions = {},
+): Promise<PaymentProofParamsResolution> {
+  if (!isMarketplaceDriverEncryptedPaymentProofParams(proof.params)) {
+    return { status: 'clear', params: proof.params as Record<string, unknown> }
+  }
+  const encrypted = proof.params
+  const disclosureKey = await unwrapProofDisclosureKey(encrypted.proofId, options)
+  if (!disclosureKey) {
+    return { status: 'not_for_us', proofId: encrypted.proofId, error: 'No payment proof params key for signer' }
+  }
+  try {
+    const decoded = JSON.parse(openSealedProofPayload(encrypted.payload, disclosureKey))
+    if (!decoded || typeof decoded !== 'object' || Array.isArray(decoded)) {
+      throw new Error('Invalid decrypted payment proof params')
+    }
+    const params = decoded as Record<string, unknown>
+    const proofId = paymentProofParamsId(params)
+    if (proofId !== encrypted.proofId) throw new Error('Payment proof params id mismatch')
+    return { status: 'resolved', proofId, params }
+  } catch (err) {
+    return {
+      status: 'invalid',
+      proofId: encrypted.proofId,
+      error: err instanceof Error ? err.message : 'Invalid payment proof params',
+    }
+  }
+}
+
+export function paymentProofParamsDecryptor(
+  options: ResolvePaymentProofOptions = {},
+): MarketplaceDriverPaymentProofParamsDecryptor {
+  return async proof => {
+    const resolution = await resolvePaymentProofParams(proof, options)
+    if ((resolution.status === 'clear' || resolution.status === 'resolved') && resolution.params) return resolution.params
+    throw new Error(resolution.error ?? 'Payment proof params could not be resolved')
+  }
+}
+
+export async function resolvePaymentProof(
+  container: PaymentProofContainer,
+  options: ResolvePaymentProofOptions = {},
+): Promise<PaymentProofResolution> {
+  const payment = paymentProofFields(container)
+  if (payment.proof) return { status: 'resolved', proof: payment.proof, proofId: paymentProofId(payment.proof) }
+  if (!payment.sealedProof) return { status: 'missing' }
+  const disclosureKey = await unwrapProofDisclosureKey(payment.sealedProof.proofId, {
+    keys: options.keys ?? payment.paymentProofKeys,
+    signer: options.signer,
+    signerPubkey: options.signerPubkey,
+  })
+  if (!disclosureKey) {
+    return { status: 'not_for_us', proofId: payment.sealedProof.proofId, error: 'No payment proof key for signer' }
+  }
+  try {
+    const decoded = JSON.parse(openSealedProofPayload(payment.sealedProof.payload, disclosureKey))
+    const proof = parsePaymentProof(decoded)
+    if (!proof) throw new Error('Invalid decrypted payment proof')
+    const proofId = paymentProofId(proof)
+    if (proofId !== payment.sealedProof.proofId) throw new Error('Payment proof id mismatch')
+    return { status: 'resolved', proofId, proof }
+  } catch (err) {
+    return {
+      status: 'invalid',
+      proofId: payment.sealedProof.proofId,
+      error: err instanceof Error ? err.message : 'Invalid sealed payment proof',
+    }
+  }
+}
+
+export const paymentProofs = {
+  id: paymentProofId,
+  paramsId: paymentProofParamsId,
+  parse: parsePaymentProof,
+  isSealed: isSealedPaymentProof,
+  parseSealed: parseSealedPaymentProof,
+  sealParams: sealPaymentProofParams,
+  resolveParams: resolvePaymentProofParams,
+  paramsDecryptor: paymentProofParamsDecryptor,
+  seal: sealPaymentProof,
+  build: buildPaymentProofPayload,
+  keyTag: paymentProofKeyTag,
+  parseKeyTag: parsePaymentProofKeyTag,
+  resolve: resolvePaymentProof,
 }

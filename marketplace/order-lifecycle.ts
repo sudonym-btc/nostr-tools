@@ -7,21 +7,40 @@ import {
   MarketplacePaymentSettlement,
 } from '../kinds.ts'
 import {
+  normalizeMarketplaceAmount,
   now,
+  parseAmount,
   parseJsonObject,
-  parsePTag,
-  pTag,
   requireString,
   tagValue,
-  type PTag,
+  type MarketplaceAmount,
   type PaymentAckStatus,
   type PaymentNackStatus,
   type PaymentProof,
   type PaymentSettlementAction,
   type PaymentMethod,
 } from './helper.ts'
+import {
+  parseParticipantTag,
+  participantTag,
+  type MarketplaceParticipantTag,
+} from './participant.ts'
 import { orderGroupIdForRoleParticipants } from './order-id.ts'
-import { parsePaymentProof } from './payment-proof.ts'
+import {
+  parsePaymentAmountKeyTag,
+  parseSealedPaymentAmount,
+  paymentAmountKeyTag,
+  type PaymentAmountKeyTag,
+  type SealedPaymentAmount,
+} from './payment-amount.ts'
+import {
+  parsePaymentProof,
+  parsePaymentProofKeyTag,
+  parseSealedPaymentProof,
+  paymentProofKeyTag,
+  type PaymentProofKeyTag,
+  type SealedPaymentProof,
+} from './payment-proof.ts'
 
 export type OrderLinkedEventRefs = {
   orders: string[]
@@ -38,7 +57,7 @@ export type ParsedOrderLinkedFields = {
   orderGroupId: string
   tradeId: string
   listingAnchor: string
-  participants: PTag[]
+  participants: MarketplaceParticipantTag[]
   refs: OrderLinkedEventRefs
 }
 
@@ -47,23 +66,33 @@ export type OrderLinkedEventTemplate = {
   tradeId: string
   listingAnchor: string
   anchorMarker?: string
-  participants?: PTag[]
+  participants?: MarketplaceParticipantTag[]
   refs?: Partial<OrderLinkedEventRefs>
   extraTags?: string[][]
   createdAt?: number
 }
 
 export type OrderPaymentContent = {
-  proof: PaymentProof
-  purpose?: string
+  amount?: MarketplaceAmount
+  sealedAmount?: SealedPaymentAmount
+  proof?: PaymentProof
+  sealedProof?: SealedPaymentProof
 }
 
 export type ParsedOrderPayment = ParsedOrderLinkedFields & {
   event: Event
   content: OrderPaymentContent
+  paymentAmountKeys: PaymentAmountKeyTag[]
+  paymentProofKeys: PaymentProofKeyTag[]
 }
 
-export type OrderPaymentTemplate = OrderLinkedEventTemplate & OrderPaymentContent
+export type OrderPaymentTemplate = OrderLinkedEventTemplate & {
+  amount?: MarketplaceAmount
+  sealedAmount?: SealedPaymentAmount
+  proof: PaymentProof | SealedPaymentProof
+  paymentAmountKeys?: PaymentAmountKeyTag[]
+  paymentProofKeys?: PaymentProofKeyTag[]
+}
 
 export type OrderPaymentAckContent = {
   status: PaymentAckStatus
@@ -144,7 +173,7 @@ function linkedTags(template: OrderLinkedEventTemplate): string[][] {
     ['a', template.listingAnchor, ...(template.anchorMarker ? ['', template.anchorMarker] : [])],
     ['d', orderGroupId],
     ['trade', template.tradeId],
-    ...(template.participants ?? []).map(pTag),
+    ...(template.participants ?? []).map(participantTag),
     ...referenceTags(template.refs),
     ...(template.extraTags ?? []),
   ]
@@ -176,18 +205,32 @@ function linkedFields(event: Event, label: string): ParsedOrderLinkedFields {
     orderGroupId: requireString(tagValue(event, 'd'), `${label} order group id`),
     tradeId: requireString(tagValue(event, 'trade'), `${label} trade id`),
     listingAnchor: requireString(tagValue(event, 'a'), `${label} listing anchor`),
-    participants: event.tags.map(parsePTag).filter((tag): tag is PTag => tag !== null),
+    participants: event.tags
+      .map(parseParticipantTag)
+      .filter((tag): tag is MarketplaceParticipantTag => tag !== null),
     refs,
   }
 }
 
 function parsePaymentContent(content: string): OrderPaymentContent {
   const json = parseJsonObject(content, 'payment content')
+  const amount = parseAmount(json.amount)
+  const sealedAmount = amount ? undefined : parseSealedPaymentAmount(json.amount)
+  if (!amount && !sealedAmount) throw new Error('Payment event requires an amount')
+  const sealedProof = parseSealedPaymentProof(json.proof)
+  if (sealedProof) {
+    return {
+      ...(amount ? { amount } : {}),
+      ...(sealedAmount ? { sealedAmount } : {}),
+      sealedProof,
+    }
+  }
   const proof = parsePaymentProof(json.proof)
   if (!proof) throw new Error('Payment event requires a payment proof')
   return {
+    ...(amount ? { amount } : {}),
+    ...(sealedAmount ? { sealedAmount } : {}),
     proof,
-    ...(typeof json.purpose === 'string' ? { purpose: json.purpose } : {}),
   }
 }
 
@@ -234,14 +277,16 @@ function parseCancelContent(content: string): OrderCancelContent {
 export function parseOrderPaymentEvent(event: Event): ParsedOrderPayment {
   if (event.kind !== MarketplacePayment) throw new Error('Invalid payment kind')
   const content = parsePaymentContent(event.content)
-  const purpose = content.purpose ?? tagValue(event, 'purpose')
   return {
     event,
     ...linkedFields(event, 'payment'),
-    content: {
-      ...content,
-      ...(purpose ? { purpose } : {}),
-    },
+    paymentAmountKeys: event.tags
+      .map(parsePaymentAmountKeyTag)
+      .filter((tag): tag is PaymentAmountKeyTag => tag !== null),
+    paymentProofKeys: event.tags
+      .map(parsePaymentProofKeyTag)
+      .filter((tag): tag is PaymentProofKeyTag => tag !== null),
+    content,
   }
 }
 
@@ -282,16 +327,18 @@ export function parseOrderCancelEvent(event: Event): ParsedOrderCancel {
 }
 
 export function generateOrderPaymentEventTemplate(payment: OrderPaymentTemplate): EventTemplate {
+  if (!payment.amount && !payment.sealedAmount) throw new Error('Payment event requires an amount')
   return {
     kind: MarketplacePayment,
     created_at: payment.createdAt ?? now(),
     content: JSON.stringify({
+      amount: payment.amount ? normalizeMarketplaceAmount(payment.amount) : payment.sealedAmount,
       proof: payment.proof,
-      ...(payment.purpose ? { purpose: payment.purpose } : {}),
     }),
     tags: [
       ...linkedTags(payment),
-      ...(payment.purpose ? [['purpose', payment.purpose]] : []),
+      ...(payment.paymentAmountKeys ?? []).map(paymentAmountKeyTag),
+      ...(payment.paymentProofKeys ?? []).map(paymentProofKeyTag),
     ],
   }
 }

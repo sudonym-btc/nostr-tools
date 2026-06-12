@@ -1,6 +1,6 @@
 import type { AbstractSimplePool } from '../abstract-pool.ts'
 import type { Event } from '../core.ts'
-import type { OrderStage, PTag, PaymentProofEvidence } from './helper.ts'
+import type { MarketplaceAmount, OrderStage, PTag, PaymentProofEvidence } from './helper.ts'
 import type { ParsedOrder } from './order.ts'
 import type {
   ParsedOrderCancel,
@@ -11,6 +11,7 @@ import type {
 } from './order-lifecycle.ts'
 import type { OrderGroupParticipantEntry, OrderGroupRole } from './order-id.ts'
 import type { MarketplaceOrderIdentity, OrderQuery, OrderSearchOptions, OrderSubscribeOptions } from './order-query.ts'
+import type { MarketplaceOrderValidationResult } from './order-validation.ts'
 import type { MarketplacePaymentValidationPolicy, MarketplacePaymentValidationResult } from './payment-validation.ts'
 
 export type OrderGroupRoleContext = {
@@ -22,7 +23,7 @@ export type OrderGroupRoleContext = {
   participants: PTag[]
   participantEntries: OrderGroupParticipantEntry[]
   participantPubkeys: string[]
-  escrowPubkeys: string[]
+  arbiterPubkeys: string[]
 }
 
 export type OrderGroupRoleResolver = (
@@ -37,8 +38,8 @@ export type ReduceOrderGroupOptions = {
 }
 
 export type Nip44DecryptSigner = {
-  getPublicKey?: () => Promise<string>
-  nip44Decrypt: (pubkey: string, ciphertext: string) => Promise<string>
+  getPublicKey?: () => Promise<string> | string
+  nip44Decrypt: (pubkey: string, ciphertext: string) => Promise<string> | string
 }
 
 export type ParticipantResolutionStatus =
@@ -56,8 +57,7 @@ export type ResolvedTradeParticipant = {
   tradePubkey: string
   realPubkey?: string
   proofStatus: ParticipantResolutionStatus
-  proofRecipientPubkey?: string
-  proofPayloadHash?: string
+  proofId?: string
   authorizationEventId?: string
   error?: string
 }
@@ -78,9 +78,12 @@ export type PaymentValidationContext = {
   resolved?: ResolvedOrderGroup
   buyerOrder?: ParsedOrder
   paymentProof?: PaymentProofEvidence
+  paymentAmount?: MarketplaceAmount
   listing?: Event
   paymentMethod?: Event
-  escrowService?: Event
+  arbitrationService?: Event
+  signer?: Nip44DecryptSigner
+  signerPubkey?: string
   now?: number
 }
 
@@ -89,7 +92,9 @@ export type ValidateOrderGroupPaymentsOptions = {
   resolved?: ResolvedOrderGroup
   listing?: Event
   paymentMethod?: Event
-  escrowService?: Event
+  arbitrationService?: Event
+  signer?: Nip44DecryptSigner
+  signerPubkey?: string
   now?: number
   reduceOptions?: ReduceOrderGroupOptions
 }
@@ -97,6 +102,7 @@ export type ValidateOrderGroupPaymentsOptions = {
 export type ValidatedOrderGroup = {
   group: ParsedOrderGroup
   payment: MarketplacePaymentValidationResult
+  order?: MarketplaceOrderValidationResult
   resolved?: ResolvedOrderGroup
 }
 
@@ -128,7 +134,7 @@ export type OrderGroupSubscribeHandlers = {
 export type OrderGroupBuckets = {
   buyer: ParsedOrderGroup[]
   seller: ParsedOrderGroup[]
-  escrow: ParsedOrderGroup[]
+  arbiter: ParsedOrderGroup[]
   all: ParsedOrderGroup[]
 }
 
@@ -147,7 +153,7 @@ export type ParsedOrderGroup = {
   listingAnchor: string
   sellerPubkey: string
   listingOwnerPubkey: string
-  escrowPubkeys: string[]
+  arbiterPubkeys: string[]
   participants: PTag[]
   participantPubkeys: string[]
   orders: ParsedOrder[]
@@ -162,9 +168,10 @@ export type ParsedOrderGroup = {
   ignoredOrders: ParsedOrder[]
   latestByPubkey: Record<string, OrderGroupParticipantOrder>
   buyerOrder?: ParsedOrder
-  escrowOrder?: ParsedOrder
+  arbiterOrder?: ParsedOrder
   sellerOrder?: ParsedOrder
   payment?: ParsedOrderPayment
+  paymentAck?: ParsedOrderPaymentAck
   buyerPaymentAck?: ParsedOrderPaymentAck
   sellerPaymentAck?: ParsedOrderPaymentAck
   paymentNack?: ParsedOrderPaymentNack

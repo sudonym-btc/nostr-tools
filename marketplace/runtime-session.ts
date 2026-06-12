@@ -80,8 +80,10 @@ export async function session(
     publish: opts.publish,
     orderPolicies: opts.orderPolicies,
     bidPolicies: opts.bidPolicies,
-    autoTrustEscrow: opts.autoTrustEscrow,
+    autoTrustArbiter: opts.autoTrustArbiter,
     paymentMethod: opts.paymentMethod,
+    locationProvider: opts.locationProvider,
+    logger: opts.logger,
   }
   const market = bind(pool, relays, {
     seed: initialSeed.seed,
@@ -90,8 +92,10 @@ export async function session(
     publish: opts.publish,
     orderPolicies: opts.orderPolicies,
     bidPolicies: opts.bidPolicies,
-    autoTrustEscrow: opts.autoTrustEscrow,
+    autoTrustArbiter: opts.autoTrustArbiter,
     paymentMethod: opts.paymentMethod,
+    locationProvider: opts.locationProvider,
+    logger: opts.logger,
   })
 
   const seedApi: MarketplaceSessionSeedApi = {
@@ -111,7 +115,7 @@ export async function session(
 
   const paymentMethod: MarketplaceSessionPaymentMethodApi = {
     ...market.paymentMethod,
-    find: () => findPaymentMethod(pool, relays, { author: pubkey, limit: 5 }),
+    find: () => findPaymentMethod(pool, relays, { author: pubkey }),
     ensureUpToDate: options => ensurePaymentMethodUpToDate(runtimeOptions, options),
   }
 
@@ -119,10 +123,12 @@ export async function session(
     await paymentMethod.ensureUpToDate()
   }
 
-  return {
+  const sessionApi = {
     ...market,
     identity: { pubkey },
     seed: seedApi,
     paymentMethod,
-  }
+  } satisfies MarketplaceSession
+
+  return sessionApi
 }

@@ -230,9 +230,13 @@ function derivationContext(context: MarketplaceSeedDerivationContext = {}): stri
   return sortedJson(context)
 }
 
+function tradeIdContext(context: MarketplaceSeedDerivationContext = {}): string {
+  return sortedJson({ index: context.index })
+}
+
 export function deriveMarketplaceTradeId(seed: string, context: MarketplaceSeedDerivationContext = {}): string {
   return sha256Hex(
-    `nostr-tools/marketplace/trade-id/v1\n${normalizeMarketplaceSeed(seed)}\n${derivationContext(context)}`,
+    `nostr-tools/marketplace/trade-id/v1\n${normalizeMarketplaceSeed(seed)}\n${tradeIdContext(context)}`,
   )
 }
 

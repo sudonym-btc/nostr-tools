@@ -1,6 +1,7 @@
 import type { Event } from '../core.ts'
 import type { Filter } from '../filter.ts'
 import {
+  MarketplaceAuctionBid,
   MarketplaceOrder,
   MarketplaceOrderCancel,
   MarketplacePayment,
@@ -9,6 +10,7 @@ import {
   MarketplacePaymentSettlement,
 } from '../kinds.ts'
 import { type OrderStage, type PTag } from './helper.ts'
+import { parseAuctionBidEvent, type ParsedMarketplaceAuctionBid } from './auction.ts'
 import { parseOrderEvent, type ParsedOrder } from './order.ts'
 import {
   parseOrderCancelEvent,
@@ -29,6 +31,10 @@ import {
   type OrderGroupParticipantEntry,
   type OrderGroupRole,
 } from './order-id.ts'
+import {
+  marketplaceParticipantPubkeys,
+  participantGroupIdForRecord,
+} from './participant.ts'
 import type {
   OrderGroupFilterQuery,
   OrderGroupEvent,
@@ -67,6 +73,12 @@ function latestEvent<T extends OrderGroupEvent>(left: T | undefined, right: T): 
   return right.event.id.localeCompare(left.event.id) > 0 ? right : left
 }
 
+type ParsedPaymentDecision = ParsedOrderPaymentAck | ParsedOrderPaymentNack
+
+function roleForPubkey(context: OrderGroupRoleContext, pubkey: string): OrderGroupRole | undefined {
+  return context.participantEntries.find(participant => participant.pubkey === pubkey)?.role
+}
+
 function isParsedOrder(event: OrderGroupEvent): event is ParsedOrder {
   return event.event.kind === MarketplaceOrder
 }
@@ -91,6 +103,8 @@ function isParsedCancel(event: OrderGroupEvent): event is ParsedOrderCancel {
   return event.event.kind === MarketplaceOrderCancel
 }
 
+export type ParticipantGroupEvent = ParsedOrder | ParsedMarketplaceAuctionBid
+
 export function parseOrderGroupEvent(event: Event | OrderGroupEvent): OrderGroupEvent {
   if ('event' in event) return event
   if (event.kind === MarketplaceOrder) return parseOrderEvent(event)
@@ -108,13 +122,20 @@ export function pubkeyFromListingAnchor(listingAnchor: string): string {
   return pubkey
 }
 
-export function orderGroupParticipantPubkeys(order: ParsedOrder | Event): string[] {
-  const parsed = 'event' in order ? order : parseOrderEvent(order)
-  return uniqueSorted(orderGroupParticipantEntries(parsed.participants).map(participant => participant.pubkey))
+export function parseParticipantGroupEvent(event: Event | ParticipantGroupEvent): ParticipantGroupEvent {
+  if ('event' in event) return event
+  if (event.kind === MarketplaceOrder) return parseOrderEvent(event)
+  if (event.kind === MarketplaceAuctionBid) return parseAuctionBidEvent(event)
+  throw new Error('Invalid participant group event kind')
 }
 
-export function orderGroupRoleParticipants(order: ParsedOrder | Event): OrderGroupParticipantEntry[] {
-  const parsed = 'event' in order ? order : parseOrderEvent(order)
+export function participantGroupParticipantPubkeys(event: ParticipantGroupEvent | Event): string[] {
+  const parsed = parseParticipantGroupEvent(event)
+  return marketplaceParticipantPubkeys(parsed.participants)
+}
+
+export function participantGroupRoleParticipants(event: ParticipantGroupEvent | Event): OrderGroupParticipantEntry[] {
+  const parsed = parseParticipantGroupEvent(event)
   return orderGroupParticipantEntries(parsed.participants)
 }
 
@@ -125,9 +146,21 @@ export function orderGroupIdForParticipants(
   return orderGroupIdForRoleParticipants(tradeId, participants)
 }
 
-export function orderGroupIdForOrder(order: ParsedOrder | Event): string {
-  const parsed = 'event' in order ? order : parseOrderEvent(order)
-  return parsed.orderGroupId
+export function participantGroupIdForEvent(event: ParticipantGroupEvent | Event): string {
+  const parsed = parseParticipantGroupEvent(event)
+  return 'orderGroupId' in parsed ? parsed.orderGroupId : participantGroupIdForRecord(parsed)
+}
+
+export function orderGroupParticipantPubkeys(order: ParsedOrder | ParsedMarketplaceAuctionBid | Event): string[] {
+  return participantGroupParticipantPubkeys(order)
+}
+
+export function orderGroupRoleParticipants(order: ParsedOrder | ParsedMarketplaceAuctionBid | Event): OrderGroupParticipantEntry[] {
+  return participantGroupRoleParticipants(order)
+}
+
+export function orderGroupIdForOrder(order: ParsedOrder | ParsedMarketplaceAuctionBid | Event): string {
+  return participantGroupIdForEvent(order)
 }
 
 export function orderGroupFilter(query: OrderGroupFilterQuery = {}): Filter {
@@ -149,9 +182,9 @@ function orderGroupContext(order: ParsedOrder): OrderGroupRoleContext {
   const participantEntries = orderGroupParticipantEntries(order.participants)
   const sellerPubkey = participantEntries.find(participant => participant.role === 'seller')?.pubkey
   if (!sellerPubkey) throw new Error('Order group requires a seller participant')
-  const escrowPubkeys = uniqueSorted([
+  const arbiterPubkeys = uniqueSorted([
     ...order.participants
-      .filter(participant => participant.role === 'escrow')
+      .filter(participant => participant.role === 'arbiter')
       .map(participant => participant.pubkey),
   ])
   return {
@@ -163,7 +196,7 @@ function orderGroupContext(order: ParsedOrder): OrderGroupRoleContext {
     participants: order.participants,
     participantEntries,
     participantPubkeys,
-    escrowPubkeys,
+    arbiterPubkeys,
   }
 }
 
@@ -262,7 +295,7 @@ export function reduceOrderGroup(
   }
 
   const buyerOrder = latestByRole.buyer?.order
-  const escrowOrder = latestByRole.escrow?.order
+  const arbiterOrder = latestByRole.arbiter?.order
   const sellerOrder = latestByRole.seller?.order
   const orderIds = new Set(orders.map(order => order.event.id))
   const payments = groupEvents.filter(isParsedPayment).filter(payment => {
@@ -282,11 +315,25 @@ export function reduceOrderGroup(
     if (!valid) ignoredEvents.push(nack)
     return valid
   })
-  const paymentNack = paymentNacks.reduce<ParsedOrderPaymentNack | undefined>(latestEvent, undefined)
+  const currentPaymentDecisions: ParsedPaymentDecision[] = payment
+    ? [...paymentAcks, ...paymentNacks]
+      .filter(decision => decision.refs.payments.includes(payment.event.id))
+      .filter(decision => roleForPubkey(context, decision.event.pubkey) === 'arbiter')
+    : []
+  const latestPaymentDecision = currentPaymentDecisions.reduce<ParsedPaymentDecision | undefined>(latestEvent, undefined)
+  const paymentAck =
+    latestPaymentDecision && isParsedPaymentAck(latestPaymentDecision) && latestPaymentDecision.content.status === 'accepted'
+      ? latestPaymentDecision
+      : undefined
+  const paymentNack =
+    latestPaymentDecision && isParsedPaymentNack(latestPaymentDecision) && latestPaymentDecision.content.status === 'rejected'
+      ? latestPaymentDecision
+      : undefined
   const latestAcceptedAckByRole: Partial<Record<OrderGroupRole, ParsedOrderPaymentAck>> = {}
   for (const ack of paymentAcks) {
+    if (payment && !ack.refs.payments.includes(payment.event.id)) continue
     if (ack.content.status !== 'accepted') continue
-    const role = context.participantEntries.find(participant => participant.pubkey === ack.event.pubkey)?.role
+    const role = roleForPubkey(context, ack.event.pubkey)
     if (!role) continue
     latestAcceptedAckByRole[role] = latestEvent(latestAcceptedAckByRole[role], ack)
   }
@@ -311,14 +358,16 @@ export function reduceOrderGroup(
   const buyerSellerAcked =
     latestAcceptedAckByRole.buyer !== undefined && latestAcceptedAckByRole.seller !== undefined
   const paymentRejected = paymentNack !== undefined
-  const confirmedCommitted = settlement !== undefined || (!paymentRejected && (buyerPaymentValid === true || buyerSellerAcked))
+  const arbiterPaymentAcked = paymentAck !== undefined
+  const confirmedCommitted = settlement !== undefined ||
+    (!paymentRejected && (buyerPaymentValid === true || buyerSellerAcked || arbiterPaymentAcked))
 
   let stage: OrderStage = 'negotiate'
   if (cancellation) {
     stage = 'cancel'
   } else if (settlement) {
     stage = 'settled'
-  } else if (!paymentRejected && (buyerPaymentValid || buyerSellerAcked)) {
+  } else if (!paymentRejected && (buyerPaymentValid || buyerSellerAcked || arbiterPaymentAcked)) {
     stage = 'commit'
   }
 
@@ -328,7 +377,7 @@ export function reduceOrderGroup(
     listingAnchor: context.listingAnchor,
     sellerPubkey: context.sellerPubkey,
     listingOwnerPubkey: context.listingOwnerPubkey,
-    escrowPubkeys: context.escrowPubkeys,
+    arbiterPubkeys: context.arbiterPubkeys,
     participants: context.participants,
     participantPubkeys: context.participantPubkeys,
     orders,
@@ -343,9 +392,10 @@ export function reduceOrderGroup(
     ignoredOrders,
     latestByPubkey,
     ...(buyerOrder ? { buyerOrder } : {}),
-    ...(escrowOrder ? { escrowOrder } : {}),
+    ...(arbiterOrder ? { arbiterOrder } : {}),
     ...(sellerOrder ? { sellerOrder } : {}),
     ...(payment ? { payment } : {}),
+    ...(paymentAck ? { paymentAck } : {}),
     ...(latestAcceptedAckByRole.buyer ? { buyerPaymentAck: latestAcceptedAckByRole.buyer } : {}),
     ...(latestAcceptedAckByRole.seller ? { sellerPaymentAck: latestAcceptedAckByRole.seller } : {}),
     ...(paymentNack ? { paymentNack } : {}),

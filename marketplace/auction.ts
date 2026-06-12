@@ -3,22 +3,33 @@ import { MarketplaceAuction, MarketplaceAuctionBid, MarketplaceAuctionComplete }
 import {
   amountFromTag,
   amountToTag,
+  canonicalCurrency,
+  currencyDecimals,
   now,
+  normalizeMarketplaceAmount,
   parseJsonObject,
   parseOptionalInt,
-  parsePTag,
-  pTag,
   requireString,
+  scaleAmountValue,
+  sha256Hex,
   tagValue,
   type MarketplaceAmount,
-  type PTag,
 } from './helper.ts'
 import {
+  parseParticipantTag,
+  participantTag,
+  type MarketplaceParticipantTag,
+} from './participant.ts'
+import {
+  parseParticipantProofKeyTag,
   parseParticipantProofTag,
+  participantProofKeyTag,
   participantProofTag,
+  type ParticipantProofKeyTag,
   type OrderTemplate,
   type ParticipantProofTag,
 } from './order.ts'
+import { normalizeMarketplaceSeed } from './seed.ts'
 
 export type MarketplaceAuctionTemplate = {
   d: string
@@ -68,10 +79,11 @@ export type MarketplaceAuctionBidTemplate = {
   tradeId: string
   auctionAnchor: string
   listingAnchor: string
+  bidChainId?: string
   amount: MarketplaceAmount
-  bidId?: string
-  participants?: PTag[]
+  participants?: MarketplaceParticipantTag[]
   participantProofs?: ParticipantProofTag[]
+  participantProofKeys?: ParticipantProofKeyTag[]
   targetOrder?: Partial<OrderTemplate>
   data?: Record<string, unknown>
   extraTags?: string[][]
@@ -80,13 +92,14 @@ export type MarketplaceAuctionBidTemplate = {
 
 export type ParsedMarketplaceAuctionBid = {
   event: Event
-  bidId: string
   tradeId: string
   auctionAnchor: string
   listingAnchor: string
+  bidChainId?: string
   amount: MarketplaceAmount
-  participants: PTag[]
+  participants: MarketplaceParticipantTag[]
   participantProofs: ParticipantProofTag[]
+  participantProofKeys: ParticipantProofKeyTag[]
   content: MarketplaceAuctionBidContent
 }
 
@@ -123,6 +136,22 @@ export type ParsedMarketplaceAuctionComplete = {
   content: Record<string, unknown>
 }
 
+export function auctionCompleteAppliesToAuction(
+  auction: ParsedMarketplaceAuction,
+  complete: ParsedMarketplaceAuctionComplete,
+): boolean {
+  if (complete.auctionAnchor !== auction.auctionAnchor) return false
+  if (complete.event.pubkey !== auction.arbiterPubkey) return false
+  if (
+    complete.status !== 'cancelled' &&
+    auction.endAt !== undefined &&
+    complete.event.created_at < auction.endAt
+  ) {
+    return false
+  }
+  return true
+}
+
 function anchor(kind: number, pubkey: string, d: string): string {
   return `${kind}:${pubkey}:${d}`
 }
@@ -138,7 +167,7 @@ function amountFromEvent(event: Event, label: string): MarketplaceAmount {
   const denomination = requireString(tagValue(event, 'currency'), `${label} currency`)
   const decimals = parseOptionalInt(tagValue(event, 'decimals'), `${label} decimals`)
   if (decimals === undefined || decimals < 0) throw new Error(`Invalid ${label} decimals`)
-  return { value, denomination, decimals }
+  return normalizeMarketplaceAmount({ value, denomination, decimals })
 }
 
 function maybeJson(content: string, label: string): Record<string, unknown> {
@@ -151,9 +180,11 @@ function targetOrderFrom(value: unknown): Partial<OrderTemplate> | undefined {
   return value as Partial<OrderTemplate>
 }
 
-function buyerParticipant(participants: PTag[]): PTag | undefined {
+function buyerParticipant(participants: MarketplaceParticipantTag[]): MarketplaceParticipantTag | undefined {
   return participants.find(participant => participant.role === 'buyer')
 }
+
+const bidChainIdPattern = /^[a-f0-9]{64}$/
 
 export function auctionAddress(auction: Event | ParsedMarketplaceAuction): string {
   if ('event' in auction) return auction.auctionAnchor
@@ -162,7 +193,13 @@ export function auctionAddress(auction: Event | ParsedMarketplaceAuction): strin
   return anchor(auction.kind, auction.pubkey, d)
 }
 
+export function auctionBidChainId(seed: string, auctionAnchor: string): string {
+  return sha256Hex(`${normalizeMarketplaceSeed(seed)}${auctionAnchor}`)
+}
+
 export function generateAuctionEventTemplate(auction: MarketplaceAuctionTemplate): EventTemplate {
+  const currency = canonicalCurrency(auction.currency)
+  const decimals = currencyDecimals(currency) ?? auction.decimals
   return {
     kind: MarketplaceAuction,
     created_at: auction.createdAt ?? now(),
@@ -171,8 +208,8 @@ export function generateAuctionEventTemplate(auction: MarketplaceAuctionTemplate
       ['d', auction.d],
       ['a', auction.listingAnchor, '', 'listing'],
       ['p', auction.arbiterPubkey, '', 'auction-arbiter'],
-      ['currency', auction.currency],
-      ['decimals', auction.decimals.toString()],
+      ['currency', currency],
+      ['decimals', decimals.toString()],
       ['auction_type', auction.auctionType ?? 'english'],
       ...(auction.startAt !== undefined ? [['start_at', auction.startAt.toString()]] : []),
       ...(auction.endAt !== undefined ? [['end_at', auction.endAt.toString()]] : []),
@@ -194,24 +231,30 @@ export function parseAuctionEvent(event: Event): ParsedMarketplaceAuction {
     event.tags.find(tag => tag[0] === 'p' && tag[3] === 'auction-arbiter')?.[1],
     'auction arbiter pubkey',
   )
-  const decimals = parseOptionalInt(tagValue(event, 'decimals'), 'auction decimals')
-  if (decimals === undefined || decimals < 0) throw new Error('Invalid auction decimals')
+  const rawDecimals = parseOptionalInt(tagValue(event, 'decimals'), 'auction decimals')
+  if (rawDecimals === undefined || rawDecimals < 0) throw new Error('Invalid auction decimals')
+  const currency = canonicalCurrency(requireString(tagValue(event, 'currency'), 'auction currency'))
+  const decimals = currencyDecimals(currency) ?? rawDecimals
+  const amountValue = (value: string | undefined): string | undefined => {
+    if (value === undefined || rawDecimals === decimals) return value
+    return scaleAmountValue(value, rawDecimals, decimals).toString()
+  }
   return {
     event,
     d,
     auctionAnchor: anchor(event.kind, event.pubkey, d),
     listingAnchor,
     arbiterPubkey,
-    currency: requireString(tagValue(event, 'currency'), 'auction currency'),
+    currency,
     decimals,
     auctionType: tagValue(event, 'auction_type'),
     startAt: parseOptionalInt(tagValue(event, 'start_at'), 'auction start_at'),
     endAt: parseOptionalInt(tagValue(event, 'end_at'), 'auction end_at'),
     maxEndAt: parseOptionalInt(tagValue(event, 'max_end_at'), 'auction max_end_at'),
     settlementGrace: parseOptionalInt(tagValue(event, 'settlement_grace'), 'auction settlement_grace'),
-    startingBid: tagValue(event, 'starting_bid'),
-    minIncrement: tagValue(event, 'min_increment'),
-    reserve: tagValue(event, 'reserve'),
+    startingBid: amountValue(tagValue(event, 'starting_bid')),
+    minIncrement: amountValue(tagValue(event, 'min_increment')),
+    reserve: amountValue(tagValue(event, 'reserve')),
     content: maybeJson(event.content, 'auction content'),
   }
 }
@@ -226,7 +269,7 @@ export function validateAuctionEvent(event: Event): boolean {
 }
 
 export function generateAuctionBidEventTemplate(bid: MarketplaceAuctionBidTemplate): EventTemplate {
-  const bidId = bid.bidId ?? bid.tradeId
+  const amount = normalizeMarketplaceAmount(bid.amount)
   return {
     kind: MarketplaceAuctionBid,
     created_at: bid.createdAt ?? now(),
@@ -238,13 +281,14 @@ export function generateAuctionBidEventTemplate(bid: MarketplaceAuctionBidTempla
     tags: [
       ['a', bid.auctionAnchor, '', 'auction'],
       ['a', bid.listingAnchor, '', 'listing'],
-      ['d', bidId],
-      ['trade', bid.tradeId],
-      amountToTag('amount', bid.amount),
-      ['currency', bid.amount.denomination],
-      ['decimals', bid.amount.decimals.toString()],
-      ...(bid.participants ?? []).map(pTag),
+      ['d', bid.tradeId],
+      ...(bid.bidChainId ? [['bid_chain', bid.bidChainId]] : []),
+      amountToTag('amount', amount),
+      ['currency', amount.denomination],
+      ['decimals', amount.decimals.toString()],
+      ...(bid.participants ?? []).map(participantTag),
       ...(bid.participantProofs ?? []).map(participantProofTag),
+      ...(bid.participantProofKeys ?? []).map(participantProofKeyTag),
       ...(bid.extraTags ?? []),
     ],
   }
@@ -254,23 +298,32 @@ export function parseAuctionBidEvent(event: Event): ParsedMarketplaceAuctionBid 
   if (event.kind !== MarketplaceAuctionBid) throw new Error('Invalid auction bid kind')
   const auctionAnchor = requireString(tagWithMarker(event, 'a', 'auction') ?? tagValue(event, 'a'), 'bid auction anchor')
   const listingAnchor = requireString(tagWithMarker(event, 'a', 'listing'), 'bid listing anchor')
-  const participants = event.tags.map(parsePTag).filter((tag): tag is PTag => tag !== null)
+  const participants = event.tags.map(parseParticipantTag).filter((tag): tag is MarketplaceParticipantTag => tag !== null)
   const buyer = buyerParticipant(participants)
   if (buyer && buyer.pubkey !== event.pubkey) throw new Error('Auction bid author must be the buyer trade key')
   const json = maybeJson(event.content, 'auction bid content')
   const type = json.type === undefined ? 'auction_bid' : json.type
   if (type !== 'auction_bid') throw new Error('Invalid auction bid content type')
+  const tradeId = requireString(tagValue(event, 'd'), 'bid trade id')
+  const bidChainId = tagValue(event, 'bid_chain')
+  if (bidChainId !== undefined && !bidChainIdPattern.test(bidChainId)) {
+    throw new Error('Invalid bid_chain tag')
+  }
+  if (tagValue(event, 'trade')) throw new Error('Auction bid trade tag is not supported; use d tag')
   return {
     event,
-    bidId: tagValue(event, 'd') ?? event.id,
-    tradeId: tagValue(event, 'trade') ?? tagValue(event, 'd') ?? event.id,
+    tradeId,
     auctionAnchor,
     listingAnchor,
+    ...(bidChainId ? { bidChainId } : {}),
     amount: amountFromEvent(event, 'bid'),
     participants,
     participantProofs: event.tags
       .map(parseParticipantProofTag)
       .filter((tag): tag is ParticipantProofTag => tag !== null),
+    participantProofKeys: event.tags
+      .map(parseParticipantProofKeyTag)
+      .filter((tag): tag is ParticipantProofKeyTag => tag !== null),
     content: {
       type: 'auction_bid',
       ...(targetOrderFrom(json.targetOrder) ? { targetOrder: targetOrderFrom(json.targetOrder) } : {}),
@@ -355,6 +408,7 @@ export const auctions = {
   parse: parseAuctionEvent,
   validate: validateAuctionEvent,
   address: auctionAddress,
+  bidChainId: auctionBidChainId,
   bidTemplate: generateAuctionBidEventTemplate,
   parseBid: parseAuctionBidEvent,
   validateBid: validateAuctionBidEvent,

@@ -1,6 +1,6 @@
 import type { AbstractSimplePool } from '../abstract-pool.ts'
 import type { Event, EventTemplate } from '../core.ts'
-import { MarketplaceAuctionBid, MarketplacePayment } from '../kinds.ts'
+import { MarketplaceAuctionBid, MarketplacePayment, MarketplaceShippingOption } from '../kinds.ts'
 import { finalizeEvent } from '../pure.ts'
 import {
   findPaymentMethod,
@@ -14,28 +14,43 @@ import {
   type ParsedPaymentMethod,
 } from './paymentmethod.ts'
 import {
-  escrowServiceFilter,
-  findEscrowService,
-  generateEscrowServiceEventTemplate,
-  parseEscrowServiceEvent,
-  parseEscrowServiceSelectionEvent,
-  searchEscrowServices,
-  validateEscrowServiceEvent,
-  validateEscrowServiceSelectionEvent,
-  generateEscrowServiceSelectionEventTemplate,
-  calculateEscrowFee,
-  type EscrowServiceFindQuery,
-  type ParsedEscrowService,
-} from './escrowservice.ts'
+  arbitrationServiceFilter,
+  findArbitrationService,
+  generateArbitrationServiceEventTemplate,
+  parseArbitrationServiceEvent,
+  parseArbitrationServiceSelectionEvent,
+  searchArbitrationServices,
+  validateArbitrationServiceEvent,
+  validateArbitrationServiceSelectionEvent,
+  generateArbitrationServiceSelectionEventTemplate,
+  calculateArbitrationFee,
+  type ArbitrationServiceFindQuery,
+  type ParsedArbitrationService,
+} from './arbitrationservice.ts'
 import {
   generateListingEventTemplate,
+  findListing,
+  findListingByAnchor,
+  findListingById,
+  listingAnchor,
   listingSearchFilter,
+  listingPriceAmount,
   parseListingEvent,
   searchListings,
   validateListingEvent,
   type ListingSearchQuery,
   type MarketplaceListing,
 } from './listing.ts'
+import {
+  generateShippingOptionEventTemplate,
+  parseShippingOptionEvent,
+  searchShippingOptions,
+  shippingOptionAddress,
+  shippingOptionSearchFilter,
+  validateShippingOptionEvent,
+  type ParsedMarketplaceShippingOption,
+  type ShippingOptionSearchQuery,
+} from './shipping-option.ts'
 import {
   generateOrderEventTemplate,
   orderCommitHash,
@@ -51,6 +66,7 @@ import {
 } from './order.ts'
 import {
   auctionAddress,
+  auctionBidChainId,
   generateAuctionEventTemplate,
   generateAuctionBidEventTemplate,
   generateAuctionCompleteEventTemplate,
@@ -82,6 +98,9 @@ import {
 } from './auction-query.ts'
 import {
   auctionBidGroupFilter,
+  auctionBidGroupFilters,
+  buildAuctionBidChains,
+  fetchMyAuctionBidGroups,
   fetchAuctionBidGroups,
   groupAuctionBidEvents,
   reduceAuctionBidGroup,
@@ -90,8 +109,14 @@ import {
   type AuctionBidGroupSearchOptions,
   type AuctionBidGroupSubscribeHandlers,
   type AuctionBidGroupSubscribeOptions,
+  type MyAuctionBidGroupQuery,
+  type ParsedAuctionBidChain,
   type ParsedAuctionBidGroup,
 } from './auction-bid-group.ts'
+import type {
+  MarketplaceAuctionScope,
+  MarketplaceAuctionScopeQuery,
+} from './auction-scope.ts'
 import {
   generateOrderPaymentAckEventTemplate,
   generateOrderPaymentEventTemplate,
@@ -101,6 +126,8 @@ import {
   type OrderPaymentSettlementOutput,
   type ParsedOrderPayment,
 } from './order-lifecycle.ts'
+import type { PaymentProofPrivacy } from './payment-proof.ts'
+import type { PaymentAmountPrivacy } from './payment-amount.ts'
 import { paymentValidationRequest } from './order-group-payment.ts'
 import {
   fetchOrderGroups,
@@ -114,6 +141,10 @@ import {
   orderGroupIdForOrder,
   orderGroupIdForParticipants,
   orderGroupParticipantPubkeys,
+  participantGroupIdForEvent,
+  participantGroupParticipantPubkeys,
+  participantGroupRoleParticipants,
+  parseParticipantGroupEvent,
   reduceOrderGroup,
   resolveAndValidateOrderGroup,
   resolveOrderGroupParticipants,
@@ -137,7 +168,21 @@ import {
   type OrderSubscribeHandlers,
   type OrderSubscribeOptions,
 } from './order-query.ts'
-import { generateReviewEventTemplate, parseReviewEvent, validateReviewEvent } from './review.ts'
+import type {
+  MarketplaceMyOrderGroupStream,
+  MarketplaceOrderStream,
+  MarketplaceOrderGroupStream,
+} from './order-stream.ts'
+import {
+  generateReviewEventTemplate,
+  parseReviewEvent,
+  resolveReviewProof,
+  revealedReviewBuyerPubkey,
+  searchReviews,
+  validateReviewEvent,
+  type ReviewSearchOptions,
+  type ReviewSearchQuery,
+} from './review.ts'
 import { parseEventJson } from './helper.ts'
 import type {
   MarketplaceAmount,
@@ -155,10 +200,28 @@ import {
   type MarketplaceSeedSigner,
 } from './seed.ts'
 import type {
+  MarketplaceLocationProvider,
+  MarketplaceLocationsApi,
+} from './location.ts'
+import type {
+  MarketplacePaymentValidationExpected,
   MarketplacePaymentValidationPolicy,
   MarketplacePaymentValidationRequest,
   MarketplacePaymentValidationResult,
 } from './payment-validation.ts'
+import {
+  groupPaymentStreams,
+  validatePaymentGroup,
+  validatePaymentGroupStream,
+} from './payment-group.ts'
+import {
+  marketplaceInboxFilter,
+  type MarketplaceInboxFetchOptions,
+  type MarketplaceInboxItem,
+  type MarketplaceInboxQuery,
+  type MarketplaceInboxStream,
+  type MarketplaceInboxSubscribeOptions,
+} from './inbox.ts'
 import type {
   MarketplaceDriverAmount,
   MarketplaceDriverAsset,
@@ -182,7 +245,12 @@ import type {
   MarketplaceDriverWatermarkContext,
   MarketplaceDriverWatermarkDiscovery,
   MarketplaceDriverWatermarkRecoveryAction,
+  MarketplaceDriverLogEntry,
+  MarketplaceDriverLogger,
 } from '@sudonym-btc/marketplace-driver-interface'
+
+export type MarketplaceLogEntry = MarketplaceDriverLogEntry
+export type MarketplaceLogger = MarketplaceDriverLogger
 
 export type MarketplacePolicyWatermarkRecoveryAction = MarketplaceDriverWatermarkRecoveryAction
 
@@ -230,7 +298,7 @@ export type MarketplaceStartResult = {
 }
 
 export type MarketplacePaymentMethodDefaults = {
-  trustedEscrowPubkeys?: string[]
+  trustedArbiterPubkeys?: string[]
   evmAddress?: string
   evmAddressProof?: string
   cashuPubkey?: string
@@ -244,7 +312,7 @@ export type MarketplacePaymentMethodEnsureOptions = MarketplacePaymentMethodDefa
 }
 
 export type MarketplacePaymentMethodEnsureResult =
-  | { status: 'skipped'; reason: 'no_listings' | 'no_trusted_escrows' | 'no_policy_contributions' }
+  | { status: 'skipped'; reason: 'no_listings' | 'no_trusted_arbiters' | 'no_policy_contributions' }
   | { status: 'unchanged'; event: Event }
   | { status: 'created'; event: Event }
   | { status: 'updated'; previousEvent: Event; event: Event }
@@ -264,7 +332,7 @@ export type MarketplacePaymentRoute = {
   policy: MarketplacePaymentPolicyImplementation
   listing: MarketplaceListing
   paymentMethod: ParsedPaymentMethod
-  escrowService: ParsedEscrowService
+  arbitrationService: ParsedArbitrationService
   descriptor: MarketplacePaymentPolicy
   asset: MarketplacePaymentAsset
   score: number
@@ -292,35 +360,35 @@ export type MarketplacePaymentIntent = MarketplaceDriverPaymentIntent & {
   participants: {
     buyer?: MarketplacePaymentIdentity
     seller: MarketplacePaymentIdentity
-    escrow: MarketplacePaymentIdentity
+    arbiter: MarketplacePaymentIdentity
   }
 }
 
 export type MarketplacePaymentRecoveryItem = MarketplaceDriverRecoveryItem<
   PaymentProofEvidence,
-  MarketplacePaymentValidationRequest['expected']
+  MarketplacePaymentValidationExpected
 > & {
   group: ParsedOrderGroup
   payment: ParsedOrderPayment
   proof: PaymentProofEvidence
-  expected: MarketplacePaymentValidationRequest['expected']
+  expected?: MarketplacePaymentValidationExpected
 }
 
 export type MarketplacePaymentRecoveryState = MarketplaceDriverRecoveryState<PaymentProofEvidence>
 
-export type MarketplaceEscrowArbitrationIntent = {
-  subject: 'order'
+export type MarketplacePaymentArbitrationIntent = {
+  purpose: 'order'
   group: ParsedOrderGroup
   payment: ParsedOrderPayment
   proof: PaymentProofEvidence
-  expected: MarketplacePaymentValidationRequest['expected']
+  expected?: MarketplacePaymentValidationExpected
   action: PaymentSettlementAction
   outputs?: OrderPaymentSettlementOutput[]
   reason?: string
   data?: Record<string, unknown>
 }
 
-export type MarketplaceEscrowArbitrationState =
+export type MarketplacePaymentArbitrationState =
   | { type: 'progress'; status: string; data?: Record<string, unknown> }
   | {
       type: 'settlement_ready'
@@ -337,7 +405,7 @@ export type MarketplaceEscrowArbitrationState =
       data?: Record<string, unknown>
     }
 
-export type MarketplaceEscrowArbitrationRequest = {
+export type MarketplacePaymentArbitrationRequest = {
   group: ParsedOrderGroup
   payment?: ParsedOrderPayment
   action: PaymentSettlementAction
@@ -347,8 +415,8 @@ export type MarketplaceEscrowArbitrationRequest = {
   now?: number
 }
 
-export type MarketplaceEscrowArbitrationRuntimeState =
-  | MarketplaceEscrowArbitrationState
+export type MarketplacePaymentArbitrationRuntimeState =
+  | MarketplacePaymentArbitrationState
   | { type: 'settlement_published'; event: Event; proof?: PaymentProofEvidence; data?: Record<string, unknown> }
 
 export type MarketplaceAuctionSettlementRequest = {
@@ -365,7 +433,6 @@ export type MarketplaceAuctionSettlementRequest = {
   bidEvents?: Event[]
   paymentEvents?: Event[]
   now?: number
-  targetTradeId?: string
   targetUnlockAt?: number
   targetOrder?: Partial<OrderTemplate>
 }
@@ -383,12 +450,12 @@ export type MarketplaceAuctionBidValidation = {
 
 export type MarketplaceAuctionPaymentSettlementIntent = MarketplaceDriverAuctionSettlementIntent<
   PaymentProofEvidence,
-  MarketplacePaymentValidationRequest['expected']
+  MarketplacePaymentValidationExpected
 > & {
   bid: ParsedMarketplaceAuctionBid
   payment: ParsedOrderPayment
   proof: PaymentProofEvidence
-  expected: MarketplacePaymentValidationRequest['expected']
+  expected?: MarketplacePaymentValidationExpected
   validation: MarketplacePaymentValidationResult
   refundPercent?: number
   winner?: MarketplaceAuctionBidValidation
@@ -534,8 +601,8 @@ export type MarketplaceOrderPolicy<State = MarketplacePolicyPaymentState> = Mark
   MarketplacePaymentValidationResult,
   MarketplacePaymentRecoveryItem,
   MarketplacePaymentRecoveryState,
-  MarketplaceEscrowArbitrationIntent,
-  MarketplaceEscrowArbitrationState
+  MarketplacePaymentArbitrationIntent,
+  MarketplacePaymentArbitrationState
 >
 
 export type MarketplaceBidPolicy<State = MarketplacePolicyPaymentState> = MarketplaceDriverAuctionPolicy<
@@ -556,21 +623,41 @@ export type MarketplacePaymentPolicyImplementation<State = MarketplacePolicyPaym
   | MarketplaceBidPolicy<State>
 
 export type MarketplacePayOptions = {
-  accountIndex?: number
   seed?: string
   now?: number
   route?: MarketplacePaymentRoute
   settlementId?: string
+  identityProof?: MarketplaceIdentityProofMode
+  paymentProofPrivacy?: PaymentProofPrivacy
+  paymentAmountPrivacy?: PaymentAmountPrivacy
 }
+
+export type MarketplaceIdentityProofMode = 'none' | 'public' | 'sealed'
 
 export type MarketplaceResolvedPayOptions = MarketplacePayOptions & { accountIndex: number }
 
 export type MarketplacePaymentRouteOptions = {
-  subject?: 'order' | 'bid'
+  amount?: MarketplaceAmount
+  purpose?: 'order' | 'bid'
 }
 
 export type MarketplaceOrderCreateParams = Omit<OrderTemplate, 'tradeId' | 'listingAnchor'> &
   Partial<Pick<OrderTemplate, 'tradeId' | 'listingAnchor'>>
+
+export type MarketplaceOrderNegotiationOptions = MarketplaceOrderCreateParams & {
+  alt?: string
+  now?: number
+  recipientPubkeys?: string[]
+  seed?: string
+}
+
+export type MarketplaceOrderNegotiationResult = {
+  accountIndex?: number
+  tradeId: string
+  order: Event
+  message: Event
+  giftWraps: Event[]
+}
 
 export type MarketplaceRuntimeIdentity = {
   pubkey: string
@@ -588,11 +675,13 @@ export type MarketplaceRuntimeOptions = {
   publish?: (event: Event) => unknown | Promise<unknown>
   orderPolicies?: MarketplaceOrderPolicy[]
   bidPolicies?: MarketplaceBidPolicy[]
-  autoTrustEscrow?: string | string[]
+  autoTrustArbiter?: string | string[]
   paymentMethod?: MarketplacePaymentMethodDefaults
+  locationProvider?: MarketplaceLocationProvider
+  logger?: MarketplaceLogger
 }
 
-export type MarketplaceEscrowStartEvent =
+export type MarketplaceArbitrationStartEvent =
   | { type: 'started'; identity: MarketplaceOrderIdentity }
   | { type: 'group'; group: ParsedOrderGroup }
   | { type: 'payment_seen'; group: ParsedOrderGroup; payment: ParsedOrderPayment }
@@ -653,7 +742,7 @@ export type MarketplaceEscrowStartEvent =
   | { type: 'eose' }
   | { type: 'closed'; reasons: string[] }
 
-export type MarketplaceEscrowStartOptions =
+export type MarketplaceArbitrationStartOptions =
   Omit<OrderQuery, 'identity'> &
   OrderSubscribeOptions &
   ReduceOrderGroupOptions & {
@@ -663,19 +752,21 @@ export type MarketplaceEscrowStartOptions =
     orders?: boolean
     auctions?: boolean
     autoSettleAuctions?: boolean
+    auctionSettlementSweepIntervalMs?: number
     auctionQuery?: Omit<MarketplaceAuctionSearchQuery, 'arbiterPubkeys'>
     auctionBidQuery?: Omit<AuctionBidGroupQuery, 'auctionAnchor' | 'participantPubkeys'>
     auctionSettlement?: Omit<MarketplaceAuctionSettlementRequest, 'auctionAnchor' | 'auctionId' | 'listingAnchor'>
     now?: number
-    onstate?: (event: MarketplaceEscrowStartEvent) => void | Promise<void>
+    onstate?: (event: MarketplaceArbitrationStartEvent) => void | Promise<void>
   }
 
-export type MarketplaceEscrowRuntime = {
+export type MarketplaceArbitrationRuntime = {
   close(reason?: string): void
   processGroup(group: ParsedOrderGroup): Promise<void>
   processAuction(auction: ParsedMarketplaceAuction): Promise<void>
   processAuctionBidGroup(auction: ParsedMarketplaceAuction, group: ParsedAuctionBidGroup): Promise<void>
   settleAuction(auction: ParsedMarketplaceAuction): Promise<void>
+  settleDueAuctions(): Promise<void>
 }
 
 export type MarketplaceSessionIdentity = {
@@ -695,12 +786,31 @@ export type MarketplaceSessionOptions = Omit<MarketplaceRuntimeOptions, 'pool' |
 }
 
 export interface MarketplaceListingsApi {
+  anchor: typeof listingAnchor
   parse: typeof parseListingEvent
   validate: typeof validateListingEvent
   create: typeof generateListingEventTemplate
   template: typeof generateListingEventTemplate
   filters: { search: typeof listingSearchFilter }
+  price: typeof listingPriceAmount
+  findOne(
+    pubkey: string,
+    query?: Omit<ListingSearchQuery, 'authors' | 'limit'>,
+  ): ReturnType<typeof findListing>
+  findById(id: string): ReturnType<typeof findListingById>
+  findByAnchor(anchor: string): ReturnType<typeof findListingByAnchor>
   search(query?: ListingSearchQuery): Promise<MarketplaceListing[]>
+}
+
+export interface MarketplaceShippingOptionApi {
+  kind: typeof MarketplaceShippingOption
+  parse: typeof parseShippingOptionEvent
+  validate: typeof validateShippingOptionEvent
+  address: typeof shippingOptionAddress
+  template: typeof generateShippingOptionEventTemplate
+  filter: typeof shippingOptionSearchFilter
+  filters: { search: typeof shippingOptionSearchFilter }
+  search(query?: ShippingOptionSearchQuery): Promise<ParsedMarketplaceShippingOption[]>
 }
 
 export interface MarketplacePaymentMethodApi {
@@ -712,27 +822,31 @@ export interface MarketplacePaymentMethodApi {
   canonicalAssetId: typeof canonicalAssetId
 }
 
-export interface MarketplaceEscrowServicesApi {
-  parse: typeof parseEscrowServiceEvent
-  validate: typeof validateEscrowServiceEvent
-  template: typeof generateEscrowServiceEventTemplate
-  filter: typeof escrowServiceFilter
-  search(query?: EscrowServiceFindQuery): Promise<ParsedEscrowService[]>
-  findOne(query?: EscrowServiceFindQuery): Promise<ParsedEscrowService | null>
-  calculateFee: typeof calculateEscrowFee
+export interface MarketplaceArbitrationServicesApi {
+  parse: typeof parseArbitrationServiceEvent
+  validate: typeof validateArbitrationServiceEvent
+  template: typeof generateArbitrationServiceEventTemplate
+  filter: typeof arbitrationServiceFilter
+  search(query?: ArbitrationServiceFindQuery): Promise<ParsedArbitrationService[]>
+  findOne(query?: ArbitrationServiceFindQuery): Promise<ParsedArbitrationService | null>
+  calculateFee: typeof calculateArbitrationFee
 }
 
-export interface MarketplaceEscrowServiceSelectionsApi {
-  parse: typeof parseEscrowServiceSelectionEvent
-  validate: typeof validateEscrowServiceSelectionEvent
-  template: typeof generateEscrowServiceSelectionEventTemplate
+export interface MarketplaceArbitrationServiceSelectionsApi {
+  parse: typeof parseArbitrationServiceSelectionEvent
+  validate: typeof validateArbitrationServiceSelectionEvent
+  template: typeof generateArbitrationServiceSelectionEventTemplate
 }
 
 export interface MarketplaceOrderGroupsApi {
   id: typeof orderGroupIdForParticipants
   idForOrder: typeof orderGroupIdForOrder
+  idForEvent: typeof participantGroupIdForEvent
   participants: typeof orderGroupParticipantPubkeys
+  participantPubkeys: typeof participantGroupParticipantPubkeys
+  participantEntries: typeof participantGroupRoleParticipants
   filter: typeof orderGroupFilter
+  parseParticipantEvent: typeof parseParticipantGroupEvent
   reduce: typeof reduceOrderGroup
   group: typeof groupOrderEvents
   resolveParticipants: typeof resolveOrderGroupParticipants
@@ -748,15 +862,24 @@ export interface MarketplaceOrderGroupsApi {
     handlers: OrderGroupSubscribeHandlers,
     options?: OrderSubscribeOptions & ReduceOrderGroupOptions,
   ): ReturnType<typeof subscribeOrderGroups>
-  mine(
-    query?: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity },
-    options?: OrderGroupSearchOptions,
-  ): Promise<OrderGroupBuckets>
+  stream(query?: OrderQuery, options?: OrderSubscribeOptions & ReduceOrderGroupOptions): MarketplaceOrderGroupStream
+  mine: MarketplaceOrderGroupsMineApi
   subscribeMine(
     query: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity },
     handlers: OrderGroupSubscribeHandlers & { onbuckets?: (buckets: OrderGroupBuckets) => void },
     options?: OrderSubscribeOptions & ReduceOrderGroupOptions,
   ): ReturnType<typeof subscribeMyOrderGroups>
+}
+
+export interface MarketplaceOrderGroupsMineApi {
+  (
+    query?: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity },
+    options?: OrderGroupSearchOptions,
+  ): Promise<OrderGroupBuckets>
+  stream(
+    query?: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity },
+    options?: OrderSubscribeOptions & ReduceOrderGroupOptions,
+  ): MarketplaceMyOrderGroupStream
 }
 
 export interface MarketplaceOrdersApi {
@@ -776,22 +899,38 @@ export interface MarketplaceOrdersApi {
     handlers: OrderSubscribeHandlers,
     options?: OrderSubscribeOptions,
   ): ReturnType<typeof subscribeOrders>
-  mine(
-    query?: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity },
-    options?: OrderSearchOptions,
-  ): Promise<ParsedOrder[]>
+  stream(query?: OrderQuery, options?: OrderSubscribeOptions): MarketplaceOrderStream
+  mine: MarketplaceOrdersMineApi
   subscribeMine(
     query: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity },
     handlers: OrderSubscribeHandlers,
     options?: OrderSubscribeOptions,
   ): ReturnType<typeof subscribeOrders>
   groups: MarketplaceOrderGroupsApi
+  negotiate(
+    listing: Event | MarketplaceListing,
+    order: MarketplaceOrderNegotiationOptions,
+  ): Promise<MarketplaceOrderNegotiationResult>
+}
+
+export interface MarketplaceOrdersMineApi {
+  (
+    query?: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity },
+    options?: OrderSearchOptions,
+  ): Promise<ParsedOrder[]>
+  stream(
+    query?: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity },
+    options?: OrderSubscribeOptions,
+  ): MarketplaceOrderStream
 }
 
 export interface MarketplaceReviewsApi {
   parse: typeof parseReviewEvent
   validate: typeof validateReviewEvent
   template: typeof generateReviewEventTemplate
+  resolveProof: typeof resolveReviewProof
+  revealedBuyerPubkey: typeof revealedReviewBuyerPubkey
+  search(query?: ReviewSearchQuery, options?: ReviewSearchOptions): ReturnType<typeof searchReviews>
 }
 
 export interface MarketplaceStructuredMessagesApi {
@@ -800,16 +939,34 @@ export interface MarketplaceStructuredMessagesApi {
   template: typeof generateStructuredMessageEventTemplate
 }
 
+export interface MarketplaceInboxApi {
+  filter: typeof marketplaceInboxFilter
+  unwrap(wrap: Event): Promise<MarketplaceInboxItem>
+  fetch(
+    query?: MarketplaceInboxQuery,
+    options?: MarketplaceInboxFetchOptions,
+  ): Promise<MarketplaceInboxItem[]>
+  stream(
+    query?: MarketplaceInboxQuery,
+    options?: MarketplaceInboxSubscribeOptions,
+  ): MarketplaceInboxStream
+}
+
 export interface MarketplacePaymentRoutesApi {
-  forListing(listing: Event | MarketplaceListing, order?: OrderTemplate | null): Promise<MarketplacePaymentRoute[]>
+  forListing(
+    listing: Event | MarketplaceListing,
+    options?: MarketplacePaymentRouteOptions | null,
+  ): Promise<MarketplacePaymentRoute[]>
 }
 
 export interface MarketplaceAuctionsApi {
   parse: typeof parseAuctionEvent
   validate: typeof validateAuctionEvent
   address: typeof auctionAddress
+  bidChainId: typeof auctionBidChainId
   template: typeof generateAuctionEventTemplate
   filters: typeof auctionSearchFilters
+  scope(query: MarketplaceAuctionScopeQuery): MarketplaceAuctionScope
   search(query?: MarketplaceAuctionSearchQuery, options?: MarketplaceAuctionSearchOptions): Promise<ParsedMarketplaceAuction[]>
   subscribe(
     query: MarketplaceAuctionSearchQuery,
@@ -823,14 +980,16 @@ export interface MarketplaceAuctionsApi {
   parseComplete: typeof parseAuctionCompleteEvent
   validateComplete: typeof validateAuctionCompleteEvent
   completes: MarketplaceAuctionCompletesApi
-  paymentRoutes: {
-    forListing(listing: Event | MarketplaceListing, bid?: Partial<OrderTemplate> | null): Promise<MarketplacePaymentRoute[]>
-  }
   bidGroups: MarketplaceAuctionBidGroupsApi
   bid(
     listing: Event | MarketplaceListing,
     bid: Partial<MarketplaceAuctionBidTemplate> & { amount: MarketplaceAmount },
-    options?: MarketplacePayOptions & { auction?: Event | ParsedMarketplaceAuction; participantProofs?: OrderTemplate['participantProofs'] },
+    options?: MarketplacePayOptions & {
+      auction?: Event | ParsedMarketplaceAuction
+      identityProof?: MarketplaceIdentityProofMode
+      participantProofs?: OrderTemplate['participantProofs']
+      participantProofKeys?: OrderTemplate['participantProofKeys']
+    },
   ): AsyncIterable<MarketplaceAuctionBidState>
   settle(request: MarketplaceAuctionSettlementRequest): AsyncIterable<MarketplaceAuctionSettlementState>
 }
@@ -850,9 +1009,21 @@ export interface MarketplaceAuctionCompletesApi {
 
 export interface MarketplaceAuctionBidGroupsApi {
   filter: typeof auctionBidGroupFilter
+  filters: typeof auctionBidGroupFilters
   reduce: typeof reduceAuctionBidGroup
   group: typeof groupAuctionBidEvents
+  chains: typeof buildAuctionBidChains
   fetch(query: AuctionBidGroupQuery, options?: AuctionBidGroupSearchOptions): Promise<ParsedAuctionBidGroup[]>
+  mine: {
+    fetch(
+      query?: MyAuctionBidGroupQuery,
+      options?: AuctionBidGroupSearchOptions,
+    ): ReturnType<typeof fetchMyAuctionBidGroups>
+    chains(
+      query?: MyAuctionBidGroupQuery,
+      options?: AuctionBidGroupSearchOptions,
+    ): Promise<ParsedAuctionBidChain[]>
+  }
   subscribe(
     query: AuctionBidGroupQuery,
     handlers: AuctionBidGroupSubscribeHandlers,
@@ -861,6 +1032,9 @@ export interface MarketplaceAuctionBidGroupsApi {
 }
 
 export interface MarketplacePaymentsApi {
+  group: typeof groupPaymentStreams
+  validateGroup: typeof validatePaymentGroup
+  validateGroups: typeof validatePaymentGroupStream
   mine: {
     fetch(
       query?: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity },
@@ -872,23 +1046,26 @@ export interface MarketplacePaymentsApi {
   policyFor(payment: MarketplacePaymentRecoveryItem): MarketplacePaymentPolicyImplementation | undefined
 }
 
-export interface MarketplaceEscrowApi {
-  start(options?: MarketplaceEscrowStartOptions): MarketplaceEscrowRuntime
-  arbitrate(request: MarketplaceEscrowArbitrationRequest): AsyncIterable<MarketplaceEscrowArbitrationRuntimeState>
+export interface MarketplaceArbitrationApi {
+  start(options?: MarketplaceArbitrationStartOptions): MarketplaceArbitrationRuntime
+  arbitrate(request: MarketplacePaymentArbitrationRequest): AsyncIterable<MarketplacePaymentArbitrationRuntimeState>
 }
 
 export interface MarketplaceClient {
   listings: MarketplaceListingsApi
+  shippingOption: MarketplaceShippingOptionApi
+  locations: MarketplaceLocationsApi
   paymentMethod: MarketplacePaymentMethodApi
-  escrowServices: MarketplaceEscrowServicesApi
-  escrowServiceSelections: MarketplaceEscrowServiceSelectionsApi
+  arbitrationServices: MarketplaceArbitrationServicesApi
+  arbitrationServiceSelections: MarketplaceArbitrationServiceSelectionsApi
   orders: MarketplaceOrdersApi
   reviews: MarketplaceReviewsApi
   structuredMessages: MarketplaceStructuredMessagesApi
+  inbox: MarketplaceInboxApi
   paymentRoutes: MarketplacePaymentRoutesApi
   auctions: MarketplaceAuctionsApi
   payments: MarketplacePaymentsApi
-  escrow: MarketplaceEscrowApi
+  arbitration: MarketplaceArbitrationApi
   discoverHighWatermark(options?: MarketplaceHighWatermarkOptions): Promise<MarketplaceHighWatermarkDiscovery>
   getNextAccountIndex(options?: MarketplaceHighWatermarkOptions): Promise<number>
   start(options?: MarketplaceStartOptions): Promise<MarketplaceStartResult>

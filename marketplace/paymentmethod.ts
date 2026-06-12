@@ -2,9 +2,10 @@ import type { AbstractSimplePool } from '../abstract-pool.ts'
 import type { Event, EventTemplate } from '../core.ts'
 import type { Filter } from '../filter.ts'
 import { MarketplacePaymentMethod } from '../kinds.ts'
-import { isEvmAddress, now, tagValues } from './helper.ts'
+import { canonicalCurrency, isEvmAddress, now, tagValues } from './helper.ts'
 
 export type AcceptedPaymentForm = {
+  currency?: string
   denomination: string
   assetId: string
   appId?: string
@@ -12,7 +13,7 @@ export type AcceptedPaymentForm = {
 
 export type ParsedPaymentMethod = {
   event: Event
-  trustedEscrowPubkeys: string[]
+  trustedArbiterPubkeys: string[]
   supportedContractBytecodeHashes: string[]
   acceptedPaymentForms: AcceptedPaymentForm[]
   evmAddress?: string
@@ -21,7 +22,7 @@ export type ParsedPaymentMethod = {
 }
 
 export type PaymentMethodTemplate = {
-  trustedEscrowPubkeys?: string[]
+  trustedArbiterPubkeys?: string[]
   supportedContractBytecodeHashes?: string[]
   acceptedPaymentForms?: AcceptedPaymentForm[]
   evmAddress?: string
@@ -33,8 +34,9 @@ export type PaymentMethodTemplate = {
 
 export type PaymentMethodFindQuery = {
   author?: string
-  trustedEscrowPubkey?: string
+  trustedArbiterPubkey?: string
   contractBytecodeHash?: string
+  currency?: string
   denomination?: string
   assetId?: string
   limit?: number
@@ -77,6 +79,30 @@ function sameAssetId(left: string, right: string): boolean {
   return canonicalAssetId(left) === canonicalAssetId(right)
 }
 
+function denomination(value: string | undefined): string {
+  return (value ?? '').toUpperCase()
+}
+
+export function normalizePaymentFormForNostr(form: AcceptedPaymentForm): AcceptedPaymentForm {
+  const currency = canonicalCurrency(form.currency ?? form.denomination)
+  return {
+    currency,
+    denomination: currency,
+    assetId: form.assetId,
+    ...(form.appId ? { appId: form.appId } : {}),
+  }
+}
+
+function isBtcSatPair(left: string | undefined, right: string | undefined): boolean {
+  const a = denomination(left)
+  const b = denomination(right)
+  return (a === 'BTC' && b === 'SAT') || (a === 'SAT' && b === 'BTC')
+}
+
+function denominationMatches(left: string, right: string): boolean {
+  return canonicalCurrency(left) === canonicalCurrency(right) || isBtcSatPair(left, right)
+}
+
 export function validatePaymentMethodEvent(event: Event): boolean {
   try {
     parsePaymentMethodEvent(event)
@@ -92,7 +118,7 @@ export function parsePaymentMethodEvent(event: Event): ParsedPaymentMethod {
     .filter(tag => tag[0] === 'o')
     .map(tag => {
       if (tag.length < 3) throw new Error('Invalid payment form tag')
-      return { denomination: tag[1], assetId: tag[2], ...(tag[3] ? { appId: tag[3] } : {}) }
+      return normalizePaymentFormForNostr({ denomination: tag[1], assetId: tag[2], ...(tag[3] ? { appId: tag[3] } : {}) })
     })
   const evmClaim = [...event.tags].reverse().find(tag => tag[0] === 'i' && tag[1]?.startsWith('evm:address:'))
   const parsedEvmAddress = evmClaim?.[1]?.slice('evm:address:'.length)
@@ -102,7 +128,7 @@ export function parsePaymentMethodEvent(event: Event): ParsedPaymentMethod {
   const cashuPubkey = cashuClaim?.[1]?.slice('cashu:p2pk:'.length)
   return {
     event,
-    trustedEscrowPubkeys: tagValues(event, 'p'),
+    trustedArbiterPubkeys: tagValues(event, 'p'),
     supportedContractBytecodeHashes: tagValues(event, 'c'),
     acceptedPaymentForms,
     ...(parsedEvmAddress ? { evmAddress: parsedEvmAddress } : {}),
@@ -117,14 +143,17 @@ export function generatePaymentMethodEventTemplate(method: PaymentMethodTemplate
     created_at: method.createdAt ?? now(),
     content: '',
     tags: [
-      ...(method.trustedEscrowPubkeys ?? []).map(pubkey => ['p', pubkey]),
+      ...(method.trustedArbiterPubkeys ?? []).map(pubkey => ['p', pubkey]),
       ...(method.supportedContractBytecodeHashes ?? []).map(hash => ['c', hash]),
-      ...(method.acceptedPaymentForms ?? []).map(form => [
-        'o',
-        form.denomination,
-        form.assetId,
-        ...(form.appId ? [form.appId] : []),
-      ]),
+      ...(method.acceptedPaymentForms ?? []).map(form => {
+        const normalized = normalizePaymentFormForNostr(form)
+        return [
+          'o',
+          normalized.denomination,
+          normalized.assetId,
+          ...(normalized.appId ? [normalized.appId] : []),
+        ]
+      }),
       ...(method.evmAddress ? [evmAddressTag(method.evmAddress, method.evmAddressProof)] : []),
       ...(method.cashuPubkey ? [cashuPubkeyTag(method.cashuPubkey)] : []),
       ...(method.extraTags ?? []),
@@ -138,7 +167,7 @@ export function paymentMethodFilter(query: PaymentMethodFindQuery = {}): Filter 
     authors: query.author ? [query.author] : undefined,
     limit: query.limit ?? 1,
   }
-  if (query.trustedEscrowPubkey) filter['#p'] = [query.trustedEscrowPubkey]
+  if (query.trustedArbiterPubkey) filter['#p'] = [query.trustedArbiterPubkey]
   if (query.contractBytecodeHash) filter['#c'] = [query.contractBytecodeHash]
   return filter
 }
@@ -152,13 +181,14 @@ export async function findPaymentMethod(
   const methods = events.filter(validatePaymentMethodEvent).map(parsePaymentMethodEvent)
   return (
     methods.find(method => {
-      if (query.denomination && !method.acceptedPaymentForms.some(form => form.denomination === query.denomination))
+      const queryCurrency = query.currency ?? query.denomination
+      if (queryCurrency && !method.acceptedPaymentForms.some(form => denominationMatches(form.currency ?? form.denomination, queryCurrency)))
         return false
       if (
         query.assetId &&
         !method.acceptedPaymentForms.some(form =>
-          query.denomination
-            ? form.denomination === query.denomination && sameAssetId(form.assetId, query.assetId!)
+          queryCurrency
+            ? denominationMatches(form.currency ?? form.denomination, queryCurrency) && sameAssetId(form.assetId, query.assetId!)
             : sameAssetId(form.assetId, query.assetId!),
         )
       ) {
