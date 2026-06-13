@@ -21,10 +21,11 @@ import {
   type MarketplaceAuctionSubscribeOptions,
 } from './auction-query.ts'
 import {
-  generateOrderPaymentAckEventTemplate,
-  generateOrderPaymentNackEventTemplate,
-  type ParsedOrderPayment,
-} from './order-lifecycle.ts'
+  generatePaymentAckEventTemplate,
+  generatePaymentNackEventTemplate,
+  paymentLifecycleHasAnchor,
+  type ParsedPayment,
+} from './payment-lifecycle.ts'
 import { resolvePaymentAmount } from './payment-amount.ts'
 import { resolvePaymentProof } from './payment-proof.ts'
 import type { MarketplacePaymentValidationResult } from './payment-validation.ts'
@@ -57,13 +58,13 @@ import { isMarketplaceDriverEncryptedPaymentProofParams } from '@sudonym-btc/mar
 
 const AUCTION_SETTLEMENT_SWEEP_INTERVAL_MS = 60 * 60 * 1000
 
-function paymentDriver(payment?: ParsedOrderPayment): string {
+function paymentDriver(payment?: ParsedPayment): string {
   return payment?.content.proof?.paymentProof?.driver ?? 'none'
 }
 
 function invalidAuctionBidPayment(
   group: ParsedAuctionBidGroup,
-  payment: ParsedOrderPayment | undefined,
+  payment: ParsedPayment | undefined,
   error: string,
 ): MarketplacePaymentValidationResult {
   return {
@@ -96,7 +97,7 @@ function valuesMatch(left: unknown, right: unknown): boolean {
 function recycleArgsMatchBidOrder(
   auction: ParsedMarketplaceAuction,
   group: ParsedAuctionBidGroup,
-  payment: ParsedOrderPayment,
+  payment: ParsedPayment,
   resolvedProof = payment.content.proof,
 ): string | undefined {
   const proof = resolvedProof?.paymentProof
@@ -120,7 +121,7 @@ function recycleArgsMatchBidOrder(
   return undefined
 }
 
-function auctionHasPaymentAckFrom(group: ParsedAuctionBidGroup, payment: ParsedOrderPayment, pubkey: string): boolean {
+function auctionHasPaymentAckFrom(group: ParsedAuctionBidGroup, payment: ParsedPayment, pubkey: string): boolean {
   return group.paymentAcks.some(ack =>
     ack.event.pubkey === pubkey && (
       ack.refs.payments.includes(payment.event.id) ||
@@ -129,7 +130,7 @@ function auctionHasPaymentAckFrom(group: ParsedAuctionBidGroup, payment: ParsedO
   )
 }
 
-function auctionHasPaymentNackFrom(group: ParsedAuctionBidGroup, payment: ParsedOrderPayment | undefined, pubkey: string): boolean {
+function auctionHasPaymentNackFrom(group: ParsedAuctionBidGroup, payment: ParsedPayment | undefined, pubkey: string): boolean {
   return group.paymentNacks.some(nack =>
     nack.event.pubkey === pubkey && (
       (payment && nack.refs.payments.includes(payment.event.id)) ||
@@ -141,7 +142,7 @@ function auctionHasPaymentNackFrom(group: ParsedAuctionBidGroup, payment: Parsed
 function auctionBidPaymentPrecheck(
   auction: ParsedMarketplaceAuction,
   group: ParsedAuctionBidGroup,
-  payment: ParsedOrderPayment | undefined,
+  payment: ParsedPayment | undefined,
   arbiterPubkey: string,
   now?: number,
   resolvedProof?: PaymentProof,
@@ -153,7 +154,7 @@ function auctionBidPaymentPrecheck(
   if (group.listingAnchor !== auction.listingAnchor) {
     return invalidAuctionBidPayment(group, payment, 'Bid listing does not match auction listing')
   }
-  if (payment.listingAnchor !== auction.auctionAnchor) {
+  if (!paymentLifecycleHasAnchor(payment, auction.auctionAnchor, 'auction')) {
     return invalidAuctionBidPayment(group, payment, 'Payment is not an auction bid lock')
   }
   if (group.amount.denomination !== auction.currency || group.amount.decimals !== auction.decimals) {
@@ -197,7 +198,7 @@ async function validateAuctionBidPaymentForRuntime(
   options: MarketplaceArbitrationStartOptions,
   auction: ParsedMarketplaceAuction,
   group: ParsedAuctionBidGroup,
-  payment: ParsedOrderPayment,
+  payment: ParsedPayment,
   arbiterPubkey: string,
 ): Promise<MarketplacePaymentValidationResult> {
   let resolvedProof = payment.content.proof
@@ -315,7 +316,7 @@ export function startMarketplaceArbitration(
   async function publishAuctionBidAck(
     auction: ParsedMarketplaceAuction,
     group: ParsedAuctionBidGroup,
-    payment: ParsedOrderPayment,
+    payment: ParsedPayment,
     validation: MarketplacePaymentValidationResult,
   ): Promise<void> {
     if (auctionHasPaymentAckFrom(group, payment, arbiterPubkey)) {
@@ -324,11 +325,13 @@ export function startMarketplaceArbitration(
     }
     const event = await publishMarketplaceTemplate(
       opts,
-      generateOrderPaymentAckEventTemplate({
+      generatePaymentAckEventTemplate({
         orderGroupId: group.tradeId,
         tradeId: group.tradeId,
-        listingAnchor: auction.auctionAnchor,
-        anchorMarker: 'auction',
+        anchors: [
+          { value: auction.auctionAnchor, marker: 'auction' },
+          { value: auction.listingAnchor, marker: 'listing' },
+        ],
         participants: group.participants,
         refs: { auctionBids: [group.bid.event.id], payments: [payment.event.id] },
         status: 'accepted',
@@ -340,7 +343,7 @@ export function startMarketplaceArbitration(
   async function publishAuctionBidNack(
     auction: ParsedMarketplaceAuction,
     group: ParsedAuctionBidGroup,
-    payment: ParsedOrderPayment | undefined,
+    payment: ParsedPayment | undefined,
     validation: MarketplacePaymentValidationResult,
   ): Promise<void> {
     if (auctionHasPaymentNackFrom(group, payment, arbiterPubkey)) {
@@ -349,11 +352,13 @@ export function startMarketplaceArbitration(
     }
     const event = await publishMarketplaceTemplate(
       opts,
-      generateOrderPaymentNackEventTemplate({
+      generatePaymentNackEventTemplate({
         orderGroupId: group.tradeId,
         tradeId: group.tradeId,
-        listingAnchor: auction.auctionAnchor,
-        anchorMarker: 'auction',
+        anchors: [
+          { value: auction.auctionAnchor, marker: 'auction' },
+          { value: auction.listingAnchor, marker: 'listing' },
+        ],
         participants: group.participants,
         refs: {
           auctionBids: [group.bid.event.id],

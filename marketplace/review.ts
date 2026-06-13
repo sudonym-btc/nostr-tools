@@ -2,6 +2,7 @@ import type { AbstractSimplePool } from '../abstract-pool.ts'
 import type { Event, EventTemplate } from '../core.ts'
 import type { Filter } from '../filter.ts'
 import { MarketplaceReview } from '../kinds.ts'
+import { decodeMarketplaceEvent, type MarketplaceInvalidEventHandler } from './event-decoder.ts'
 import { firstTag, now, requireString, tagValue } from './helper.ts'
 import {
   parseParticipantProofKeyTag,
@@ -52,6 +53,7 @@ export type ReviewSearchQuery = {
 
 export type ReviewSearchOptions = {
   maxWait?: number
+  oninvalid?: MarketplaceInvalidEventHandler
 }
 
 export type ReviewProofResolutionStatus = ParticipantProofResolutionStatus
@@ -166,12 +168,12 @@ export async function searchReviews(
   const events = await pool.querySync(relays, reviewSearchFilter(query), options)
   const latestByAuthorAndGroup = new Map<string, ParsedReview>()
   for (const event of events) {
-    let review: ParsedReview
-    try {
-      review = parseReviewEvent(event)
-    } catch (_) {
-      continue
-    }
+    const decoded = decodeMarketplaceEvent(event, parseReviewEvent, {
+      source: 'reviews.search',
+      oninvalid: options.oninvalid,
+    })
+    if (!decoded.ok) continue
+    const review = decoded.value
     const key = `${review.event.pubkey}:${review.orderGroupId}`
     latestByAuthorAndGroup.set(key, latestReview(latestByAuthorAndGroup.get(key), review))
   }

@@ -1,9 +1,10 @@
 import type {
-  ParsedOrderPayment,
-  ParsedOrderPaymentAck,
-  ParsedOrderPaymentNack,
-  ParsedOrderPaymentSettlement,
-} from './order-lifecycle.ts'
+  PaymentLifecycleAnchors,
+  ParsedPayment,
+  ParsedPaymentAck,
+  ParsedPaymentNack,
+  ParsedPaymentSettlement,
+} from './payment-lifecycle.ts'
 import type { MarketplacePaymentValidationResult } from './payment-validation.ts'
 import {
   MarketplaceStream,
@@ -19,10 +20,10 @@ import {
 } from './stream.ts'
 
 export type PaymentGroupEvent =
-  | ParsedOrderPayment
-  | ParsedOrderPaymentAck
-  | ParsedOrderPaymentNack
-  | ParsedOrderPaymentSettlement
+  | ParsedPayment
+  | ParsedPaymentAck
+  | ParsedPaymentNack
+  | ParsedPaymentSettlement
 
 export type PaymentGroupStage =
   | 'pending'
@@ -35,21 +36,22 @@ export type PaymentGroupStage =
 export type PaymentGroup = {
   id: string
   paymentIds: string[]
-  payments: ParsedOrderPayment[]
-  paymentAcks: ParsedOrderPaymentAck[]
-  paymentNacks: ParsedOrderPaymentNack[]
-  settlements: ParsedOrderPaymentSettlement[]
+  payments: ParsedPayment[]
+  paymentAcks: ParsedPaymentAck[]
+  paymentNacks: ParsedPaymentNack[]
+  settlements: ParsedPaymentSettlement[]
   events: PaymentGroupEvent[]
   stage: PaymentGroupStage
   updatedAt: number
   complete: boolean
   orderGroupId?: string
   tradeId?: string
+  anchors?: PaymentLifecycleAnchors
   listingAnchor?: string
-  payment?: ParsedOrderPayment
-  paymentAck?: ParsedOrderPaymentAck
-  paymentNack?: ParsedOrderPaymentNack
-  settlement?: ParsedOrderPaymentSettlement
+  payment?: ParsedPayment
+  paymentAck?: ParsedPaymentAck
+  paymentNack?: ParsedPaymentNack
+  settlement?: ParsedPaymentSettlement
 }
 
 export type ParsedPaymentGroup = PaymentGroup
@@ -125,8 +127,8 @@ export type MarketplacePaymentValidationStream =
 export type PaymentGroupValidationOptions = {
   sellerPubkeys?: Iterable<string | undefined>
   arbiterPubkeys?: Iterable<string | undefined>
-  isTrustedAck?: (ack: ParsedOrderPaymentAck, group: ParsedPaymentGroup) => boolean
-  isTrustedNack?: (nack: ParsedOrderPaymentNack, group: ParsedPaymentGroup) => boolean
+  isTrustedAck?: (ack: ParsedPaymentAck, group: ParsedPaymentGroup) => boolean
+  isTrustedNack?: (nack: ParsedPaymentNack, group: ParsedPaymentGroup) => boolean
   forceDriverValidation?: (group: ParsedPaymentGroup) => boolean
 }
 
@@ -134,10 +136,10 @@ export type PaymentGroupSource<T> =
   Pick<MarketplaceStream<T, unknown>, 'events' | 'status'>
 
 export type PaymentGroupStreamSources = {
-  payments?: PaymentGroupSource<ParsedOrderPayment>
-  acks?: PaymentGroupSource<ParsedOrderPaymentAck>
-  nacks?: PaymentGroupSource<ParsedOrderPaymentNack>
-  settlements?: PaymentGroupSource<ParsedOrderPaymentSettlement>
+  payments?: PaymentGroupSource<ParsedPayment>
+  acks?: PaymentGroupSource<ParsedPaymentAck>
+  nacks?: PaymentGroupSource<ParsedPaymentNack>
+  settlements?: PaymentGroupSource<ParsedPaymentSettlement>
 }
 
 export type PaymentGroupValidationStreamOptions =
@@ -181,21 +183,25 @@ function eventPubkey(value: unknown): string | undefined {
 }
 
 function contextGroupId(event: PaymentGroupEvent): string {
-  return `${contextGroupPrefix}${event.listingAnchor}:${event.orderGroupId}:${event.tradeId}`
+  const anchors = event.anchors.all
+    .map(anchor => `${anchor.marker}:${anchor.value}`)
+    .sort((left, right) => left.localeCompare(right))
+    .join('|')
+  return `${contextGroupPrefix}${anchors}:${event.orderGroupId}:${event.tradeId}`
 }
 
 function groupIdsForLinkedEvent(
-  event: ParsedOrderPaymentAck | ParsedOrderPaymentNack | ParsedOrderPaymentSettlement,
+  event: ParsedPaymentAck | ParsedPaymentNack | ParsedPaymentSettlement,
 ): string[] {
   const paymentIds = unique(event.refs.payments)
   return paymentIds.length > 0 ? paymentIds : [contextGroupId(event)]
 }
 
 function stageForGroup(input: {
-  payment?: ParsedOrderPayment
-  paymentAck?: ParsedOrderPaymentAck
-  paymentNack?: ParsedOrderPaymentNack
-  settlement?: ParsedOrderPaymentSettlement
+  payment?: ParsedPayment
+  paymentAck?: ParsedPaymentAck
+  paymentNack?: ParsedPaymentNack
+  settlement?: ParsedPaymentSettlement
 }): PaymentGroupStage {
   if (input.settlement) return 'settled'
   if (input.paymentAck && input.paymentNack) return 'conflicted'
@@ -206,7 +212,7 @@ function stageForGroup(input: {
 }
 
 function metadataEvent(group: {
-  payment?: ParsedOrderPayment
+  payment?: ParsedPayment
   events: PaymentGroupEvent[]
 }): PaymentGroupEvent | undefined {
   return group.payment ?? group.events[0]
@@ -251,7 +257,7 @@ function paymentGroupTrustedActorPubkeys(
 function trustedPaymentAcks(
   group: ParsedPaymentGroup,
   options: PaymentGroupValidationOptions,
-): ParsedOrderPaymentAck[] {
+): ParsedPaymentAck[] {
   const trusted = paymentGroupTrustedActorPubkeys(group, options)
   return group.paymentAcks.filter(ack =>
     options.isTrustedAck?.(ack, group) ?? trusted.has(ack.event.pubkey),
@@ -261,7 +267,7 @@ function trustedPaymentAcks(
 function trustedPaymentNacks(
   group: ParsedPaymentGroup,
   options: PaymentGroupValidationOptions,
-): ParsedOrderPaymentNack[] {
+): ParsedPaymentNack[] {
   const trusted = paymentGroupTrustedActorPubkeys(group, options)
   return group.paymentNacks.filter(nack =>
     options.isTrustedNack?.(nack, group) ?? trusted.has(nack.event.pubkey),
@@ -270,8 +276,8 @@ function trustedPaymentNacks(
 
 function validationBasis(input: {
   group: ParsedPaymentGroup
-  trustedAcks: ParsedOrderPaymentAck[]
-  trustedNacks: ParsedOrderPaymentNack[]
+  trustedAcks: ParsedPaymentAck[]
+  trustedNacks: ParsedPaymentNack[]
 }): Pick<Validation<ParsedPaymentGroup>, 'status' | 'basis'> {
   if (!input.group.payment) return { status: 'indeterminate', basis: 'missing_payment' }
   if (input.trustedAcks.length > 0 && input.trustedNacks.length > 0) {
@@ -357,22 +363,22 @@ function statusSignature(status: StreamState | undefined): string {
 
 export class PaymentGroupReducer {
   private readonly groupIds = new Set<string>()
-  private readonly payments = new Map<string, ParsedOrderPayment>()
-  private readonly paymentAcks = new Map<string, ParsedOrderPaymentAck>()
-  private readonly paymentNacks = new Map<string, ParsedOrderPaymentNack>()
-  private readonly settlements = new Map<string, ParsedOrderPaymentSettlement>()
+  private readonly payments = new Map<string, ParsedPayment>()
+  private readonly paymentAcks = new Map<string, ParsedPaymentAck>()
+  private readonly paymentNacks = new Map<string, ParsedPaymentNack>()
+  private readonly settlements = new Map<string, ParsedPaymentSettlement>()
   private readonly ackIdsByGroupId = new Map<string, Set<string>>()
   private readonly nackIdsByGroupId = new Map<string, Set<string>>()
   private readonly settlementIdsByGroupId = new Map<string, Set<string>>()
 
-  addPayment(payment: ParsedOrderPayment): PaymentGroup {
+  addPayment(payment: ParsedPayment): PaymentGroup {
     const id = payment.event.id
     this.payments.set(id, payment)
     this.groupIds.add(id)
     return this.group(id)
   }
 
-  addPaymentAck(ack: ParsedOrderPaymentAck): PaymentGroup[] {
+  addPaymentAck(ack: ParsedPaymentAck): PaymentGroup[] {
     this.paymentAcks.set(ack.event.id, ack)
     return groupIdsForLinkedEvent(ack).map(id => {
       this.index(this.ackIdsByGroupId, id, ack.event.id)
@@ -380,7 +386,7 @@ export class PaymentGroupReducer {
     })
   }
 
-  addPaymentNack(nack: ParsedOrderPaymentNack): PaymentGroup[] {
+  addPaymentNack(nack: ParsedPaymentNack): PaymentGroup[] {
     this.paymentNacks.set(nack.event.id, nack)
     return groupIdsForLinkedEvent(nack).map(id => {
       this.index(this.nackIdsByGroupId, id, nack.event.id)
@@ -388,7 +394,7 @@ export class PaymentGroupReducer {
     })
   }
 
-  addSettlement(settlement: ParsedOrderPaymentSettlement): PaymentGroup[] {
+  addSettlement(settlement: ParsedPaymentSettlement): PaymentGroup[] {
     this.settlements.set(settlement.event.id, settlement)
     return groupIdsForLinkedEvent(settlement).map(id => {
       this.index(this.settlementIdsByGroupId, id, settlement.event.id)
@@ -423,7 +429,8 @@ export class PaymentGroupReducer {
       ...(metadata ? {
         orderGroupId: metadata.orderGroupId,
         tradeId: metadata.tradeId,
-        listingAnchor: metadata.listingAnchor,
+        anchors: metadata.anchors,
+        listingAnchor: metadata.anchors.listing,
       } : {}),
       ...(payment ? { payment } : {}),
       ...(paymentAck ? { paymentAck } : {}),

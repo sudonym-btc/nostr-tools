@@ -4,15 +4,16 @@ import type { MarketplaceAmount, OrderStage, PTag, PaymentProofEvidence } from '
 import type { ParsedOrder } from './order.ts'
 import type {
   ParsedOrderCancel,
-  ParsedOrderPayment,
-  ParsedOrderPaymentAck,
-  ParsedOrderPaymentNack,
-  ParsedOrderPaymentSettlement,
-} from './order-lifecycle.ts'
+  ParsedPayment,
+  ParsedPaymentAck,
+  ParsedPaymentNack,
+  ParsedPaymentSettlement,
+} from './payment-lifecycle.ts'
 import type { OrderGroupParticipantEntry, OrderGroupRole } from './order-id.ts'
 import type { MarketplaceOrderIdentity, OrderQuery, OrderSearchOptions, OrderSubscribeOptions } from './order-query.ts'
 import type { MarketplaceOrderValidationResult } from './order-validation.ts'
 import type { MarketplacePaymentValidationPolicy, MarketplacePaymentValidationResult } from './payment-validation.ts'
+import type { MarketplaceInvalidEventHandler } from './event-decoder.ts'
 
 export type OrderGroupRoleContext = {
   tradeId: string
@@ -34,7 +35,7 @@ export type OrderGroupRoleResolver = (
 export type ReduceOrderGroupOptions = {
   resolveRole?: OrderGroupRoleResolver
   isBuyerPaymentProofValid?: (order: ParsedOrder, context: OrderGroupRoleContext) => boolean
-  isPaymentValid?: (payment: ParsedOrderPayment, context: OrderGroupRoleContext) => boolean
+  isPaymentValid?: (payment: ParsedPayment, context: OrderGroupRoleContext) => boolean
 }
 
 export type Nip44DecryptSigner = {
@@ -120,7 +121,9 @@ export type OrderGroupFilterQuery = {
   limit?: number
 }
 
-export type OrderGroupSearchOptions = OrderSearchOptions & ReduceOrderGroupOptions
+export type OrderGroupSearchOptions = OrderSearchOptions & ReduceOrderGroupOptions & {
+  oninvalid?: MarketplaceInvalidEventHandler
+}
 
 export type OrderGroupSubscribeHandlers = {
   onevent?: (event: OrderGroupEvent) => void
@@ -131,14 +134,14 @@ export type OrderGroupSubscribeHandlers = {
   onclose?: (reasons: string[]) => void
 }
 
-export type OrderGroupBuckets = {
+export type OrderGroupRoles = {
   buyer: ParsedOrderGroup[]
   seller: ParsedOrderGroup[]
   arbiter: ParsedOrderGroup[]
   all: ParsedOrderGroup[]
 }
 
-export type MyOrderGroupQuery = Omit<OrderQuery, 'identity'> & {
+export type OrderGroupIdentityQuery = Omit<OrderQuery, 'identity'> & {
   identity: MarketplaceOrderIdentity
 }
 
@@ -157,10 +160,10 @@ export type ParsedOrderGroup = {
   participants: PTag[]
   participantPubkeys: string[]
   orders: ParsedOrder[]
-  payments: ParsedOrderPayment[]
-  paymentAcks: ParsedOrderPaymentAck[]
-  paymentNacks: ParsedOrderPaymentNack[]
-  settlements: ParsedOrderPaymentSettlement[]
+  payments: ParsedPayment[]
+  paymentAcks: ParsedPaymentAck[]
+  paymentNacks: ParsedPaymentNack[]
+  settlements: ParsedPaymentSettlement[]
   cancellations: ParsedOrderCancel[]
   events: OrderGroupEvent[]
   validOrders: OrderGroupParticipantOrder[]
@@ -170,12 +173,12 @@ export type ParsedOrderGroup = {
   buyerOrder?: ParsedOrder
   arbiterOrder?: ParsedOrder
   sellerOrder?: ParsedOrder
-  payment?: ParsedOrderPayment
-  paymentAck?: ParsedOrderPaymentAck
-  buyerPaymentAck?: ParsedOrderPaymentAck
-  sellerPaymentAck?: ParsedOrderPaymentAck
-  paymentNack?: ParsedOrderPaymentNack
-  settlement?: ParsedOrderPaymentSettlement
+  payment?: ParsedPayment
+  paymentAck?: ParsedPaymentAck
+  buyerPaymentAck?: ParsedPaymentAck
+  sellerPaymentAck?: ParsedPaymentAck
+  paymentNack?: ParsedPaymentNack
+  settlement?: ParsedPaymentSettlement
   cancellation?: ParsedOrderCancel
   stage: OrderStage
   confirmedCommitted: boolean
@@ -183,10 +186,10 @@ export type ParsedOrderGroup = {
 
 export type OrderGroupEvent =
   | ParsedOrder
-  | ParsedOrderPayment
-  | ParsedOrderPaymentAck
-  | ParsedOrderPaymentNack
-  | ParsedOrderPaymentSettlement
+  | ParsedPayment
+  | ParsedPaymentAck
+  | ParsedPaymentNack
+  | ParsedPaymentSettlement
   | ParsedOrderCancel
 
 export type OrderGroupQueryPool = Pick<AbstractSimplePool, 'querySync'>

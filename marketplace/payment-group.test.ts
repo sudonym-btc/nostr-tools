@@ -8,12 +8,12 @@ import {
   MarketplacePaymentSettlement,
 } from '../kinds.ts'
 import {
-  type OrderLinkedEventRefs,
-  type ParsedOrderPayment,
-  type ParsedOrderPaymentAck,
-  type ParsedOrderPaymentNack,
-  type ParsedOrderPaymentSettlement,
-} from './order-lifecycle.ts'
+  type PaymentLifecycleRefs,
+  type ParsedPayment,
+  type ParsedPaymentAck,
+  type ParsedPaymentNack,
+  type ParsedPaymentSettlement,
+} from './payment-lifecycle.ts'
 import { payments, type PaymentGroup, type PaymentValidation } from './payment-group.ts'
 import { MarketplaceStream, StreamEose, StreamLive, StreamQuerying } from './stream.ts'
 
@@ -35,7 +35,7 @@ function event(kind: number, id: string, createdAt: number, author = buyerPubkey
   }
 }
 
-function refs(input: Partial<OrderLinkedEventRefs> = {}): OrderLinkedEventRefs {
+function refs(input: Partial<PaymentLifecycleRefs> = {}): PaymentLifecycleRefs {
   return {
     orders: [],
     auctionBids: [],
@@ -49,11 +49,14 @@ function refs(input: Partial<OrderLinkedEventRefs> = {}): OrderLinkedEventRefs {
   }
 }
 
-function linked(input: Partial<OrderLinkedEventRefs> = {}) {
+function linked(input: Partial<PaymentLifecycleRefs> = {}) {
   return {
     orderGroupId: 'order-group',
     tradeId: 'trade',
-    listingAnchor: 'listing-anchor',
+    anchors: {
+      all: [{ value: 'listing-anchor', marker: 'listing' as const }],
+      listing: 'listing-anchor',
+    },
     participants: [
       { pubkey: buyerPubkey, role: 'buyer' },
       { pubkey: sellerPubkey, role: 'seller' },
@@ -63,7 +66,7 @@ function linked(input: Partial<OrderLinkedEventRefs> = {}) {
   }
 }
 
-function payment(id: string, createdAt: number): ParsedOrderPayment {
+function payment(id: string, createdAt: number): ParsedPayment {
   return {
     event: event(MarketplacePayment, id, createdAt),
     ...linked(),
@@ -77,7 +80,7 @@ function ack(
   paymentId: string,
   createdAt: number,
   author = sellerPubkey,
-): ParsedOrderPaymentAck {
+): ParsedPaymentAck {
   return {
     event: event(MarketplacePaymentAck, id, createdAt, author),
     ...linked({ payments: [paymentId] }),
@@ -90,7 +93,7 @@ function nack(
   paymentId: string,
   createdAt: number,
   author = sellerPubkey,
-): ParsedOrderPaymentNack {
+): ParsedPaymentNack {
   return {
     event: event(MarketplacePaymentNack, id, createdAt, author),
     ...linked({ payments: [paymentId] }),
@@ -98,7 +101,7 @@ function nack(
   }
 }
 
-function settlement(id: string, paymentId: string, createdAt: number): ParsedOrderPaymentSettlement {
+function settlement(id: string, paymentId: string, createdAt: number): ParsedPaymentSettlement {
   return {
     event: event(MarketplacePaymentSettlement, id, createdAt),
     ...linked({ payments: [paymentId] }),
@@ -108,10 +111,10 @@ function settlement(id: string, paymentId: string, createdAt: number): ParsedOrd
 
 describe('payment group streams', () => {
   test('groups out-of-order payment lifecycle events by payment reference', () => {
-    const paymentStream = new MarketplaceStream<ParsedOrderPayment>()
-    const ackStream = new MarketplaceStream<ParsedOrderPaymentAck>()
-    const nackStream = new MarketplaceStream<ParsedOrderPaymentNack>()
-    const settlementStream = new MarketplaceStream<ParsedOrderPaymentSettlement>()
+    const paymentStream = new MarketplaceStream<ParsedPayment>()
+    const ackStream = new MarketplaceStream<ParsedPaymentAck>()
+    const nackStream = new MarketplaceStream<ParsedPaymentNack>()
+    const settlementStream = new MarketplaceStream<ParsedPaymentSettlement>()
     const grouped = payments.group({
       payments: paymentStream,
       acks: ackStream,
@@ -153,8 +156,8 @@ describe('payment group streams', () => {
   })
 
   test('combines source stream status', () => {
-    const paymentStream = new MarketplaceStream<ParsedOrderPayment>()
-    const ackStream = new MarketplaceStream<ParsedOrderPaymentAck>()
+    const paymentStream = new MarketplaceStream<ParsedPayment>()
+    const ackStream = new MarketplaceStream<ParsedPaymentAck>()
     const grouped = payments.group({ payments: paymentStream, acks: ackStream })
 
     paymentStream.markQuerying({ requestCount: 1 })
@@ -222,8 +225,8 @@ describe('payment group streams', () => {
   })
 
   test('streams payment group validation updates without driver validation', () => {
-    const paymentStream = new MarketplaceStream<ParsedOrderPayment>()
-    const ackStream = new MarketplaceStream<ParsedOrderPaymentAck>()
+    const paymentStream = new MarketplaceStream<ParsedPayment>()
+    const ackStream = new MarketplaceStream<ParsedPaymentAck>()
     const grouped = payments.group({ payments: paymentStream, acks: ackStream })
     const validated = payments.validateGroups(grouped)
     const validations: PaymentValidation[] = []

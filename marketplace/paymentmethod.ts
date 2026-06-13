@@ -2,6 +2,7 @@ import type { AbstractSimplePool } from '../abstract-pool.ts'
 import type { Event, EventTemplate } from '../core.ts'
 import type { Filter } from '../filter.ts'
 import { MarketplacePaymentMethod } from '../kinds.ts'
+import { decodeMarketplaceEvent, type MarketplaceInvalidEventHandler } from './event-decoder.ts'
 import { canonicalCurrency, isEvmAddress, now, tagValues } from './helper.ts'
 
 export type AcceptedPaymentForm = {
@@ -40,6 +41,11 @@ export type PaymentMethodFindQuery = {
   denomination?: string
   assetId?: string
   limit?: number
+}
+
+export type PaymentMethodFindOptions = {
+  maxWait?: number
+  oninvalid?: MarketplaceInvalidEventHandler
 }
 
 export function canonicalAssetId(assetId: string): string {
@@ -176,9 +182,17 @@ export async function findPaymentMethod(
   pool: Pick<AbstractSimplePool, 'querySync'>,
   relays: string[],
   query: PaymentMethodFindQuery = {},
+  options: PaymentMethodFindOptions = {},
 ): Promise<ParsedPaymentMethod | null> {
-  const events = await pool.querySync(relays, paymentMethodFilter(query))
-  const methods = events.filter(validatePaymentMethodEvent).map(parsePaymentMethodEvent)
+  const events = await pool.querySync(relays, paymentMethodFilter(query), options)
+  const methods: ParsedPaymentMethod[] = []
+  for (const event of events) {
+    const decoded = decodeMarketplaceEvent(event, parsePaymentMethodEvent, {
+      source: 'paymentMethod.findOne',
+      oninvalid: options.oninvalid,
+    })
+    if (decoded.ok) methods.push(decoded.value)
+  }
   return (
     methods.find(method => {
       const queryCurrency = query.currency ?? query.denomination

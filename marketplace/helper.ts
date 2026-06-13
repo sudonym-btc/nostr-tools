@@ -20,7 +20,10 @@ import {
 } from '../kinds.ts'
 import { bytesToHex, utf8Encoder } from '../utils.ts'
 import { sha256 } from '@noble/hashes/sha2.js'
-import type { MarketplaceDriverPaymentProofParams } from '@sudonym-btc/marketplace-driver-interface'
+import type {
+  MarketplaceDriverPaymentProof,
+  MarketplaceDriverPaymentProofParams,
+} from '@sudonym-btc/marketplace-driver-interface'
 import type {
   MarketplaceParticipantRole,
   MarketplaceParticipantTag,
@@ -116,10 +119,7 @@ export type CancellationPolicy = {
 
 export type PTag = MarketplaceParticipantTag
 
-export type PaymentProofEvidence = {
-  driver: string
-  params: MarketplaceDriverPaymentProofParams
-}
+export type PaymentProofEvidence = MarketplaceDriverPaymentProof
 
 export type PaymentProof = {
   paymentProof: PaymentProofEvidence | null

@@ -14,16 +14,17 @@ import { parseAuctionBidEvent, type ParsedMarketplaceAuctionBid } from './auctio
 import { parseOrderEvent, type ParsedOrder } from './order.ts'
 import {
   parseOrderCancelEvent,
-  parseOrderPaymentAckEvent,
-  parseOrderPaymentEvent,
-  parseOrderPaymentNackEvent,
-  parseOrderPaymentSettlementEvent,
+  parsePaymentAckEvent,
+  parsePaymentEvent,
+  parsePaymentNackEvent,
+  parsePaymentSettlementEvent,
+  paymentLifecycleHasAnchor,
   type ParsedOrderCancel,
-  type ParsedOrderPayment,
-  type ParsedOrderPaymentAck,
-  type ParsedOrderPaymentNack,
-  type ParsedOrderPaymentSettlement,
-} from './order-lifecycle.ts'
+  type ParsedPayment,
+  type ParsedPaymentAck,
+  type ParsedPaymentNack,
+  type ParsedPaymentSettlement,
+} from './payment-lifecycle.ts'
 import {
   isOrderGroupRole,
   orderGroupIdForRoleParticipants,
@@ -73,7 +74,7 @@ function latestEvent<T extends OrderGroupEvent>(left: T | undefined, right: T): 
   return right.event.id.localeCompare(left.event.id) > 0 ? right : left
 }
 
-type ParsedPaymentDecision = ParsedOrderPaymentAck | ParsedOrderPaymentNack
+type ParsedPaymentDecision = ParsedPaymentAck | ParsedPaymentNack
 
 function roleForPubkey(context: OrderGroupRoleContext, pubkey: string): OrderGroupRole | undefined {
   return context.participantEntries.find(participant => participant.pubkey === pubkey)?.role
@@ -83,19 +84,19 @@ function isParsedOrder(event: OrderGroupEvent): event is ParsedOrder {
   return event.event.kind === MarketplaceOrder
 }
 
-function isParsedPayment(event: OrderGroupEvent): event is ParsedOrderPayment {
+function isParsedPayment(event: OrderGroupEvent): event is ParsedPayment {
   return event.event.kind === MarketplacePayment
 }
 
-function isParsedPaymentAck(event: OrderGroupEvent): event is ParsedOrderPaymentAck {
+function isParsedPaymentAck(event: OrderGroupEvent): event is ParsedPaymentAck {
   return event.event.kind === MarketplacePaymentAck
 }
 
-function isParsedPaymentNack(event: OrderGroupEvent): event is ParsedOrderPaymentNack {
+function isParsedPaymentNack(event: OrderGroupEvent): event is ParsedPaymentNack {
   return event.event.kind === MarketplacePaymentNack
 }
 
-function isParsedSettlement(event: OrderGroupEvent): event is ParsedOrderPaymentSettlement {
+function isParsedSettlement(event: OrderGroupEvent): event is ParsedPaymentSettlement {
   return event.event.kind === MarketplacePaymentSettlement
 }
 
@@ -105,13 +106,21 @@ function isParsedCancel(event: OrderGroupEvent): event is ParsedOrderCancel {
 
 export type ParticipantGroupEvent = ParsedOrder | ParsedMarketplaceAuctionBid
 
+function isParticipantOrder(event: ParticipantGroupEvent): event is ParsedOrder {
+  return event.event.kind === MarketplaceOrder
+}
+
+function isParticipantAuctionBid(event: ParticipantGroupEvent): event is ParsedMarketplaceAuctionBid {
+  return event.event.kind === MarketplaceAuctionBid
+}
+
 export function parseOrderGroupEvent(event: Event | OrderGroupEvent): OrderGroupEvent {
   if ('event' in event) return event
   if (event.kind === MarketplaceOrder) return parseOrderEvent(event)
-  if (event.kind === MarketplacePayment) return parseOrderPaymentEvent(event)
-  if (event.kind === MarketplacePaymentAck) return parseOrderPaymentAckEvent(event)
-  if (event.kind === MarketplacePaymentNack) return parseOrderPaymentNackEvent(event)
-  if (event.kind === MarketplacePaymentSettlement) return parseOrderPaymentSettlementEvent(event)
+  if (event.kind === MarketplacePayment) return parsePaymentEvent(event)
+  if (event.kind === MarketplacePaymentAck) return parsePaymentAckEvent(event)
+  if (event.kind === MarketplacePaymentNack) return parsePaymentNackEvent(event)
+  if (event.kind === MarketplacePaymentSettlement) return parsePaymentSettlementEvent(event)
   if (event.kind === MarketplaceOrderCancel) return parseOrderCancelEvent(event)
   throw new Error('Invalid order group event kind')
 }
@@ -148,7 +157,9 @@ export function orderGroupIdForParticipants(
 
 export function participantGroupIdForEvent(event: ParticipantGroupEvent | Event): string {
   const parsed = parseParticipantGroupEvent(event)
-  return 'orderGroupId' in parsed ? parsed.orderGroupId : participantGroupIdForRecord(parsed)
+  if (isParticipantOrder(parsed)) return parsed.orderGroupId
+  if (isParticipantAuctionBid(parsed)) return participantGroupIdForRecord(parsed)
+  throw new Error('Invalid participant group event kind')
 }
 
 export function orderGroupParticipantPubkeys(order: ParsedOrder | ParsedMarketplaceAuctionBid | Event): string[] {
@@ -220,11 +231,39 @@ function sameGroup(order: ParsedOrder, groupId: string, listingAnchor: string): 
   return order.listingAnchor === listingAnchor && order.orderGroupId === groupId
 }
 
+export function orderGroupEventListingAnchor(event: OrderGroupEvent): string | undefined {
+  if (isParsedOrder(event)) return event.listingAnchor
+  if (
+    isParsedPayment(event) ||
+    isParsedPaymentAck(event) ||
+    isParsedPaymentNack(event) ||
+    isParsedSettlement(event) ||
+    isParsedCancel(event)
+  ) {
+    return event.anchors.listing
+  }
+  return undefined
+}
+
+function orderGroupEventHasListingAnchor(event: OrderGroupEvent, listingAnchor: string): boolean {
+  if (isParsedOrder(event)) return event.listingAnchor === listingAnchor
+  if (
+    isParsedPayment(event) ||
+    isParsedPaymentAck(event) ||
+    isParsedPaymentNack(event) ||
+    isParsedSettlement(event) ||
+    isParsedCancel(event)
+  ) {
+    return paymentLifecycleHasAnchor(event, listingAnchor, 'listing')
+  }
+  return false
+}
+
 function sameOrderGroupEvent(event: OrderGroupEvent, context: OrderGroupRoleContext): boolean {
   return (
     event.orderGroupId === context.orderGroupId &&
     event.tradeId === context.tradeId &&
-    event.listingAnchor === context.listingAnchor
+    orderGroupEventListingAnchor(event) === context.listingAnchor
   )
 }
 
@@ -242,7 +281,7 @@ export function allowedInOrderGroup(event: Event | OrderGroupEvent, anchor: Pars
   return (
     parsed.orderGroupId === context.orderGroupId &&
     parsed.tradeId === context.tradeId &&
-    parsed.listingAnchor === context.listingAnchor &&
+    orderGroupEventHasListingAnchor(parsed, context.listingAnchor) &&
     context.participantPubkeys.includes(parsed.event.pubkey)
   )
 }
@@ -303,7 +342,7 @@ export function reduceOrderGroup(
     if (!valid) ignoredEvents.push(payment)
     return valid
   })
-  const payment = payments.reduce<ParsedOrderPayment | undefined>(latestEvent, undefined)
+  const payment = payments.reduce<ParsedPayment | undefined>(latestEvent, undefined)
   const paymentIds = new Set(payments.map(item => item.event.id))
   const paymentAcks = groupEvents.filter(isParsedPaymentAck).filter(ack => {
     const valid = allowedInOrderGroup(ack, base) && ack.refs.payments.some(id => paymentIds.has(id))
@@ -329,7 +368,7 @@ export function reduceOrderGroup(
     latestPaymentDecision && isParsedPaymentNack(latestPaymentDecision) && latestPaymentDecision.content.status === 'rejected'
       ? latestPaymentDecision
       : undefined
-  const latestAcceptedAckByRole: Partial<Record<OrderGroupRole, ParsedOrderPaymentAck>> = {}
+  const latestAcceptedAckByRole: Partial<Record<OrderGroupRole, ParsedPaymentAck>> = {}
   for (const ack of paymentAcks) {
     if (payment && !ack.refs.payments.includes(payment.event.id)) continue
     if (ack.content.status !== 'accepted') continue
@@ -342,7 +381,7 @@ export function reduceOrderGroup(
     if (!valid) ignoredEvents.push(settlement)
     return valid
   })
-  const settlement = settlements.reduce<ParsedOrderPaymentSettlement | undefined>(latestEvent, undefined)
+  const settlement = settlements.reduce<ParsedPaymentSettlement | undefined>(latestEvent, undefined)
   const cancellations = groupEvents.filter(isParsedCancel).filter(cancel => {
     const valid =
       allowedInOrderGroup(cancel, base) &&
@@ -410,15 +449,17 @@ export function groupOrderEvents(
   events: Iterable<Event | OrderGroupEvent>,
   options: ReduceOrderGroupOptions = {},
 ): ParsedOrderGroup[] {
-  const buckets = new Map<string, OrderGroupEvent[]>()
+  const eventGroups = new Map<string, OrderGroupEvent[]>()
   for (const event of events) {
     const orderEvent = parseOrderGroupEvent(event)
-    const key = `${orderEvent.orderGroupId}:${orderEvent.listingAnchor}`
-    const bucket = buckets.get(key)
-    if (bucket) bucket.push(orderEvent)
-    else buckets.set(key, [orderEvent])
+    const listingAnchor = orderGroupEventListingAnchor(orderEvent)
+    if (!listingAnchor) continue
+    const key = `${orderEvent.orderGroupId}:${listingAnchor}`
+    const eventGroup = eventGroups.get(key)
+    if (eventGroup) eventGroup.push(orderEvent)
+    else eventGroups.set(key, [orderEvent])
   }
-  return [...buckets.values()]
-    .filter(bucket => bucket.some(isParsedOrder))
-    .map(bucket => reduceOrderGroup(bucket, options))
+  return [...eventGroups.values()]
+    .filter(eventGroup => eventGroup.some(isParsedOrder))
+    .map(eventGroup => reduceOrderGroup(eventGroup, options))
 }

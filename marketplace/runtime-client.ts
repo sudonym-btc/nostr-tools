@@ -1,6 +1,7 @@
 import type { AbstractSimplePool } from '../abstract-pool.ts'
 import type { Event, EventTemplate } from '../core.ts'
-import { GiftWrap, MarketplaceAuctionBid, MarketplacePayment, MarketplaceShippingOption, Seal } from '../kinds.ts'
+import type { Filter } from '../filter.ts'
+import { GiftWrap, MarketplaceAuctionBid, MarketplacePayment, MarketplacePaymentSettlement, MarketplaceShippingOption, Seal } from '../kinds.ts'
 import { encrypt, getConversationKey } from '../nip44.ts'
 import { finalizeEvent, generateSecretKey } from '../pure.ts'
 import {
@@ -10,6 +11,7 @@ import {
   validatePaymentMethodEvent,
   canonicalAssetId,
   paymentMethodFilter,
+  type PaymentMethodFindOptions,
   type PaymentMethodFindQuery,
   type AcceptedPaymentForm,
   type ParsedPaymentMethod,
@@ -26,6 +28,7 @@ import {
   generateArbitrationServiceSelectionEventTemplate,
   calculateArbitrationFee,
   type ArbitrationServiceFindQuery,
+  type ArbitrationServiceSearchOptions,
   type ParsedArbitrationService,
 } from './arbitrationservice.ts'
 import {
@@ -39,6 +42,7 @@ import {
   parseListingEvent,
   searchListings,
   validateListingEvent,
+  type ListingSearchOptions,
   type ListingSearchQuery,
   type MarketplaceListing,
 } from './listing.ts'
@@ -49,6 +53,7 @@ import {
   shippingOptionAddress,
   shippingOptionSearchFilter,
   validateShippingOptionEvent,
+  type ShippingOptionSearchOptions,
   type ShippingOptionSearchQuery,
 } from './shipping-option.ts'
 import {
@@ -101,37 +106,44 @@ import {
   auctionBidGroupFilters,
   buildAuctionBidChains,
   fetchAuctionBidGroups,
-  fetchMyAuctionBidGroups,
   groupAuctionBidEvents,
   reduceAuctionBidGroup,
+  roleAuctionBidGroups,
   subscribeAuctionBidGroups,
   type AuctionBidGroupQuery,
+  type AuctionBidGroupEvent,
+  type AuctionBidGroupRoles,
   type AuctionBidGroupSearchOptions,
   type AuctionBidGroupSubscribeHandlers,
   type AuctionBidGroupSubscribeOptions,
-  type MyAuctionBidGroupQuery,
   type ParsedAuctionBidGroup,
 } from './auction-bid-group.ts'
 import {
-  createAuctionScope,
+  queryAuctionScope,
+  streamAuctionScope,
+  type MarketplaceAuctionScopeOptions,
   type MarketplaceAuctionScopeQuery,
 } from './auction-scope.ts'
 import {
-  generateOrderPaymentAckEventTemplate,
-  generateOrderPaymentEventTemplate,
-  generateOrderPaymentNackEventTemplate,
-  generateOrderPaymentSettlementEventTemplate,
-  parseOrderPaymentEvent,
-  type OrderPaymentSettlementOutput,
-  type ParsedOrderPayment,
-} from './order-lifecycle.ts'
+  decodeMarketplaceEvent,
+  type MarketplaceInvalidEventHandler,
+} from './event-decoder.ts'
+import {
+  generatePaymentAckEventTemplate,
+  generatePaymentEventTemplate,
+  generatePaymentNackEventTemplate,
+  generatePaymentSettlementEventTemplate,
+  parsePaymentEvent,
+  parsePaymentSettlementEvent,
+  type PaymentSettlementOutput,
+  type ParsedPayment,
+  type ParsedPaymentSettlement,
+} from './payment-lifecycle.ts'
 import { paymentValidationRequest } from './order-group-payment.ts'
 import {
   fetchOrderGroups,
-  bucketOrderGroups,
-  searchMyOrderGroups,
+  roleOrderGroups,
   searchOrderGroups,
-  subscribeMyOrderGroups,
   subscribeOrderGroups,
   groupOrderEvents,
   orderGroupFilter,
@@ -147,16 +159,18 @@ import {
   resolveOrderGroupParticipants,
   validateOrderGroupPayments,
   type OrderGroupFilterQuery,
-  type MyOrderGroupQuery,
-  type OrderGroupBuckets,
+  type OrderGroupIdentityQuery,
+  type OrderGroupRoles,
   type OrderGroupSearchOptions,
   type OrderGroupSubscribeHandlers,
   type ResolveAndValidateOrderGroupOptions,
   type ReduceOrderGroupOptions,
+  type OrderGroupEvent,
   type ParsedOrderGroup,
 } from './order-group.ts'
 import {
   orderFilters,
+  orderIdentityPubkeys,
   searchOrders,
   subscribeOrders,
   type MarketplaceOrderIdentity,
@@ -167,7 +181,6 @@ import {
 } from './order-query.ts'
 import {
   streamMyOrderGroups,
-  streamMyOrders,
   streamOrders,
   streamOrderGroups,
 } from './order-stream.ts'
@@ -212,11 +225,17 @@ import {
   validatePaymentGroup,
   validatePaymentGroupStream,
 } from './payment-group.ts'
+import { paymentTerms } from './payment-terms.ts'
+import { resolvePaymentAmount } from './payment-amount.ts'
+import { resolvePaymentProof, resolvePaymentProofEvidence } from './payment-proof.ts'
 import {
-  fetchMarketplaceInbox,
   marketplaceInboxFilter,
   streamMarketplaceInbox,
-  unwrapMarketplaceInboxItem,
+  type MarketplaceInboxFetchOptions,
+  type MarketplaceInboxItem,
+  type MarketplaceInboxQuery,
+  type MarketplaceInboxStream,
+  type MarketplaceInboxSubscribeOptions,
 } from './inbox.ts'
 import type {
   MarketplacePolicyWatermarkRecoveryAction,
@@ -239,8 +258,10 @@ import type {
   MarketplacePaymentIdentity,
   MarketplacePaymentContract,
   MarketplacePaymentIntent,
-  MarketplacePaymentRecoveryItem,
-  MarketplacePaymentRecoveryState,
+  MarketplacePaymentValidationItem,
+  MarketplacePaymentSweepInput,
+  MarketplacePaymentSweepRecord,
+  MarketplacePaymentSweepState,
   MarketplacePaymentArbitrationIntent,
   MarketplacePaymentArbitrationState,
   MarketplacePaymentArbitrationRequest,
@@ -273,7 +294,6 @@ import type {
   MarketplaceBidPolicy,
   MarketplacePayOptions,
   MarketplaceResolvedPayOptions,
-  MarketplacePaymentRouteOptions,
   MarketplaceOrderCreateParams,
   MarketplaceOrderNegotiationResult,
   MarketplaceRuntimeIdentity,
@@ -289,14 +309,29 @@ import type {
   MarketplacePaymentMethodApi,
   MarketplaceArbitrationServicesApi,
   MarketplaceArbitrationServiceSelectionsApi,
-  MarketplaceOrderGroupsApi,
   MarketplaceOrdersApi,
   MarketplaceReviewsApi,
   MarketplaceStructuredMessagesApi,
-  MarketplacePaymentRoutesApi,
-  MarketplaceInboxApi,
+  MarketplaceMeApi,
+  MarketplaceMeBidRoleApi,
+  MarketplaceMeBidsApi,
+  MarketplaceMeBidsQuery,
+  MarketplaceMeBidsSnapshot,
+  MarketplaceMeBidsStream,
+  MarketplaceMeInboxApi,
+  MarketplaceMePaymentsApi,
+  MarketplaceMePaymentsQuery,
+  MarketplaceMePaymentsSearchOptions,
+  MarketplaceMePaymentsSnapshot,
+  MarketplaceMePaymentsStream,
+  MarketplaceMePaymentsSubscribeOptions,
+  MarketplaceMeOrderRoleApi,
+  MarketplaceMeOrdersApi,
+  MarketplaceMeOrdersQuery,
+  MarketplaceMeOrdersSnapshot,
+  MarketplaceMeOrdersStream,
+  MarketplaceAuctionLookupOptions,
   MarketplaceAuctionsApi,
-  MarketplaceAuctionBidGroupsApi,
   MarketplacePaymentsApi,
   MarketplaceArbitrationApi,
   MarketplaceClient,
@@ -306,16 +341,21 @@ import type {
   MarketplaceSession,
 } from './runtime-types.ts'
 import {
-  paymentItemsForMyOrderGroups,
+  MarketplaceStream,
+  ReplayStream,
+  StreamClosed,
+  StreamEose,
+  StreamLive,
+} from './stream.ts'
+import {
   paymentPolicies,
   paymentValidationPolicies,
   policyForPayment,
-  recoverMarketplacePayment,
   requireMarketplacePublisher,
   requireSubscribePool,
   runtimeIdentity,
-  runtimeMyOrderQuery,
   runtimeSeed,
+  sweepMarketplacePayment,
   validateGroupsWithRuntimePolicies,
   validateMarketplacePayment,
   marketplaceLogger,
@@ -326,11 +366,12 @@ import {
   eventAnchor,
   orderWithRouteParticipants,
   publishAuctionBidPaymentStream,
-  publishOrderPaymentStream,
+  publishOrderPayStream,
 } from './runtime-payment-flow.ts'
 import {
   normalizeAmountForRouteEvent,
-  paymentRoutesForListing,
+  auctionPaymentRoutesForListing,
+  orderPaymentRoutesForListing,
   routeMatchesAuction,
 } from './runtime-routes.ts'
 import {
@@ -341,14 +382,743 @@ import { arbitrateMarketplacePayment } from './runtime-payment-arbitration.ts'
 import { startMarketplaceArbitration } from './runtime-arbitration.ts'
 import { settleMarketplaceAuction } from './runtime-auction-settlement.ts'
 import { createMarketplaceLocationsApi } from './location.ts'
+import { createMarketplaceSession } from './runtime-session.ts'
 
 function uniquePubkeys(pubkeys: string[]): string[] {
   return [...new Set(pubkeys.filter(Boolean))]
 }
 
+function mergedInvalidEventHandler(
+  opts: MarketplaceRuntimeOptions,
+  local?: MarketplaceInvalidEventHandler,
+): MarketplaceInvalidEventHandler | undefined {
+  if (!opts.onInvalidEvent) return local
+  return invalid => {
+    opts.onInvalidEvent?.(invalid)
+    local?.(invalid)
+  }
+}
+
+function withInvalidEventHandler<T extends object>(
+  opts: MarketplaceRuntimeOptions,
+  options: T,
+): T & { oninvalid?: MarketplaceInvalidEventHandler } {
+  const local = (options as { oninvalid?: MarketplaceInvalidEventHandler }).oninvalid
+  const handler = mergedInvalidEventHandler(opts, local)
+  return handler ? { ...options, oninvalid: handler } : options
+}
+
+function withLegacyInvalidEventHandler<T extends { oninvalid?: (event: Event, error: Error) => void }>(
+  opts: MarketplaceRuntimeOptions,
+  source: string,
+  handlers: T,
+): T {
+  if (!opts.onInvalidEvent) return handlers
+  return {
+    ...handlers,
+    oninvalid(event: Event, error: Error) {
+      opts.onInvalidEvent?.({ event, error, source })
+      handlers.oninvalid?.(event, error)
+    },
+  }
+}
+
 function requireMarketplaceSigner(opts: MarketplaceRuntimeOptions): MarketplaceSeedSigner {
   if (!opts.signer) throw new Error('Marketplace inbox requires a signer')
   return opts.signer
+}
+
+type Subscription = { unsubscribe(): void }
+
+class LazyMarketplaceStream<TEvent, TSnapshot, TQuery extends object, TOptions extends object> {
+  private readonly streams = new Map<string, MarketplaceStream<TEvent, TSnapshot>>()
+
+  constructor(
+    private readonly createStream: (query: TQuery, options: TOptions) => MarketplaceStream<TEvent, TSnapshot>,
+  ) {}
+
+  get(query: TQuery, options: TOptions): MarketplaceStream<TEvent, TSnapshot> {
+    const key = LazyMarketplaceStream.key(query)
+    let stream = this.streams.get(key)
+    if (!stream || stream.currentStatus instanceof StreamClosed) {
+      stream = this.createStream(query, options)
+      this.streams.set(key, stream)
+    }
+    return stream
+  }
+
+  watch(query: TQuery, options: TOptions): MarketplaceStream<TEvent, TSnapshot> {
+    return this.get(query, options).filter(() => true)
+  }
+
+  async list(query: TQuery, options: TOptions, fallback: TSnapshot): Promise<TSnapshot> {
+    const stream = this.get(query, options)
+    await LazyMarketplaceStream.waitForBackfill(stream)
+    return stream.currentSnapshot ?? fallback
+  }
+
+  static snapshotView<TEvent, TSourceSnapshot, TViewSnapshot>(
+    source: MarketplaceStream<TEvent, TSourceSnapshot>,
+    view: (snapshot: TSourceSnapshot) => TViewSnapshot,
+  ): MarketplaceStream<TEvent, TViewSnapshot> {
+    let eventSubscription: Subscription | undefined
+    let snapshotSubscription: Subscription | undefined
+    const stream = new MarketplaceStream<TEvent, TViewSnapshot>({
+      status: source.status,
+      emitClosedOnClose: false,
+      onClose: () => {
+        eventSubscription?.unsubscribe()
+        snapshotSubscription?.unsubscribe()
+      },
+    })
+    eventSubscription = source.events.subscribe(event => stream.emitEvent(event))
+    snapshotSubscription = source.snapshot.subscribe(snapshot => stream.emitSnapshot(view(snapshot)))
+    return stream
+  }
+
+  static async waitForBackfill<TEvent, TSnapshot>(
+    stream: MarketplaceStream<TEvent, TSnapshot>,
+  ): Promise<void> {
+    if (
+      !(stream.currentStatus instanceof StreamEose) &&
+      !(stream.currentStatus instanceof StreamLive) &&
+      !(stream.currentStatus instanceof StreamClosed)
+    ) {
+      await Promise.race([
+        stream.until(StreamEose),
+        stream.until(StreamLive),
+        stream.until(StreamClosed),
+      ])
+    }
+  }
+
+  private static key(value: unknown): string {
+    return JSON.stringify(LazyMarketplaceStream.stable(value))
+  }
+
+  private static stable(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(item => LazyMarketplaceStream.stable(item))
+    if (!value || typeof value !== 'object') return value
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, entry]) => entry !== undefined)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, entry]) => [key, LazyMarketplaceStream.stable(entry)]),
+    )
+  }
+}
+
+class MarketplaceMeOrdersRuntime implements MarketplaceMeOrdersApi {
+  readonly placed: MarketplaceMeOrderRoleApi
+  readonly received: MarketplaceMeOrderRoleApi
+  readonly arbitrating: MarketplaceMeOrderRoleApi
+  readonly resolveParticipants = resolveOrderGroupParticipants
+
+  private readonly cache: LazyMarketplaceStream<
+    OrderGroupEvent,
+    OrderGroupRoles,
+    OrderGroupIdentityQuery,
+    OrderSubscribeOptions & ReduceOrderGroupOptions
+  >
+
+  constructor(private readonly opts: MarketplaceRuntimeOptions) {
+    this.cache = new LazyMarketplaceStream((query, options) =>
+      streamMyOrderGroups(requireSubscribePool(this.opts.pool), this.opts.relays, query, options),
+    )
+    this.placed = this.role('placed')
+    this.received = this.role('received')
+    this.arbitrating = this.role('arbitrating')
+  }
+
+  async list(
+    query: MarketplaceMeOrdersQuery = {},
+    options: OrderGroupSearchOptions = {},
+  ): Promise<MarketplaceMeOrdersSnapshot> {
+    const resolvedQuery = this.query(query)
+    const roles = await this.cache.list(
+      resolvedQuery,
+      options,
+      roleOrderGroups([], resolvedQuery.identity),
+    )
+    const validated = await validateGroupsWithRuntimePolicies(this.opts, roles.all, options)
+    return this.snapshot(roleOrderGroups(validated, resolvedQuery.identity))
+  }
+
+  watch(
+    query: MarketplaceMeOrdersQuery = {},
+    options: OrderSubscribeOptions & ReduceOrderGroupOptions = {},
+  ): MarketplaceMeOrdersStream {
+    const stream = this.cache.get(this.query(query), options)
+    return LazyMarketplaceStream.snapshotView(stream, roles => this.snapshot(roles))
+  }
+
+  private role(role: keyof Omit<MarketplaceMeOrdersSnapshot, 'all'>): MarketplaceMeOrderRoleApi {
+    return {
+      list: async (query = {}, options = {}) => (await this.list(query, options))[role],
+      watch: (query = {}, options = {}) => {
+        const stream = this.cache.get(this.query(query), options)
+        return LazyMarketplaceStream.snapshotView(stream, roles => this.snapshot(roles)[role])
+      },
+    }
+  }
+
+  private query(query: MarketplaceMeOrdersQuery = {}): OrderGroupIdentityQuery {
+    const { identity, ...rest } = query
+    return {
+      ...rest,
+      identity: runtimeIdentity(this.opts, {
+        roles: ['buyer', 'seller', 'arbiter'],
+        tempKeyWindow: 500,
+        ...identity,
+      }),
+    }
+  }
+
+  private snapshot(roles: OrderGroupRoles): MarketplaceMeOrdersSnapshot {
+    return {
+      placed: roles.buyer,
+      received: roles.seller,
+      arbitrating: roles.arbiter,
+      all: roles.all,
+    }
+  }
+}
+
+type ResolvedMarketplaceMeBidsQuery = Omit<MarketplaceMeBidsQuery, 'identity' | 'limit'> & {
+  identity: MarketplaceOrderIdentity
+  limit: number
+}
+
+class MarketplaceMeBidsRuntime implements MarketplaceMeBidsApi {
+  readonly placed: MarketplaceMeBidRoleApi
+  readonly received: MarketplaceMeBidRoleApi
+  readonly arbitrating: MarketplaceMeBidRoleApi
+
+  private readonly cache: LazyMarketplaceStream<
+    AuctionBidGroupEvent,
+    AuctionBidGroupRoles,
+    ResolvedMarketplaceMeBidsQuery,
+    AuctionBidGroupSubscribeOptions
+  >
+
+  constructor(private readonly opts: MarketplaceRuntimeOptions) {
+    this.cache = new LazyMarketplaceStream((query, options) => this.stream(query, options))
+    this.placed = this.role('placed')
+    this.received = this.role('received')
+    this.arbitrating = this.role('arbitrating')
+  }
+
+  async list(
+    query: MarketplaceMeBidsQuery = {},
+    options: AuctionBidGroupSearchOptions = {},
+  ): Promise<MarketplaceMeBidsSnapshot> {
+    const resolvedQuery = this.query(query)
+    const roles = await this.cache.list(
+      resolvedQuery,
+      options,
+      roleAuctionBidGroups([], resolvedQuery.identity),
+    )
+    return this.snapshot(roles)
+  }
+
+  watch(
+    query: MarketplaceMeBidsQuery = {},
+    options: AuctionBidGroupSubscribeOptions = {},
+  ): MarketplaceMeBidsStream {
+    const stream = this.cache.get(this.query(query), options)
+    return LazyMarketplaceStream.snapshotView(stream, roles => this.snapshot(roles))
+  }
+
+  private role(role: keyof Omit<MarketplaceMeBidsSnapshot, 'all'>): MarketplaceMeBidRoleApi {
+    return {
+      list: async (query = {}, options = {}) => (await this.list(query, options))[role],
+      watch: (query = {}, options = {}) => {
+        const stream = this.cache.get(this.query(query), options)
+        return LazyMarketplaceStream.snapshotView(stream, roles => this.snapshot(roles)[role])
+      },
+    }
+  }
+
+  private query(query: MarketplaceMeBidsQuery = {}): ResolvedMarketplaceMeBidsQuery {
+    const { identity, ...rest } = query
+    return {
+      limit: 500,
+      ...rest,
+      identity: runtimeIdentity(this.opts, {
+        roles: ['buyer', 'seller', 'arbiter'],
+        tempKeyWindow: 500,
+        ...identity,
+      }),
+    }
+  }
+
+  private stream(
+    query: ReturnType<MarketplaceMeBidsRuntime['query']>,
+    options: AuctionBidGroupSubscribeOptions = {},
+  ): MarketplaceStream<AuctionBidGroupEvent, AuctionBidGroupRoles> {
+    let eventCount = 0
+    let sub: { close(reason?: string): void } | undefined
+    const stream = new MarketplaceStream<AuctionBidGroupEvent, AuctionBidGroupRoles>({
+      onClose: reason => sub?.close(reason),
+    })
+    stream.emitSnapshot(roleAuctionBidGroups([], query.identity))
+    stream.markQuerying({ requestCount: this.opts.relays.length * auctionBidGroupFilters(query).length })
+    sub = subscribeAuctionBidGroups(requireSubscribePool(this.opts.pool), this.opts.relays, query, {
+      onevent(event) {
+        eventCount += 1
+        stream.emitEvent(event)
+      },
+      ongroups: groups => {
+        stream.emitSnapshot(roleAuctionBidGroups(groups, query.identity))
+      },
+      oninvalid: (event, error) => {
+        this.opts.onInvalidEvent?.({ event, error, source: 'me.bids.watch' })
+      },
+      oneose() {
+        stream.markEose({ eventCount })
+        stream.markLive({ eventCount })
+      },
+      onclose(reasons) {
+        stream.emitStatus(new StreamClosed({ reasons }))
+      },
+    }, options)
+    return stream
+  }
+
+  private snapshot(roles: AuctionBidGroupRoles): MarketplaceMeBidsSnapshot {
+    return {
+      placed: roles.buyer,
+      received: roles.seller,
+      arbitrating: roles.arbiter,
+      all: roles.all,
+    }
+  }
+}
+
+class MarketplaceMeInboxRuntime implements MarketplaceMeInboxApi {
+  readonly filter = marketplaceInboxFilter
+
+  private readonly cache: LazyMarketplaceStream<
+    MarketplaceInboxItem,
+    MarketplaceInboxItem[],
+    MarketplaceInboxQuery & { pubkey: string },
+    MarketplaceInboxSubscribeOptions
+  >
+
+  constructor(private readonly opts: MarketplaceRuntimeOptions) {
+    this.cache = new LazyMarketplaceStream((query, options) =>
+      streamMarketplaceInbox(
+        requireSubscribePool(this.opts.pool),
+        this.opts.relays,
+        requireMarketplaceSigner(this.opts),
+        query,
+        options,
+      ),
+    )
+  }
+
+  list(
+    query: MarketplaceInboxQuery = {},
+    options: MarketplaceInboxFetchOptions = {},
+  ): Promise<MarketplaceInboxItem[]> {
+    return this.cache.list(this.query(query), options, [])
+  }
+
+  watch(
+    query: MarketplaceInboxQuery = {},
+    options: MarketplaceInboxSubscribeOptions = {},
+  ): MarketplaceInboxStream {
+    return this.cache.watch(this.query(query), options)
+  }
+
+  private query(query: MarketplaceInboxQuery = {}): MarketplaceInboxQuery & { pubkey: string } {
+    return {
+      ...query,
+      pubkey: query.pubkey ?? runtimeIdentity(this.opts).pubkey!,
+      limit: query.limit ?? 100,
+    }
+  }
+}
+
+type ParsedMarketplacePaymentEvent = ParsedPayment | ParsedPaymentSettlement
+
+type ResolvedMarketplaceMePaymentsQuery = Omit<MarketplaceMePaymentsQuery, 'identity' | 'limit'> & {
+  identity: MarketplaceOrderIdentity
+  limit: number
+}
+
+function valueChunks<T>(values: T[], size = 200): T[][] {
+  const chunks: T[][] = []
+  for (let index = 0; index < values.length; index += size) chunks.push(values.slice(index, index + size))
+  return chunks
+}
+
+function marketplacePaymentEventFilters(query: ResolvedMarketplaceMePaymentsQuery): Filter[] {
+  const { identity, paymentIds, authors, participantPubkeys, ...rest } = query
+  const base = {
+    ...(rest.since !== undefined ? { since: rest.since } : {}),
+    ...(rest.until !== undefined ? { until: rest.until } : {}),
+    ...(rest.limit !== undefined ? { limit: rest.limit } : {}),
+  }
+  if (paymentIds && paymentIds.length > 0) {
+    const ids = [...new Set(paymentIds)]
+    return [
+      { ...base, kinds: [MarketplacePayment], ids },
+      { ...base, kinds: [MarketplacePaymentSettlement], '#e': ids },
+    ]
+  }
+  const identityPubkeys = orderIdentityPubkeys(identity, ['buyer', 'seller', 'arbiter'])
+  const authorPubkeys = uniquePubkeys(authors ?? [])
+  const taggedPubkeys = uniquePubkeys([...(participantPubkeys ?? []), ...identityPubkeys])
+  const filters: Filter[] = []
+  for (const chunk of valueChunks(authorPubkeys)) {
+    filters.push({ ...base, kinds: [MarketplacePayment, MarketplacePaymentSettlement], authors: chunk })
+  }
+  for (const chunk of valueChunks(taggedPubkeys)) {
+    filters.push({ ...base, kinds: [MarketplacePayment, MarketplacePaymentSettlement], '#p': chunk })
+  }
+  return filters.length > 0 ? filters : [{ ...base, kinds: [MarketplacePayment, MarketplacePaymentSettlement] }]
+}
+
+function parseMarketplacePaymentEvent(event: Event): ParsedMarketplacePaymentEvent {
+  if (event.kind === MarketplacePayment) return parsePaymentEvent(event)
+  if (event.kind === MarketplacePaymentSettlement) return parsePaymentSettlementEvent(event)
+  throw new Error('Invalid marketplace payment event kind')
+}
+
+function emptyPaymentSweepSnapshot(): MarketplaceMePaymentsSnapshot {
+  return {
+    pending: [],
+    sweeping: [],
+    swept: [],
+    noop: [],
+    failed: [],
+    all: [],
+  }
+}
+
+function paymentSweepSnapshot(
+  records: Iterable<MarketplacePaymentSweepRecord>,
+): MarketplaceMePaymentsSnapshot {
+  const all = [...records].sort((left, right) =>
+    right.updatedAt - left.updatedAt || right.paymentId.localeCompare(left.paymentId)
+  )
+  return {
+    pending: all.filter(record => record.status === 'pending'),
+    sweeping: all.filter(record => record.status === 'sweeping'),
+    swept: all.filter(record => record.status === 'swept'),
+    noop: all.filter(record => record.status === 'noop'),
+    failed: all.filter(record => record.status === 'failed'),
+    all,
+  }
+}
+
+class MarketplaceMePaymentsRuntime implements MarketplaceMePaymentsApi {
+  private readonly cache: LazyMarketplaceStream<
+    MarketplacePaymentSweepRecord,
+    MarketplaceMePaymentsSnapshot,
+    ResolvedMarketplaceMePaymentsQuery,
+    MarketplaceMePaymentsSubscribeOptions
+  >
+
+  constructor(private readonly opts: MarketplaceRuntimeOptions) {
+    this.cache = new LazyMarketplaceStream((query, options) => this.stream(query, options))
+  }
+
+  async list(
+    query: MarketplaceMePaymentsQuery = {},
+    options: MarketplaceMePaymentsSearchOptions = {},
+  ): Promise<MarketplaceMePaymentsSnapshot> {
+    return this.cache.list(this.query(query), options, emptyPaymentSweepSnapshot())
+  }
+
+  watch(
+    query: MarketplaceMePaymentsQuery = {},
+    options: MarketplaceMePaymentsSubscribeOptions = {},
+  ): MarketplaceMePaymentsStream {
+    return this.cache.watch(this.query(query), options)
+  }
+
+  private query(query: MarketplaceMePaymentsQuery = {}): ResolvedMarketplaceMePaymentsQuery {
+    const { identity, ...rest } = query
+    return {
+      limit: 500,
+      ...rest,
+      identity: runtimeIdentity(this.opts, {
+        roles: ['buyer', 'seller', 'arbiter'],
+        tempKeyWindow: 500,
+        ...identity,
+      }),
+    }
+  }
+
+  private stream(
+    query: ResolvedMarketplaceMePaymentsQuery,
+    options: MarketplaceMePaymentsSubscribeOptions = {},
+  ): MarketplaceMePaymentsStream {
+    let eventCount = 0
+    let sub: { close(reason?: string): void } | undefined
+    const seenEvents = new Set<string>()
+    const payments = new Map<string, ParsedPayment>()
+    const records = new Map<string, MarketplacePaymentSweepRecord>()
+    const settlementsByPaymentId = new Map<string, ParsedPaymentSettlement[]>()
+    const running = new Map<string, Promise<void>>()
+    const rerun = new Map<string, MarketplacePaymentSweepInput['reason']>()
+    const filters = marketplacePaymentEventFilters(query)
+    const stream = new MarketplaceStream<MarketplacePaymentSweepRecord, MarketplaceMePaymentsSnapshot>({
+      onClose: reason => sub?.close(reason),
+    })
+
+    const emitRecord = (record: MarketplacePaymentSweepRecord) => {
+      records.set(record.paymentId, record)
+      stream.emitEvent(record)
+      stream.emitSnapshot(paymentSweepSnapshot(records.values()))
+    }
+
+    const updateRecord = (
+      paymentId: string,
+      patch: Partial<MarketplacePaymentSweepRecord>,
+      fallback?: Pick<MarketplacePaymentSweepRecord, 'tradeId' | 'orderGroupId' | 'listingAnchor' | 'anchors'>,
+    ): MarketplacePaymentSweepRecord => {
+      const previous = records.get(paymentId)
+      const base = previous ?? {
+        paymentId,
+        tradeId: fallback?.tradeId ?? '',
+        orderGroupId: fallback?.orderGroupId ?? '',
+        ...(fallback?.anchors ? { anchors: fallback.anchors } : {}),
+        listingAnchor: fallback?.listingAnchor ?? '',
+        status: 'pending' as const,
+        reason: 'payment' as const,
+        settlements: settlementsByPaymentId.get(paymentId) ?? [],
+        attempts: 0,
+        updatedAt: now(),
+      }
+      const record = {
+        ...base,
+        ...patch,
+        settlements: patch.settlements ?? settlementsByPaymentId.get(paymentId) ?? base.settlements,
+        updatedAt: patch.updatedAt ?? now(),
+      }
+      emitRecord(record)
+      return record
+    }
+
+    const buildSweepInput = async (
+      payment: ParsedPayment,
+      reason: MarketplacePaymentSweepInput['reason'],
+    ): Promise<MarketplacePaymentSweepInput | undefined> => {
+      const proofResolution = await resolvePaymentProof(payment, {
+        keys: payment.paymentProofKeys,
+        signer: this.opts.signer,
+      })
+      if (proofResolution.status !== 'resolved' || !proofResolution.proof?.paymentProof) return undefined
+      const evidenceResolution = await resolvePaymentProofEvidence(proofResolution.proof.paymentProof, {
+        keys: payment.paymentProofKeys,
+        signer: this.opts.signer,
+      })
+      if (evidenceResolution.status !== 'resolved' || !evidenceResolution.proof) return undefined
+      const amountResolution = await resolvePaymentAmount(payment, {
+        signer: this.opts.signer,
+      })
+      return {
+        paymentId: payment.event.id,
+        tradeId: payment.tradeId,
+        orderGroupId: payment.orderGroupId,
+        listingAnchor: payment.anchors.listing ?? '',
+        createdAt: payment.event.created_at,
+        proof: evidenceResolution.proof,
+        ...(amountResolution.status === 'resolved' && amountResolution.amount ? { amount: amountResolution.amount } : {}),
+        ...(reason ? { reason } : {}),
+      }
+    }
+
+    const runSweep = async (
+      payment: ParsedPayment,
+      reason: MarketplacePaymentSweepInput['reason'] = 'payment',
+    ) => {
+      const paymentId = payment.event.id
+      const previous = records.get(paymentId)
+      updateRecord(paymentId, {
+        payment,
+        tradeId: payment.tradeId,
+        orderGroupId: payment.orderGroupId,
+        anchors: payment.anchors,
+        listingAnchor: payment.anchors.listing ?? '',
+        status: 'sweeping',
+        reason: reason ?? 'payment',
+        attempts: (previous?.attempts ?? 0) + 1,
+        error: undefined,
+      })
+      try {
+        const input = await buildSweepInput(payment, reason)
+        if (!input) {
+          updateRecord(paymentId, {
+            status: 'noop',
+            reason: reason ?? 'payment',
+            error: 'Payment proof is not available to this session',
+          })
+          return
+        }
+        updateRecord(paymentId, {
+          driver: input.proof.driver,
+          reason: input.reason ?? 'payment',
+        })
+        for await (const state of sweepMarketplacePayment(this.opts, input)) {
+          updateRecord(paymentId, {
+            driver: input.proof.driver,
+            reason: input.reason ?? 'payment',
+            latest: state,
+            status: state.type === 'swept' ? 'swept' : state.type === 'noop' ? 'noop' : 'sweeping',
+          })
+        }
+      } catch (err) {
+        updateRecord(paymentId, {
+          status: 'failed',
+          reason: reason ?? 'payment',
+          error: err instanceof Error ? err.message : 'Payment sweep failed',
+        })
+      }
+    }
+
+    const enqueuePayment = (
+      payment: ParsedPayment,
+      reason: MarketplacePaymentSweepInput['reason'] = 'payment',
+    ) => {
+      const paymentId = payment.event.id
+      payments.set(paymentId, payment)
+      updateRecord(paymentId, {
+        payment,
+        tradeId: payment.tradeId,
+        orderGroupId: payment.orderGroupId,
+        anchors: payment.anchors,
+        listingAnchor: payment.anchors.listing ?? '',
+        status: records.get(paymentId)?.status ?? 'pending',
+        reason: reason ?? 'payment',
+      })
+      if (running.has(paymentId)) {
+        rerun.set(paymentId, reason)
+        return
+      }
+      const task = runSweep(payment, reason)
+        .finally(() => {
+          running.delete(paymentId)
+          const nextReason = rerun.get(paymentId)
+          rerun.delete(paymentId)
+          const latestPayment = payments.get(paymentId)
+          if (nextReason && latestPayment) enqueuePayment(latestPayment, nextReason)
+        })
+      running.set(paymentId, task)
+    }
+
+    const fetchPaymentsById = async (
+      paymentIds: string[],
+      reason: MarketplacePaymentSweepInput['reason'],
+    ) => {
+      const ids = [...new Set(paymentIds)].filter(Boolean)
+      if (ids.length === 0) return
+      const events = await this.opts.pool.querySync(this.opts.relays, {
+        kinds: [MarketplacePayment],
+        ids,
+      }, options)
+      const found = new Set<string>()
+      for (const event of events) {
+        const decoded = decodeMarketplaceEvent(event, parsePaymentEvent, {
+          source: 'me.payments.refetch',
+          oninvalid: this.opts.onInvalidEvent,
+        })
+        if (!decoded.ok) continue
+        const payment = decoded.value
+        found.add(payment.event.id)
+        enqueuePayment(payment, reason)
+      }
+      for (const id of ids) {
+        if (!found.has(id) && !payments.has(id)) {
+          updateRecord(id, {
+            status: 'pending',
+            reason,
+            error: 'Referenced payment has not been fetched yet',
+          })
+        }
+      }
+    }
+
+    const handleSettlement = (settlement: ParsedPaymentSettlement) => {
+      const ids = [...new Set(settlement.refs.payments)]
+      for (const paymentId of ids) {
+        const current = settlementsByPaymentId.get(paymentId) ?? []
+        if (!current.some(item => item.event.id === settlement.event.id)) {
+          settlementsByPaymentId.set(paymentId, [...current, settlement])
+        }
+        updateRecord(paymentId, {
+          tradeId: settlement.tradeId,
+          orderGroupId: settlement.orderGroupId,
+          anchors: settlement.anchors,
+          listingAnchor: settlement.anchors.listing ?? '',
+          reason: 'settlement',
+          settlements: settlementsByPaymentId.get(paymentId) ?? [],
+        })
+      }
+      void fetchPaymentsById(ids, 'settlement').catch(err => {
+        stream.fail(err instanceof Error ? err : new Error('Payment settlement refetch failed'))
+      })
+    }
+
+    stream.emitSnapshot(emptyPaymentSweepSnapshot())
+    stream.markQuerying({ requestCount: this.opts.relays.length * filters.length })
+    sub = requireSubscribePool(this.opts.pool).subscribeMap(
+      this.opts.relays.flatMap(url => filters.map(filter => ({ url, filter }))),
+      {
+        ...options,
+        onevent: (event: Event) => {
+          if (seenEvents.has(event.id)) return
+          seenEvents.add(event.id)
+          eventCount += 1
+          const decoded = decodeMarketplaceEvent(event, parseMarketplacePaymentEvent, {
+            source: 'me.payments.watch',
+            oninvalid: this.opts.onInvalidEvent,
+          })
+          if (!decoded.ok) return
+          const parsed = decoded.value
+          if (parsed.event.kind === MarketplacePayment) enqueuePayment(parsed as ParsedPayment)
+          else handleSettlement(parsed as ParsedPaymentSettlement)
+        },
+        oneose: () => {
+          stream.markEose({ eventCount })
+          stream.markLive({ eventCount })
+        },
+        onclose: reasons => {
+          stream.emitStatus(new StreamClosed({ reasons }))
+        },
+      },
+    )
+    return stream
+  }
+}
+
+class MarketplaceMeRuntime implements MarketplaceMeApi {
+  readonly orders: MarketplaceMeOrdersApi
+  readonly bids: MarketplaceMeBidsApi
+  readonly inbox: MarketplaceMeInboxApi
+  readonly payments: MarketplaceMePaymentsApi
+
+  constructor(opts: MarketplaceRuntimeOptions) {
+    this.orders = new MarketplaceMeOrdersRuntime(opts)
+    this.bids = new MarketplaceMeBidsRuntime(opts)
+    this.inbox = new MarketplaceMeInboxRuntime(opts)
+    this.payments = new MarketplaceMePaymentsRuntime(opts)
+  }
+}
+
+class MarketplaceAuctionLookup {
+  static options(options: MarketplaceAuctionLookupOptions = {}): MarketplaceAuctionScopeOptions {
+    const { maxWait, id, label, abort } = options
+    return {
+      ...(maxWait !== undefined ? { maxWait } : {}),
+      ...(id !== undefined ? { id } : {}),
+      ...(label !== undefined ? { label } : {}),
+      ...(abort !== undefined ? { abort } : {}),
+    }
+  }
 }
 
 async function publishGiftWrappedRumor(
@@ -384,34 +1154,79 @@ async function publishGiftWrappedRumor(
   return wraps
 }
 
-export function bind(
+function runtimeOptionsFromBindOptions(
   pool: MarketplaceRuntimePool,
   relays: string[],
   options: MarketplaceBindOptions = {},
-): MarketplaceClient {
-  const opts: MarketplaceRuntimeOptions = { ...options, pool, relays }
+): MarketplaceRuntimeOptions {
+  const { orderDrivers, auctionDrivers, ...rest } = options
+  return {
+    ...rest,
+    pool,
+    relays,
+    orderPolicies: orderDrivers,
+    bidPolicies: auctionDrivers,
+  }
+}
+
+function sessionOptionsFromBoundOptions(
+  opts: MarketplaceRuntimeOptions,
+  options: MarketplaceSessionOptions = {},
+): MarketplaceSessionOptions {
+  return {
+    ...(opts.autoTrustArbiter !== undefined ? { autoTrustArbiter: opts.autoTrustArbiter } : {}),
+    ...(opts.paymentMethod !== undefined ? { paymentMethod: opts.paymentMethod } : {}),
+    ...(opts.locationProvider !== undefined ? { locationProvider: opts.locationProvider } : {}),
+    ...(opts.logger !== undefined ? { logger: opts.logger } : {}),
+    ...(opts.orderPolicies !== undefined ? { orderDrivers: opts.orderPolicies } : {}),
+    ...(opts.bidPolicies !== undefined ? { auctionDrivers: opts.bidPolicies } : {}),
+    ...options,
+  }
+}
+
+function bindRuntimeClient(opts: MarketplaceRuntimeOptions): MarketplaceClient {
   let nextAccountIndex: number | undefined
+  const nextTradeIndexState = new ReplayStream<number | undefined>({ replayLimit: 1 })
+  const nextTradeIndex = {
+    get value() {
+      return nextTradeIndexState.value
+    },
+    get latest() {
+      return nextTradeIndexState.latest
+    },
+    subscribe: (
+      handler,
+      options,
+    ) => nextTradeIndexState.subscribe(handler, options),
+  } satisfies MarketplaceClient['nextTradeIndex']
   const logger = marketplaceLogger(opts, 'marketplace.runtime.bind')
   logger.info('Marketplace runtime bound', {
-    relayCount: relays.length,
+    relayCount: opts.relays.length,
     orderPolicyCount: opts.orderPolicies?.length ?? 0,
     bidPolicyCount: opts.bidPolicies?.length ?? 0,
   })
+  const me = new MarketplaceMeRuntime(opts)
+
+  function setNextAccountIndex(index: number | undefined): void {
+    nextAccountIndex = index
+    nextTradeIndexState.next(index)
+  }
 
   async function getNextAccountIndex(options: MarketplaceHighWatermarkOptions = {}): Promise<number> {
     if (nextAccountIndex === undefined) {
       const discovery = await discoverMarketplaceHighWatermark(opts, options)
-      nextAccountIndex = discovery.nextUnusedIndex
+      setNextAccountIndex(discovery.nextUnusedIndex)
     }
     const index = nextAccountIndex
-    nextAccountIndex += 1
+    if (index === undefined) throw new Error('Marketplace next trade index discovery failed')
+    setNextAccountIndex(index + 1)
     return index
   }
 
   async function resolvePayOptions(options: MarketplacePayOptions = {}): Promise<MarketplaceResolvedPayOptions> {
     return {
       ...options,
-      accountIndex: await getNextAccountIndex({
+      accountIndex: options.accountIndex ?? await getNextAccountIndex({
         ...(options.seed ? { seed: options.seed } : {}),
         ...(options.now !== undefined ? { now: options.now } : {}),
       }),
@@ -420,7 +1235,7 @@ export function bind(
 
   async function resolveParticipantProofsForIdentity(params: {
     label: string
-    mode?: MarketplacePayOptions['identityProof']
+    mode?: MarketplacePayOptions['identityProofPrivacy']
     role: OrderParticipantRole
     participantPubkey: string
     listingAnchor: string
@@ -487,9 +1302,8 @@ export function bind(
       listingAnchor,
       participants: addParticipant(order.participants, trade.tradePubkey, 'buyer'),
     }
-    const route = resolvedOptions.route ?? (await paymentRoutesForListing(opts, listing, {
+    const route = resolvedOptions.route ?? (await orderPaymentRoutesForListing(opts, listing, {
       amount: baseOrder.amount,
-      purpose: 'order',
     }))[0]
     if (!route) throw new Error('No supported marketplace payment route')
     const paymentLogger = marketplaceLogger(opts, 'marketplace.runtime.pay')
@@ -508,7 +1322,7 @@ export function bind(
     )
     const finalParticipantProofs = await resolveParticipantProofsForIdentity({
       label: 'order',
-      mode: resolvedOptions.identityProof,
+      mode: resolvedOptions.identityProofPrivacy,
       role: 'buyer',
       participantPubkey: trade.tradePubkey,
       listingAnchor,
@@ -531,7 +1345,7 @@ export function bind(
     const paymentIntent = buildPaymentIntent(route, proofedOrder, finalOptions, seed)
     if (opts.logger) paymentIntent.logger = opts.logger
     const stream = await route.policy.pay(paymentIntent)
-    yield* publishOrderPaymentStream(
+    yield* publishOrderPayStream(
       opts,
       route,
       proofedOrder,
@@ -540,6 +1354,7 @@ export function bind(
       stream as AsyncIterable<MarketplacePolicyPaymentState>,
       resolvedOptions.paymentProofPrivacy ?? 'public',
       resolvedOptions.paymentAmountPrivacy ?? 'public',
+      resolvedOptions.paymentTermsPrivacy ?? resolvedOptions.paymentAmountPrivacy ?? 'public',
     )
   }
 
@@ -605,6 +1420,7 @@ export function bind(
   }
 
   const client = {
+    nextTradeIndex,
     listings: {
       anchor: listingAnchor,
       parse: parseListingEvent,
@@ -616,10 +1432,14 @@ export function bind(
       findOne: (
         pubkey: string,
         query: Omit<ListingSearchQuery, 'authors' | 'limit'> = {},
-      ) => findListing(opts.pool, opts.relays, pubkey, query),
-      findById: (id: string) => findListingById(opts.pool, opts.relays, id),
-      findByAnchor: (anchor: string) => findListingByAnchor(opts.pool, opts.relays, anchor),
-      search: (query: ListingSearchQuery = {}) => searchListings(opts.pool, opts.relays, query),
+        options: ListingSearchOptions = {},
+      ) => findListing(opts.pool, opts.relays, pubkey, query, withInvalidEventHandler(opts, options)),
+      findById: (id: string, options: ListingSearchOptions = {}) =>
+        findListingById(opts.pool, opts.relays, id, withInvalidEventHandler(opts, options)),
+      findByAnchor: (anchor: string, options: ListingSearchOptions = {}) =>
+        findListingByAnchor(opts.pool, opts.relays, anchor, withInvalidEventHandler(opts, options)),
+      search: (query: ListingSearchQuery = {}, options: ListingSearchOptions = {}) =>
+        searchListings(opts.pool, opts.relays, query, withInvalidEventHandler(opts, options)),
     },
     shippingOption: {
       kind: MarketplaceShippingOption,
@@ -629,7 +1449,8 @@ export function bind(
       template: generateShippingOptionEventTemplate,
       filter: shippingOptionSearchFilter,
       filters: { search: shippingOptionSearchFilter },
-      search: (query: ShippingOptionSearchQuery = {}) => searchShippingOptions(opts.pool, opts.relays, query),
+      search: (query: ShippingOptionSearchQuery = {}, options: ShippingOptionSearchOptions = {}) =>
+        searchShippingOptions(opts.pool, opts.relays, query, withInvalidEventHandler(opts, options)),
     },
     locations: createMarketplaceLocationsApi(opts.locationProvider),
     paymentMethod: {
@@ -637,7 +1458,8 @@ export function bind(
       validate: validatePaymentMethodEvent,
       template: generatePaymentMethodEventTemplate,
       filter: paymentMethodFilter,
-      findOne: (query: PaymentMethodFindQuery = {}) => findPaymentMethod(opts.pool, opts.relays, query),
+      findOne: (query: PaymentMethodFindQuery = {}, options: PaymentMethodFindOptions = {}) =>
+        findPaymentMethod(opts.pool, opts.relays, query, withInvalidEventHandler(opts, options)),
       canonicalAssetId,
     },
     arbitrationServices: {
@@ -645,8 +1467,10 @@ export function bind(
       validate: validateArbitrationServiceEvent,
       template: generateArbitrationServiceEventTemplate,
       filter: arbitrationServiceFilter,
-      search: (query: ArbitrationServiceFindQuery = {}) => searchArbitrationServices(opts.pool, opts.relays, query),
-      findOne: (query: ArbitrationServiceFindQuery = {}) => findArbitrationService(opts.pool, opts.relays, query),
+      search: (query: ArbitrationServiceFindQuery = {}, options: ArbitrationServiceSearchOptions = {}) =>
+        searchArbitrationServices(opts.pool, opts.relays, query, withInvalidEventHandler(opts, options)),
+      findOne: (query: ArbitrationServiceFindQuery = {}, options: ArbitrationServiceSearchOptions = {}) =>
+        findArbitrationService(opts.pool, opts.relays, query, withInvalidEventHandler(opts, options)),
       calculateFee: calculateArbitrationFee,
     },
     arbitrationServiceSelections: {
@@ -663,33 +1487,11 @@ export function bind(
       filters: orderFilters,
       negotiate,
       search: (query: OrderQuery = {}, options: OrderSearchOptions = {}) =>
-        searchOrders(opts.pool, opts.relays, query, options),
+        searchOrders(opts.pool, opts.relays, query, withInvalidEventHandler(opts, options)),
       subscribe: (query: OrderQuery, handlers: OrderSubscribeHandlers, options: OrderSubscribeOptions = {}) =>
-        subscribeOrders(requireSubscribePool(opts.pool), opts.relays, query, handlers, options),
+        subscribeOrders(requireSubscribePool(opts.pool), opts.relays, query, withLegacyInvalidEventHandler(opts, 'orders.subscribe', handlers), options),
       stream: (query: OrderQuery = {}, options: OrderSubscribeOptions = {}) =>
         streamOrders(requireSubscribePool(opts.pool), opts.relays, query, options),
-      mine: Object.assign(
-        (
-          query: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity } = {},
-          options: OrderSearchOptions = {},
-        ) => searchOrders(opts.pool, opts.relays, runtimeMyOrderQuery(opts, query), options),
-        {
-          stream: (
-            query: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity } = {},
-            options: OrderSubscribeOptions = {},
-          ) => streamMyOrders(
-            requireSubscribePool(opts.pool),
-            opts.relays,
-            runtimeMyOrderQuery(opts, query),
-            options,
-          ),
-        },
-      ),
-      subscribeMine: (
-        query: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity } = {},
-        handlers: OrderSubscribeHandlers,
-        options: OrderSubscribeOptions = {},
-      ) => subscribeOrders(requireSubscribePool(opts.pool), opts.relays, runtimeMyOrderQuery(opts, query), handlers, options),
       groups: {
         id: orderGroupIdForParticipants,
         idForOrder: orderGroupIdForOrder,
@@ -707,48 +1509,18 @@ export function bind(
         resolveAndValidate: (group: ParsedOrderGroup, options = {}) =>
           resolveAndValidateOrderGroup(group, { policies: paymentValidationPolicies(paymentPolicies(opts)), ...options }),
         fetch: (query: OrderGroupFilterQuery = {}, options: ReduceOrderGroupOptions = {}) =>
-          fetchOrderGroups(opts.pool, opts.relays, query, options),
+          fetchOrderGroups(opts.pool, opts.relays, query, withInvalidEventHandler(opts, options)),
         search: (query: OrderQuery = {}, options: OrderGroupSearchOptions = {}) =>
-          searchOrderGroups(opts.pool, opts.relays, query, options).then(groups =>
+          searchOrderGroups(opts.pool, opts.relays, query, withInvalidEventHandler(opts, options)).then(groups =>
             validateGroupsWithRuntimePolicies(opts, groups, options),
           ),
         subscribe: (
           query: OrderQuery,
           handlers: OrderGroupSubscribeHandlers,
           options: OrderSubscribeOptions & ReduceOrderGroupOptions = {},
-        ) => subscribeOrderGroups(requireSubscribePool(opts.pool), opts.relays, query, handlers, options),
+        ) => subscribeOrderGroups(requireSubscribePool(opts.pool), opts.relays, query, withLegacyInvalidEventHandler(opts, 'orderGroups.subscribe', handlers), options),
         stream: (query: OrderQuery = {}, options: OrderSubscribeOptions & ReduceOrderGroupOptions = {}) =>
           streamOrderGroups(requireSubscribePool(opts.pool), opts.relays, query, options),
-        mine: Object.assign(
-          (
-            query: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity } = {},
-            options: OrderGroupSearchOptions = {},
-          ) => searchMyOrderGroups(opts.pool, opts.relays, runtimeMyOrderQuery(opts, query), options).then(async buckets => {
-            const identity = {
-              ...runtimeIdentity(opts, query.identity),
-              roles: query.identity?.roles ?? ['buyer', 'seller'],
-              tempKeyWindow: query.identity?.tempKeyWindow ?? 500,
-            }
-            const validated = await validateGroupsWithRuntimePolicies(opts, buckets.all, options)
-            return bucketOrderGroups(validated, identity)
-          }),
-          {
-            stream: (
-              query: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity } = {},
-              options: OrderSubscribeOptions & ReduceOrderGroupOptions = {},
-            ) => streamMyOrderGroups(
-              requireSubscribePool(opts.pool),
-              opts.relays,
-              runtimeMyOrderQuery(opts, query),
-              options,
-            ),
-          },
-        ),
-        subscribeMine: (
-          query: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity } = {},
-          handlers: OrderGroupSubscribeHandlers & { onbuckets?: (buckets: OrderGroupBuckets) => void },
-          options: OrderSubscribeOptions & ReduceOrderGroupOptions = {},
-        ) => subscribeMyOrderGroups(requireSubscribePool(opts.pool), opts.relays, runtimeMyOrderQuery(opts, query), handlers, options),
       },
     },
     reviews: {
@@ -757,49 +1529,14 @@ export function bind(
       template: generateReviewEventTemplate,
       resolveProof: resolveReviewProof,
       revealedBuyerPubkey: revealedReviewBuyerPubkey,
-      search: (query = {}, options = {}) => searchReviews(opts.pool, opts.relays, query, options),
+      search: (query = {}, options = {}) => searchReviews(opts.pool, opts.relays, query, withInvalidEventHandler(opts, options)),
     },
     structuredMessages: {
       parse: parseStructuredMessageEvent,
       validate: validateStructuredMessageEvent,
       template: generateStructuredMessageEventTemplate,
     },
-    inbox: {
-      filter: marketplaceInboxFilter,
-      unwrap: (wrap: Event) => unwrapMarketplaceInboxItem(wrap, requireMarketplaceSigner(opts)),
-      fetch: (
-        query: Parameters<MarketplaceInboxApi['fetch']>[0] = {},
-        options: Parameters<MarketplaceInboxApi['fetch']>[1] = {},
-      ) => fetchMarketplaceInbox(
-        opts.pool,
-        opts.relays,
-        requireMarketplaceSigner(opts),
-        {
-          ...query,
-          pubkey: query.pubkey ?? runtimeIdentity(opts).pubkey!,
-          limit: query.limit ?? 100,
-        },
-        options,
-      ),
-      stream: (
-        query: Parameters<MarketplaceInboxApi['stream']>[0] = {},
-        options: Parameters<MarketplaceInboxApi['stream']>[1] = {},
-      ) => streamMarketplaceInbox(
-        requireSubscribePool(opts.pool),
-        opts.relays,
-        requireMarketplaceSigner(opts),
-        {
-          ...query,
-          pubkey: query.pubkey ?? runtimeIdentity(opts).pubkey!,
-          limit: query.limit ?? 100,
-        },
-        options,
-      ),
-    },
-    paymentRoutes: {
-      forListing: (listing: Event | MarketplaceListing, options: MarketplacePaymentRouteOptions | null = null) =>
-        paymentRoutesForListing(opts, listing, options),
-    },
+    me,
     auctions: {
       template: generateAuctionEventTemplate,
       parse: parseAuctionEvent,
@@ -807,15 +1544,27 @@ export function bind(
       address: auctionAddress,
       bidChainId: auctionBidChainId,
       filters: auctionSearchFilters,
-      scope: (query: MarketplaceAuctionScopeQuery) =>
-        createAuctionScope(requireSubscribePool(opts.pool), opts.relays, query),
+      get: (query: MarketplaceAuctionScopeQuery, options: MarketplaceAuctionLookupOptions = {}) =>
+        queryAuctionScope(
+          requireSubscribePool(opts.pool),
+          opts.relays,
+          query,
+          withInvalidEventHandler(opts, MarketplaceAuctionLookup.options(options)),
+        ),
+      watch: (query: MarketplaceAuctionScopeQuery, options: MarketplaceAuctionLookupOptions = {}) =>
+        streamAuctionScope(
+          requireSubscribePool(opts.pool),
+          opts.relays,
+          query,
+          withInvalidEventHandler(opts, MarketplaceAuctionLookup.options(options)),
+        ),
       search: (query: MarketplaceAuctionSearchQuery = {}, options: MarketplaceAuctionSearchOptions = {}) =>
-        searchAuctions(opts.pool, opts.relays, query, options),
+        searchAuctions(opts.pool, opts.relays, query, withInvalidEventHandler(opts, options)),
       subscribe: (
         query: MarketplaceAuctionSearchQuery,
         handlers: MarketplaceAuctionSubscribeHandlers,
         options: MarketplaceAuctionSubscribeOptions = {},
-      ) => subscribeAuctions(requireSubscribePool(opts.pool), opts.relays, query, handlers, options),
+      ) => subscribeAuctions(requireSubscribePool(opts.pool), opts.relays, query, withLegacyInvalidEventHandler(opts, 'auctions.subscribe', handlers), options),
       bidTemplate: generateAuctionBidEventTemplate,
       parseBid: parseAuctionBidEvent,
       validateBid: validateAuctionBidEvent,
@@ -827,12 +1576,12 @@ export function bind(
         search: (
           query: MarketplaceAuctionCompleteSearchQuery = {},
           options: MarketplaceAuctionCompleteSearchOptions = {},
-        ) => searchAuctionCompletes(opts.pool, opts.relays, query, options),
+        ) => searchAuctionCompletes(opts.pool, opts.relays, query, withInvalidEventHandler(opts, options)),
         subscribe: (
           query: MarketplaceAuctionCompleteSearchQuery,
           handlers: MarketplaceAuctionCompleteSubscribeHandlers,
           options: MarketplaceAuctionCompleteSubscribeOptions = {},
-        ) => subscribeAuctionCompletes(requireSubscribePool(opts.pool), opts.relays, query, handlers, options),
+        ) => subscribeAuctionCompletes(requireSubscribePool(opts.pool), opts.relays, query, withLegacyInvalidEventHandler(opts, 'auctionCompletes.subscribe', handlers), options),
       },
       bidGroups: {
         filter: auctionBidGroupFilter,
@@ -841,41 +1590,19 @@ export function bind(
         group: groupAuctionBidEvents,
         chains: buildAuctionBidChains,
         fetch: (query: AuctionBidGroupQuery, options: AuctionBidGroupSearchOptions = {}) =>
-          fetchAuctionBidGroups(opts.pool, opts.relays, query, options),
-        mine: {
-          fetch: (
-            query: MyAuctionBidGroupQuery = {},
-            options: AuctionBidGroupSearchOptions = {},
-          ) => fetchMyAuctionBidGroups(
-            opts.pool,
-            opts.relays,
-            { ...query, identity: runtimeIdentity(opts, query.identity) },
-            options,
-          ),
-          chains: async (
-            query: MyAuctionBidGroupQuery = {},
-            options: AuctionBidGroupSearchOptions = {},
-          ) => buildAuctionBidChains(
-            await fetchMyAuctionBidGroups(
-              opts.pool,
-              opts.relays,
-              { ...query, identity: runtimeIdentity(opts, query.identity) },
-              options,
-            ),
-          ),
-        },
+          fetchAuctionBidGroups(opts.pool, opts.relays, query, withInvalidEventHandler(opts, options)),
         subscribe: (
           query: AuctionBidGroupQuery,
           handlers: AuctionBidGroupSubscribeHandlers,
           options: AuctionBidGroupSubscribeOptions = {},
-        ) => subscribeAuctionBidGroups(requireSubscribePool(opts.pool), opts.relays, query, handlers, options),
+        ) => subscribeAuctionBidGroups(requireSubscribePool(opts.pool), opts.relays, query, withLegacyInvalidEventHandler(opts, 'auctionBidGroups.subscribe', handlers), options),
       },
       async *bid(
         listing: Event | MarketplaceListing,
         bid: Partial<MarketplaceAuctionBidTemplate> & { amount: MarketplaceAmount },
         options: MarketplacePayOptions & {
           auction?: Event | ParsedMarketplaceAuction
-          identityProof?: 'none' | 'public' | 'sealed'
+          identityProofPrivacy?: 'none' | 'public' | 'sealed'
           participantProofs?: OrderTemplate['participantProofs']
           participantProofKeys?: OrderTemplate['participantProofKeys']
         } = {},
@@ -890,7 +1617,6 @@ export function bind(
         const trade = deriveMarketplaceTradeMaterial(seed, {
           index: resolvedOptions.accountIndex,
           role: 'buyer',
-          extra: 'auction-bid',
         })
         const baseBid = {
           tradeId: bid.tradeId ?? trade.tradeId,
@@ -901,11 +1627,10 @@ export function bind(
         if (auction && bid.amount.denomination !== auction.currency) {
           throw new Error(`Auction bids must use ${auction.currency}`)
         }
-        const routes = await paymentRoutesForListing(opts, listing, {
+        const routes = await auctionPaymentRoutesForListing(opts, listing, auction, {
           amount: baseBid.amount,
-          purpose: 'bid',
         })
-        const route = resolvedOptions.route ?? (auction ? routes.find(candidate => routeMatchesAuction(candidate, auction)) : routes[0])
+        const route = resolvedOptions.route ?? routes[0]
         if (!route) throw new Error('No supported marketplace bid payment route')
         if (auction && !routeMatchesAuction(route, auction)) {
           throw new Error('Selected bid payment route does not match the auction arbiter and currency')
@@ -923,7 +1648,7 @@ export function bind(
         const paymentAmount = normalizeAmountForRouteEvent(bid.amount, route.asset)
         const participantProofs = await resolveParticipantProofsForIdentity({
           label: 'bid',
-          mode: resolvedOptions.identityProof,
+          mode: resolvedOptions.identityProofPrivacy,
           role: 'buyer',
           participantPubkey: trade.tradePubkey,
           listingAnchor,
@@ -959,8 +1684,9 @@ export function bind(
           ...resolvedOptions,
           settlementId: resolvedOptions.settlementId ?? auctionBid.tradeId,
         }
+        const targetTradeId = auctionBid.targetOrder?.tradeId ?? auctionBid.bidChainId ?? auctionBid.tradeId
         const targetOrderGroupId = orderGroupIdForParticipants(
-          auctionBid.tradeId,
+          targetTradeId,
           auctionBid.targetOrder?.participants ?? auctionBid.participants ?? [],
         )
         const paymentIntent = buildPaymentIntent(route, paymentOrder, finalOptions, seed, 'bid')
@@ -969,7 +1695,7 @@ export function bind(
           ...(paymentIntent.metadata ?? {}),
           auctionAnchor,
           targetListingAnchor: listingAnchor,
-          targetTradeId: auctionBid.tradeId,
+          targetTradeId,
           targetOrderGroupId,
           targetOrder: {
             ...(auctionBid.targetOrder ?? {}),
@@ -986,23 +1712,17 @@ export function bind(
           stream as AsyncIterable<MarketplacePolicyPaymentState>,
           resolvedOptions.paymentProofPrivacy ?? 'public',
           resolvedOptions.paymentAmountPrivacy ?? 'public',
+          resolvedOptions.paymentTermsPrivacy ?? resolvedOptions.paymentAmountPrivacy ?? 'public',
         )
       },
       settle: (request: MarketplaceAuctionSettlementRequest) => settleMarketplaceAuction(opts, request),
     },
     payments: {
       group: groupPaymentStreams,
+      terms: paymentTerms,
       validateGroup: validatePaymentGroup,
       validateGroups: validatePaymentGroupStream,
-      mine: {
-        fetch: (
-          query: Omit<OrderQuery, 'identity'> & { identity?: MarketplaceOrderIdentity } = {},
-          options: OrderGroupSearchOptions & { now?: number } = {},
-        ) => paymentItemsForMyOrderGroups(opts, query, options),
-      },
-      recover: (payment: MarketplacePaymentRecoveryItem) => recoverMarketplacePayment(opts, payment),
-      validate: (payment: MarketplacePaymentRecoveryItem) => validateMarketplacePayment(opts, payment),
-      policyFor: (payment: MarketplacePaymentRecoveryItem) => policyForPayment(opts, payment),
+      validate: (payment: MarketplacePaymentValidationItem) => validateMarketplacePayment(opts, payment),
     },
     arbitration: {
       start: (options: MarketplaceArbitrationStartOptions = {}) => startMarketplaceArbitration(opts, options),
@@ -1013,11 +1733,26 @@ export function bind(
     getNextAccountIndex,
     start: async (options: MarketplaceStartOptions = {}) => {
       const result = await startMarketplaceRuntime(opts, options)
-      nextAccountIndex = result.discovery.nextUnusedIndex
+      setNextAccountIndex(result.discovery.nextUnusedIndex)
       return result
     },
+    session: (signer, options = {}) => createMarketplaceSession(
+      opts.pool,
+      opts.relays,
+      signer,
+      sessionOptionsFromBoundOptions(opts, options),
+      bindRuntimeClient,
+    ),
     pay,
   } satisfies MarketplaceClient
 
   return client
+}
+
+export function bind(
+  pool: MarketplaceRuntimePool,
+  relays: string[],
+  options: MarketplaceBindOptions = {},
+): MarketplaceClient {
+  return bindRuntimeClient(runtimeOptionsFromBindOptions(pool, relays, options))
 }

@@ -23,6 +23,7 @@ import {
   type MarketplacePrice,
   type RentOrBuy,
 } from './helper.ts'
+import { decodeMarketplaceEvent, type MarketplaceInvalidEventHandler } from './event-decoder.ts'
 import { promotedTags, tagPromotion, type TagPromotion } from './tag-promotion.ts'
 
 export type ListingImage = {
@@ -100,6 +101,11 @@ export type MarketplaceListingPriceOptions = {
   price?: MarketplacePrice
   priceIndex?: number
   start?: Date | number | string
+}
+
+export type ListingSearchOptions = {
+  maxWait?: number
+  oninvalid?: MarketplaceInvalidEventHandler
 }
 
 export const marketplaceListingTagPromotions: readonly TagPromotion[] = [
@@ -309,9 +315,18 @@ export async function searchListings(
   pool: Pick<AbstractSimplePool, 'querySync'>,
   relays: string[],
   query: ListingSearchQuery = {},
+  options: ListingSearchOptions = {},
 ): Promise<MarketplaceListing[]> {
-  const events = await pool.querySync(relays, listingSearchFilter(query))
-  return events.filter(validateListingEvent).map(parseListingEvent)
+  const events = await pool.querySync(relays, listingSearchFilter(query), options)
+  const listings: MarketplaceListing[] = []
+  for (const event of events) {
+    const decoded = decodeMarketplaceEvent(event, parseListingEvent, {
+      source: 'listings.search',
+      oninvalid: options.oninvalid,
+    })
+    if (decoded.ok) listings.push(decoded.value)
+  }
+  return listings
 }
 
 export async function findListing(
@@ -319,12 +334,13 @@ export async function findListing(
   relays: string[],
   pubkey: string,
   query: Omit<ListingSearchQuery, 'authors' | 'limit'> = {},
+  options: ListingSearchOptions = {},
 ): Promise<MarketplaceListing | null> {
   const listings = await searchListings(pool, relays, {
     ...query,
     authors: [pubkey],
     limit: 1,
-  })
+  }, options)
   return listings[0] ?? null
 }
 
@@ -332,22 +348,28 @@ export async function findListingById(
   pool: Pick<AbstractSimplePool, 'querySync'>,
   relays: string[],
   id: string,
+  options: ListingSearchOptions = {},
 ): Promise<MarketplaceListing | null> {
-  const [event] = await pool.querySync(relays, { ids: [id], limit: 1 })
-  if (!event || !validateListingEvent(event)) return null
-  return parseListingEvent(event)
+  const [event] = await pool.querySync(relays, { ids: [id], limit: 1 }, options)
+  if (!event) return null
+  const decoded = decodeMarketplaceEvent(event, parseListingEvent, {
+    source: 'listings.findById',
+    oninvalid: options.oninvalid,
+  })
+  return decoded.ok ? decoded.value : null
 }
 
 export async function findListingByAnchor(
   pool: Pick<AbstractSimplePool, 'querySync'>,
   relays: string[],
   anchor: string,
+  options: ListingSearchOptions = {},
 ): Promise<MarketplaceListing | null> {
   const { kind, pubkey, d } = listingAnchorParts(anchor)
   return findListing(pool, relays, pubkey, {
     kinds: [kind],
     tagFilters: { d: [d] },
-  })
+  }, options)
 }
 
 export const listings = {

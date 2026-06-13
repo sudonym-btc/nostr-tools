@@ -86,21 +86,21 @@ import {
   type ParsedAuctionBidGroup,
 } from './auction-bid-group.ts'
 import {
-  generateOrderPaymentAckEventTemplate,
-  generateOrderPaymentEventTemplate,
-  generateOrderPaymentNackEventTemplate,
-  generateOrderPaymentSettlementEventTemplate,
-  parseOrderPaymentEvent,
-  type OrderPaymentSettlementOutput,
-  type ParsedOrderPayment,
-} from './order-lifecycle.ts'
+  generatePaymentAckEventTemplate,
+  generatePaymentEventTemplate,
+  generatePaymentNackEventTemplate,
+  generatePaymentSettlementEventTemplate,
+  parsePaymentEvent,
+  type PaymentSettlementOutput,
+  type ParsedPayment,
+} from './payment-lifecycle.ts'
 import { paymentValidationRequest } from './order-group-payment.ts'
 import {
   fetchOrderGroups,
-  bucketOrderGroups,
-  searchMyOrderGroups,
+  roleOrderGroups,
+  searchOrderGroupsForIdentity,
   searchOrderGroups,
-  subscribeMyOrderGroups,
+  subscribeOrderGroupsForIdentity,
   subscribeOrderGroups,
   groupOrderEvents,
   orderGroupFilter,
@@ -112,8 +112,8 @@ import {
   resolveOrderGroupParticipants,
   validateOrderGroupPayments,
   type OrderGroupFilterQuery,
-  type MyOrderGroupQuery,
-  type OrderGroupBuckets,
+  type OrderGroupIdentityQuery,
+  type OrderGroupRoles,
   type OrderGroupSearchOptions,
   type OrderGroupSubscribeHandlers,
   type ResolveAndValidateOrderGroupOptions,
@@ -173,8 +173,8 @@ import type {
   MarketplacePaymentIdentity,
   MarketplacePaymentContract,
   MarketplacePaymentIntent,
-  MarketplacePaymentRecoveryItem,
-  MarketplacePaymentRecoveryState,
+  MarketplacePaymentValidationItem,
+  MarketplacePaymentSweepState,
   MarketplacePaymentArbitrationIntent,
   MarketplacePaymentArbitrationState,
   MarketplacePaymentArbitrationRequest,
@@ -226,7 +226,6 @@ import type {
   MarketplaceOrdersApi,
   MarketplaceReviewsApi,
   MarketplaceStructuredMessagesApi,
-  MarketplacePaymentRoutesApi,
   MarketplaceAuctionsApi,
   MarketplaceAuctionBidGroupsApi,
   MarketplacePaymentsApi,
@@ -253,6 +252,7 @@ import {
   buildPaymentProofPayload,
   type PaymentProofKeyTag,
   type PaymentProofPrivacy,
+  type PaymentTermsPrivacy,
   type SealedPaymentProof,
 } from './payment-proof.ts'
 import {
@@ -323,7 +323,19 @@ export function paymentProofForRoute(
   proof: PaymentProofEvidence | null,
 ): PaymentProof {
   return {
-    paymentProof: proof ? { driver: policyName(route.policy), params: proof.params } : null,
+    paymentProof: proof
+      ? proof.terms
+        ? {
+            driver: policyName(route.policy),
+            terms: proof.terms,
+            params: proof.params,
+          }
+        : {
+            driver: policyName(route.policy),
+            sealedTerms: proof.sealedTerms,
+            params: proof.params,
+          }
+      : null,
     arbitration: {
       arbitrationService: route.arbitrationService.event,
       paymentMethod: route.paymentMethod.event,
@@ -360,9 +372,10 @@ export function orderPaymentTemplateForState(
 ): EventTemplate {
   const routedOrder = orderWithRouteParticipants(route, order, buyerPubkey)
   if (!routedOrder.amount) throw new Error('Order amount is required for marketplace payment')
-  const { amount: _orderAmount, ...paymentOrder } = routedOrder
-  return generateOrderPaymentEventTemplate({
+  const { amount: _orderAmount, listingAnchor, ...paymentOrder } = routedOrder
+  return generatePaymentEventTemplate({
     ...paymentOrder,
+    anchors: [{ value: listingAnchor, marker: 'listing' }],
     orderGroupId: orderGroupIdForOrder(orderEvent),
     ...amountPayload,
     proof,
@@ -388,19 +401,20 @@ export function auctionBidPaymentTemplateForState(
       participants: bid.participants,
     }).participants,
   }
-  const { amount: _bidAmount, ...paymentBid } = routedBid
-  return generateOrderPaymentEventTemplate({
+  const { amount: _bidAmount, listingAnchor, auctionAnchor, ...paymentBid } = routedBid
+  return generatePaymentEventTemplate({
     ...paymentBid,
     tradeId: routedBid.tradeId,
-    listingAnchor: routedBid.auctionAnchor,
-    anchorMarker: 'auction',
+    anchors: [
+      { value: auctionAnchor, marker: 'auction' },
+      { value: listingAnchor, marker: 'listing' },
+    ],
     participants: routedBid.participants,
     orderGroupId: routedBid.tradeId,
     ...amountPayload,
     proof,
     paymentProofKeys,
     refs: { auctionBids: [bidEvent.id] },
-    extraTags: [['a', routedBid.listingAnchor, '', 'listing']],
   })
 }
 
@@ -420,9 +434,11 @@ function paymentProofPayloadForState(
   senderSecretKey: Uint8Array,
   senderPubkey: string,
   privacy: PaymentProofPrivacy,
+  termsPrivacy: PaymentTermsPrivacy,
 ): { proof: PaymentProof | SealedPaymentProof; paymentProofKeys: PaymentProofKeyTag[] } {
   return buildPaymentProofPayload(paymentProofForRoute(route, proof), {
     mode: privacy,
+    termsMode: termsPrivacy,
     senderSecretKey,
     recipientPubkeys: paymentProofRecipientPubkeys(participants, senderPubkey),
   })
@@ -508,7 +524,7 @@ export function buildPaymentIntent(
   }
 }
 
-export async function* publishOrderPaymentStream(
+export async function* publishOrderPayStream(
   opts: MarketplaceRuntimeOptions,
   route: MarketplacePaymentRoute,
   order: OrderTemplate,
@@ -517,6 +533,7 @@ export async function* publishOrderPaymentStream(
   stream: AsyncIterable<MarketplacePolicyPaymentState>,
   paymentProofPrivacy: PaymentProofPrivacy = 'public',
   paymentAmountPrivacy: PaymentAmountPrivacy = 'public',
+  paymentTermsPrivacy: PaymentTermsPrivacy = paymentAmountPrivacy,
 ): AsyncIterable<MarketplacePaymentState> {
   const logger = marketplaceLogger(opts, 'marketplace.runtime.pay', {
     policy: route.descriptor.id,
@@ -558,6 +575,7 @@ export async function* publishOrderPaymentStream(
         tradeSecretKey,
         tradePubkey,
         paymentProofPrivacy,
+        paymentTermsPrivacy,
       )
       const paymentEvent = finalizeEvent(
         orderPaymentTemplateForState(
@@ -609,6 +627,7 @@ export async function* publishAuctionBidPaymentStream(
   stream: AsyncIterable<MarketplacePolicyPaymentState>,
   paymentProofPrivacy: PaymentProofPrivacy = 'public',
   paymentAmountPrivacy: PaymentAmountPrivacy = 'public',
+  paymentTermsPrivacy: PaymentTermsPrivacy = paymentAmountPrivacy,
 ): AsyncIterable<MarketplaceAuctionBidState> {
   const logger = marketplaceLogger(opts, 'marketplace.runtime.bid', {
     policy: route.descriptor.id,
@@ -657,6 +676,7 @@ export async function* publishAuctionBidPaymentStream(
         tradeSecretKey,
         tradePubkey,
         paymentProofPrivacy,
+        paymentTermsPrivacy,
       )
       const paymentEvent = finalizeEvent(
         auctionBidPaymentTemplateForState(

@@ -156,6 +156,12 @@ function anchor(kind: number, pubkey: string, d: string): string {
   return `${kind}:${pubkey}:${d}`
 }
 
+function pubkeyFromAnchor(value: string, label: string): string {
+  const [, pubkey] = value.split(':')
+  if (!pubkey || !/^[a-f0-9]{64}$/.test(pubkey)) throw new Error(`Invalid ${label}`)
+  return pubkey
+}
+
 function tagWithMarker(event: Event, name: string, marker: string): string | undefined {
   return event.tags.find(tag => tag[0] === name && tag[3] === marker)?.[1]
 }
@@ -200,6 +206,7 @@ export function auctionBidChainId(seed: string, auctionAnchor: string): string {
 export function generateAuctionEventTemplate(auction: MarketplaceAuctionTemplate): EventTemplate {
   const currency = canonicalCurrency(auction.currency)
   const decimals = currencyDecimals(currency) ?? auction.decimals
+  const auctionAnchor = anchor(MarketplaceAuction, pubkeyFromAnchor(auction.listingAnchor, 'auction listing anchor'), auction.d)
   return {
     kind: MarketplaceAuction,
     created_at: auction.createdAt ?? now(),
@@ -207,6 +214,7 @@ export function generateAuctionEventTemplate(auction: MarketplaceAuctionTemplate
     tags: [
       ['d', auction.d],
       ['a', auction.listingAnchor, '', 'listing'],
+      ['a', auctionAnchor, '', 'auction'],
       ['p', auction.arbiterPubkey, '', 'auction-arbiter'],
       ['currency', currency],
       ['decimals', decimals.toString()],
@@ -226,6 +234,9 @@ export function generateAuctionEventTemplate(auction: MarketplaceAuctionTemplate
 export function parseAuctionEvent(event: Event): ParsedMarketplaceAuction {
   if (event.kind !== MarketplaceAuction) throw new Error('Invalid auction kind')
   const d = requireString(tagValue(event, 'd'), 'auction d tag')
+  const auctionAnchor = anchor(event.kind, event.pubkey, d)
+  const taggedAuctionAnchor = requireString(tagWithMarker(event, 'a', 'auction'), 'auction self anchor')
+  if (taggedAuctionAnchor !== auctionAnchor) throw new Error('Auction self anchor does not match event address')
   const listingAnchor = requireString(tagWithMarker(event, 'a', 'listing') ?? tagValue(event, 'a'), 'auction listing anchor')
   const arbiterPubkey = requireString(
     event.tags.find(tag => tag[0] === 'p' && tag[3] === 'auction-arbiter')?.[1],
@@ -242,7 +253,7 @@ export function parseAuctionEvent(event: Event): ParsedMarketplaceAuction {
   return {
     event,
     d,
-    auctionAnchor: anchor(event.kind, event.pubkey, d),
+    auctionAnchor,
     listingAnchor,
     arbiterPubkey,
     currency,

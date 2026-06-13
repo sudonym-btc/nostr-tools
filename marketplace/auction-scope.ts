@@ -19,9 +19,7 @@ import {
   type ParsedMarketplaceAuctionBid,
   type ParsedMarketplaceAuctionComplete,
 } from './auction.ts'
-import { auctionCompleteSearchFilter } from './auction-query.ts'
 import {
-  auctionBidGroupFilter,
   buildAuctionBidChains,
   groupAuctionBidEvents,
   type AuctionBidGroupEvent,
@@ -29,33 +27,37 @@ import {
   type ParsedAuctionBidGroup,
 } from './auction-bid-group.ts'
 import {
-  parseOrderPaymentAckEvent,
-  parseOrderPaymentEvent,
-  parseOrderPaymentNackEvent,
-  parseOrderPaymentSettlementEvent,
-  type ParsedOrderPayment,
-  type ParsedOrderPaymentAck,
-  type ParsedOrderPaymentNack,
-  type ParsedOrderPaymentSettlement,
-} from './order-lifecycle.ts'
+  parsePaymentAckEvent,
+  parsePaymentEvent,
+  parsePaymentNackEvent,
+  parsePaymentSettlementEvent,
+  type ParsedPayment,
+  type ParsedPaymentAck,
+  type ParsedPaymentNack,
+  type ParsedPaymentSettlement,
+} from './payment-lifecycle.ts'
 import {
   MarketplaceStream,
   StreamClosed,
   StreamEose,
   StreamLive,
 } from './stream.ts'
+import {
+  decodeMarketplaceEvent,
+  type MarketplaceInvalidEventHandler,
+} from './event-decoder.ts'
 
 export type MarketplaceAuctionScopeQuery = {
-  auctionAnchor: string
+  auctionAnchor?: string
+  listingAnchor?: string
   since?: number
   until?: number
-  limit?: number
-  completeLimit?: number
-  lifecycleLimit?: number
 }
 
 export type MarketplaceAuctionScopeOptions =
-  Pick<SubscribeManyParams, 'maxWait' | 'id' | 'label' | 'abort'>
+  Pick<SubscribeManyParams, 'maxWait' | 'id' | 'label' | 'abort'> & {
+    oninvalid?: MarketplaceInvalidEventHandler
+  }
 
 export type MarketplaceAuctionScopeSnapshot = {
   auctionAnchor: string
@@ -64,43 +66,47 @@ export type MarketplaceAuctionScopeSnapshot = {
   status: string
   bids: ParsedMarketplaceAuctionBid[]
   completes: ParsedMarketplaceAuctionComplete[]
-  payments: ParsedOrderPayment[]
-  paymentAcks: ParsedOrderPaymentAck[]
-  paymentNacks: ParsedOrderPaymentNack[]
-  paymentSettlements: ParsedOrderPaymentSettlement[]
+  payments: ParsedPayment[]
+  paymentAcks: ParsedPaymentAck[]
+  paymentNacks: ParsedPaymentNack[]
+  paymentSettlements: ParsedPaymentSettlement[]
   bidGroups: ParsedAuctionBidGroup[]
   bidChains: ParsedAuctionBidChain[]
   highestBid?: ParsedAuctionBidChain
   winningBid?: ParsedAuctionBidGroup
 }
 
+export type MarketplaceAuctionScopesSnapshot = Record<string, MarketplaceAuctionScopeSnapshot>
+
 export type MarketplaceAuctionScopeEvent =
   | ParsedMarketplaceAuction
   | ParsedMarketplaceAuctionBid
   | ParsedMarketplaceAuctionComplete
-  | ParsedOrderPayment
-  | ParsedOrderPaymentAck
-  | ParsedOrderPaymentNack
-  | ParsedOrderPaymentSettlement
+  | ParsedPayment
+  | ParsedPaymentAck
+  | ParsedPaymentNack
+  | ParsedPaymentSettlement
 
 export type MarketplaceAuctionScopeStream =
-  MarketplaceStream<MarketplaceAuctionScopeEvent, MarketplaceAuctionScopeSnapshot>
+  MarketplaceStream<MarketplaceAuctionScopeEvent, MarketplaceAuctionScopesSnapshot>
 
 export type MarketplaceAuctionScope = {
   filters(): Filter[]
-  query(options?: MarketplaceAuctionScopeOptions): Promise<MarketplaceAuctionScopeSnapshot>
+  query(options?: MarketplaceAuctionScopeOptions): Promise<MarketplaceAuctionScopesSnapshot>
   stream(options?: MarketplaceAuctionScopeOptions): MarketplaceAuctionScopeStream
 }
 
 type AuctionScopePool = Pick<AbstractSimplePool, 'subscribeMap'>
 
-function auctionAnchorParts(anchor: string): { pubkey: string; d: string } {
-  const [kind, pubkey, ...rest] = anchor.split(':')
-  if (Number(kind) !== MarketplaceAuction || !pubkey || rest.length === 0) {
-    throw new Error(`Invalid marketplace auction anchor: ${anchor}`)
-  }
-  return { pubkey, d: rest.join(':') }
-}
+export const auctionScopeEventKinds = [
+  MarketplaceAuction,
+  MarketplaceAuctionBid,
+  MarketplaceAuctionComplete,
+  MarketplacePayment,
+  MarketplacePaymentAck,
+  MarketplacePaymentNack,
+  MarketplacePaymentSettlement,
+]
 
 function sortParsed<T extends { event: Event }>(items: Iterable<T>): T[] {
   return [...items].sort((a, b) => b.event.created_at - a.event.created_at || b.event.id.localeCompare(a.event.id))
@@ -118,34 +124,19 @@ function scopeStatus(snapshot: Omit<MarketplaceAuctionScopeSnapshot, 'status'>):
   return snapshot.auction ? 'live' : 'unknown'
 }
 
-function hasAuctionAnchor(event: Event, auctionAnchor: string): boolean {
-  return event.tags.some(tag => tag[0] === 'a' && tag[1] === auctionAnchor)
-}
-
 export function auctionScopeFilters(query: MarketplaceAuctionScopeQuery): Filter[] {
-  const { pubkey, d } = auctionAnchorParts(query.auctionAnchor)
+  const anchor = query.auctionAnchor ?? query.listingAnchor
+  if (!anchor) throw new Error('Auction scope query requires an auctionAnchor or listingAnchor')
   const time = {
     ...(query.since !== undefined ? { since: query.since } : {}),
     ...(query.until !== undefined ? { until: query.until } : {}),
   }
   return [
     {
-      kinds: [MarketplaceAuction],
-      authors: [pubkey],
-      '#d': [d],
-      limit: 1,
+      kinds: auctionScopeEventKinds,
+      '#a': [anchor],
       ...time,
     },
-    auctionCompleteSearchFilter({
-      auctionAnchor: query.auctionAnchor,
-      limit: query.completeLimit ?? 50,
-      ...time,
-    }),
-    auctionBidGroupFilter({
-      auctionAnchor: query.auctionAnchor,
-      limit: query.lifecycleLimit ?? query.limit ?? 500,
-      ...time,
-    }),
   ]
 }
 
@@ -153,10 +144,10 @@ function createState(auctionAnchor: string) {
   const auctions = new Map<string, ParsedMarketplaceAuction>()
   const bids = new Map<string, ParsedMarketplaceAuctionBid>()
   const completes = new Map<string, ParsedMarketplaceAuctionComplete>()
-  const payments = new Map<string, ParsedOrderPayment>()
-  const paymentAcks = new Map<string, ParsedOrderPaymentAck>()
-  const paymentNacks = new Map<string, ParsedOrderPaymentNack>()
-  const paymentSettlements = new Map<string, ParsedOrderPaymentSettlement>()
+  const payments = new Map<string, ParsedPayment>()
+  const paymentAcks = new Map<string, ParsedPaymentAck>()
+  const paymentNacks = new Map<string, ParsedPaymentNack>()
+  const paymentSettlements = new Map<string, ParsedPaymentSettlement>()
   const bidGroupEvents = new Map<string, AuctionBidGroupEvent>()
 
   function snapshot(): MarketplaceAuctionScopeSnapshot {
@@ -204,23 +195,51 @@ function createState(auctionAnchor: string) {
     addComplete(complete: ParsedMarketplaceAuctionComplete) {
       completes.set(complete.event.id, complete)
     },
-    addPayment(payment: ParsedOrderPayment) {
+    addPayment(payment: ParsedPayment) {
       payments.set(payment.event.id, payment)
       bidGroupEvents.set(payment.event.id, payment)
     },
-    addPaymentAck(ack: ParsedOrderPaymentAck) {
+    addPaymentAck(ack: ParsedPaymentAck) {
       paymentAcks.set(ack.event.id, ack)
       bidGroupEvents.set(ack.event.id, ack)
     },
-    addPaymentNack(nack: ParsedOrderPaymentNack) {
+    addPaymentNack(nack: ParsedPaymentNack) {
       paymentNacks.set(nack.event.id, nack)
       bidGroupEvents.set(nack.event.id, nack)
     },
-    addPaymentSettlement(settlement: ParsedOrderPaymentSettlement) {
+    addPaymentSettlement(settlement: ParsedPaymentSettlement) {
       paymentSettlements.set(settlement.event.id, settlement)
       bidGroupEvents.set(settlement.event.id, settlement)
     },
     snapshot,
+  }
+}
+
+function createScopesState() {
+  const scopes = new Map<string, ReturnType<typeof createState>>()
+
+  function scope(auctionAnchor: string) {
+    const current = scopes.get(auctionAnchor)
+    if (current) return current
+    const next = createState(auctionAnchor)
+    scopes.set(auctionAnchor, next)
+    return next
+  }
+
+  return {
+    add(auctionAnchor: string, event: MarketplaceAuctionScopeEvent) {
+      const state = scope(auctionAnchor)
+      if (isAuctionScopeAuction(event)) state.addAuction(event)
+      else if (isAuctionScopeBid(event)) state.addBid(event)
+      else if (isAuctionScopeComplete(event)) state.addComplete(event)
+      else if (isAuctionScopePayment(event)) state.addPayment(event)
+      else if (isAuctionScopePaymentAck(event)) state.addPaymentAck(event)
+      else if (isAuctionScopePaymentNack(event)) state.addPaymentNack(event)
+      else if (isAuctionScopePaymentSettlement(event)) state.addPaymentSettlement(event)
+    },
+    snapshot(): MarketplaceAuctionScopesSnapshot {
+      return Object.fromEntries([...scopes.entries()].map(([auctionAnchor, state]) => [auctionAnchor, state.snapshot()]))
+    },
   }
 }
 
@@ -236,22 +255,57 @@ export function isAuctionScopeComplete(event: MarketplaceAuctionScopeEvent): eve
   return event.event.kind === MarketplaceAuctionComplete
 }
 
-export function isAuctionScopePayment(event: MarketplaceAuctionScopeEvent): event is ParsedOrderPayment {
+export function isAuctionScopePayment(event: MarketplaceAuctionScopeEvent): event is ParsedPayment {
   return event.event.kind === MarketplacePayment
 }
 
-export function isAuctionScopePaymentAck(event: MarketplaceAuctionScopeEvent): event is ParsedOrderPaymentAck {
+export function isAuctionScopePaymentAck(event: MarketplaceAuctionScopeEvent): event is ParsedPaymentAck {
   return event.event.kind === MarketplacePaymentAck
 }
 
-export function isAuctionScopePaymentNack(event: MarketplaceAuctionScopeEvent): event is ParsedOrderPaymentNack {
+export function isAuctionScopePaymentNack(event: MarketplaceAuctionScopeEvent): event is ParsedPaymentNack {
   return event.event.kind === MarketplacePaymentNack
 }
 
 export function isAuctionScopePaymentSettlement(
   event: MarketplaceAuctionScopeEvent,
-): event is ParsedOrderPaymentSettlement {
+): event is ParsedPaymentSettlement {
   return event.event.kind === MarketplacePaymentSettlement
+}
+
+function parseAuctionScopeEvent(event: Event): MarketplaceAuctionScopeEvent {
+  if (event.kind === MarketplaceAuction) return parseAuctionEvent(event)
+  if (event.kind === MarketplaceAuctionBid) return parseAuctionBidEvent(event)
+  if (event.kind === MarketplaceAuctionComplete) return parseAuctionCompleteEvent(event)
+  if (event.kind === MarketplacePayment) return parsePaymentEvent(event)
+  if (event.kind === MarketplacePaymentAck) return parsePaymentAckEvent(event)
+  if (event.kind === MarketplacePaymentNack) return parsePaymentNackEvent(event)
+  if (event.kind === MarketplacePaymentSettlement) return parsePaymentSettlementEvent(event)
+  throw new Error('Invalid marketplace auction scope event kind')
+}
+
+function auctionScopeEventAuctionAnchor(event: MarketplaceAuctionScopeEvent): string | undefined {
+  if (isAuctionScopeAuction(event)) return event.auctionAnchor
+  if (isAuctionScopeBid(event)) return event.auctionAnchor
+  if (isAuctionScopeComplete(event)) return event.auctionAnchor
+  return event.anchors.auction
+}
+
+function auctionScopeEventListingAnchor(event: MarketplaceAuctionScopeEvent): string | undefined {
+  if (isAuctionScopeAuction(event)) return event.listingAnchor
+  if (isAuctionScopeBid(event)) return event.listingAnchor
+  if (isAuctionScopeComplete(event)) return event.listingAnchor
+  return event.anchors.listing
+}
+
+function auctionScopeEventMatchesQuery(
+  event: MarketplaceAuctionScopeEvent,
+  auctionAnchor: string,
+  query: MarketplaceAuctionScopeQuery,
+): boolean {
+  if (query.auctionAnchor && auctionAnchor !== query.auctionAnchor) return false
+  if (query.listingAnchor && auctionScopeEventListingAnchor(event) !== query.listingAnchor) return false
+  return true
 }
 
 export function streamAuctionScope(
@@ -260,15 +314,15 @@ export function streamAuctionScope(
   query: MarketplaceAuctionScopeQuery,
   options: MarketplaceAuctionScopeOptions = {},
 ): MarketplaceAuctionScopeStream {
-  const state = createState(query.auctionAnchor)
+  const state = createScopesState()
   const seen = new Set<string>()
   let emitted = 0
   let sub: SubCloser | undefined
-  const stream = new MarketplaceStream<MarketplaceAuctionScopeEvent, MarketplaceAuctionScopeSnapshot>({
+  const stream = new MarketplaceStream<MarketplaceAuctionScopeEvent, MarketplaceAuctionScopesSnapshot>({
     onClose: reason => sub?.close(reason),
   })
 
-  function emitSnapshot(): MarketplaceAuctionScopeSnapshot {
+  function emitSnapshot(): MarketplaceAuctionScopesSnapshot {
     const snapshot = state.snapshot()
     stream.emitSnapshot(snapshot)
     return snapshot
@@ -300,55 +354,16 @@ export function streamAuctionScope(
     onevent(event: Event) {
       if (seen.has(event.id)) return
       seen.add(event.id)
-      try {
-        if (event.kind === MarketplaceAuction) {
-          const auction = parseAuctionEvent(event)
-          if (auction.auctionAnchor !== query.auctionAnchor) return
-          state.addAuction(auction)
-          emitEvent(auction)
-          return
-        }
-        if (event.kind === MarketplaceAuctionBid) {
-          const bid = parseAuctionBidEvent(event)
-          if (bid.auctionAnchor !== query.auctionAnchor) return
-          state.addBid(bid)
-          emitEvent(bid)
-          return
-        }
-        if (event.kind === MarketplaceAuctionComplete) {
-          const complete = parseAuctionCompleteEvent(event)
-          if (complete.auctionAnchor !== query.auctionAnchor) return
-          state.addComplete(complete)
-          emitEvent(complete)
-          return
-        }
-        if (!hasAuctionAnchor(event, query.auctionAnchor)) return
-        if (event.kind === MarketplacePayment) {
-          const payment = parseOrderPaymentEvent(event)
-          state.addPayment(payment)
-          emitEvent(payment)
-          return
-        }
-        if (event.kind === MarketplacePaymentAck) {
-          const ack = parseOrderPaymentAckEvent(event)
-          state.addPaymentAck(ack)
-          emitEvent(ack)
-          return
-        }
-        if (event.kind === MarketplacePaymentNack) {
-          const nack = parseOrderPaymentNackEvent(event)
-          state.addPaymentNack(nack)
-          emitEvent(nack)
-          return
-        }
-        if (event.kind === MarketplacePaymentSettlement) {
-          const settlement = parseOrderPaymentSettlementEvent(event)
-          state.addPaymentSettlement(settlement)
-          emitEvent(settlement)
-        }
-      } catch (err) {
-        stream.fail(err instanceof Error ? err : new Error('Invalid marketplace auction scope event'))
-      }
+      const decoded = decodeMarketplaceEvent(event, parseAuctionScopeEvent, {
+        source: 'auctionScopes.stream',
+        oninvalid: options.oninvalid,
+      })
+      if (!decoded.ok) return
+      const parsed = decoded.value
+      const auctionAnchor = auctionScopeEventAuctionAnchor(parsed)
+      if (!auctionAnchor || !auctionScopeEventMatchesQuery(parsed, auctionAnchor, query)) return
+      state.add(auctionAnchor, parsed)
+      emitEvent(parsed)
     },
     oneose() {
       emitSnapshot()
@@ -369,7 +384,7 @@ export async function queryAuctionScope(
   relays: string[],
   query: MarketplaceAuctionScopeQuery,
   options: MarketplaceAuctionScopeOptions = {},
-): Promise<MarketplaceAuctionScopeSnapshot> {
+): Promise<MarketplaceAuctionScopesSnapshot> {
   const stream = streamAuctionScope(pool, relays, query, options)
   if (
     !(stream.currentStatus instanceof StreamEose) &&
@@ -382,7 +397,7 @@ export async function queryAuctionScope(
       stream.until(StreamClosed),
     ])
   }
-  const snapshot = stream.currentSnapshot ?? createState(query.auctionAnchor).snapshot()
+  const snapshot = stream.currentSnapshot ?? createScopesState().snapshot()
   stream.close('auction scope query complete')
   return snapshot
 }
@@ -400,6 +415,7 @@ export function createAuctionScope(
 }
 
 export const auctionScopes = {
+  eventKinds: auctionScopeEventKinds,
   filters: auctionScopeFilters,
   query: queryAuctionScope,
   stream: streamAuctionScope,

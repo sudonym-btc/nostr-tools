@@ -8,6 +8,10 @@ import {
   type ParsedMarketplaceAuction,
   type ParsedMarketplaceAuctionComplete,
 } from './auction.ts'
+import {
+  decodeMarketplaceEvent,
+  type MarketplaceInvalidEventHandler,
+} from './event-decoder.ts'
 
 export type MarketplaceAuctionSearchQuery = {
   listingAnchor?: string
@@ -21,6 +25,7 @@ export type MarketplaceAuctionSearchQuery = {
 
 export type MarketplaceAuctionSearchOptions = {
   maxWait?: number
+  oninvalid?: MarketplaceInvalidEventHandler
 }
 
 export type MarketplaceAuctionSubscribeHandlers = {
@@ -48,6 +53,7 @@ export type MarketplaceAuctionCompleteSearchQuery = {
 
 export type MarketplaceAuctionCompleteSearchOptions = {
   maxWait?: number
+  oninvalid?: MarketplaceInvalidEventHandler
 }
 
 export type MarketplaceAuctionCompleteSubscribeHandlers = {
@@ -130,7 +136,12 @@ export async function searchAuctions(
 
   const latestByAnchor = new Map<string, ParsedMarketplaceAuction>()
   for (const event of events.values()) {
-    const auction = parseAuctionEvent(event)
+    const decoded = decodeMarketplaceEvent(event, parseAuctionEvent, {
+      source: 'auctions.search',
+      oninvalid: options.oninvalid,
+    })
+    if (!decoded.ok) continue
+    const auction = decoded.value
     latestByAnchor.set(auction.auctionAnchor, latestAuction(latestByAnchor.get(auction.auctionAnchor), auction))
   }
   return [...latestByAnchor.values()].sort((a, b) => b.event.created_at - a.event.created_at)
@@ -152,13 +163,12 @@ export function subscribeAuctions(
     onevent(event: Event) {
       if (seen.has(event.id)) return
       seen.add(event.id)
-      let parsed: ParsedMarketplaceAuction
-      try {
-        parsed = parseAuctionEvent(event)
-      } catch (err) {
-        handlers.oninvalid?.(event, err instanceof Error ? err : new Error('Invalid marketplace auction'))
-        return
-      }
+      const decoded = decodeMarketplaceEvent(event, parseAuctionEvent, {
+        source: 'auctions.subscribe',
+        oninvalid: invalid => handlers.oninvalid?.(invalid.event, invalid.error),
+      })
+      if (!decoded.ok) return
+      const parsed = decoded.value
       const latest = latestAuction(auctions.get(parsed.auctionAnchor), parsed)
       auctions.set(parsed.auctionAnchor, latest)
       handlers.onevent?.(parsed)
@@ -237,12 +247,12 @@ export async function searchAuctionCompletes(
   const events = await pool.querySync(relays, auctionCompleteSearchFilter(query), options)
   const latestByAuction = new Map<string, ParsedMarketplaceAuctionComplete>()
   for (const event of events) {
-    let complete: ParsedMarketplaceAuctionComplete
-    try {
-      complete = parseAuctionCompleteEvent(event)
-    } catch (_) {
-      continue
-    }
+    const decoded = decodeMarketplaceEvent(event, parseAuctionCompleteEvent, {
+      source: 'auctionCompletes.search',
+      oninvalid: options.oninvalid,
+    })
+    if (!decoded.ok) continue
+    const complete = decoded.value
     if (!matchesAuctionCompleteQuery(complete, query)) continue
     latestByAuction.set(complete.auctionAnchor, latestAuctionComplete(latestByAuction.get(complete.auctionAnchor), complete))
   }
@@ -265,13 +275,12 @@ export function subscribeAuctionCompletes(
     onevent(event: Event) {
       if (seen.has(event.id)) return
       seen.add(event.id)
-      let parsed: ParsedMarketplaceAuctionComplete
-      try {
-        parsed = parseAuctionCompleteEvent(event)
-      } catch (err) {
-        handlers.oninvalid?.(event, err instanceof Error ? err : new Error('Invalid marketplace auction complete'))
-        return
-      }
+      const decoded = decodeMarketplaceEvent(event, parseAuctionCompleteEvent, {
+        source: 'auctionCompletes.subscribe',
+        oninvalid: invalid => handlers.oninvalid?.(invalid.event, invalid.error),
+      })
+      if (!decoded.ok) return
+      const parsed = decoded.value
       if (!matchesAuctionCompleteQuery(parsed, query)) return
       const latest = latestAuctionComplete(completes.get(parsed.auctionAnchor), parsed)
       completes.set(parsed.auctionAnchor, latest)

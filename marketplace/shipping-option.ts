@@ -2,6 +2,7 @@ import type { AbstractSimplePool } from '../abstract-pool.ts'
 import type { Event, EventTemplate } from '../core.ts'
 import type { Filter } from '../filter.ts'
 import { MarketplaceShippingOption } from '../kinds.ts'
+import { decodeMarketplaceEvent, type MarketplaceInvalidEventHandler } from './event-decoder.ts'
 import { now, requireString, tagValue } from './helper.ts'
 
 export type ShippingOptionService = 'standard' | 'express' | 'overnight' | 'pickup' | string
@@ -89,6 +90,11 @@ export type ShippingOptionSearchQuery = {
   limit?: number
   since?: number
   until?: number
+}
+
+export type ShippingOptionSearchOptions = {
+  maxWait?: number
+  oninvalid?: MarketplaceInvalidEventHandler
 }
 
 function tagValuesFromAllFields(event: Event, name: string): string[] {
@@ -250,9 +256,19 @@ export async function searchShippingOptions(
   pool: Pick<AbstractSimplePool, 'querySync'>,
   relays: string[],
   query: ShippingOptionSearchQuery = {},
+  options: ShippingOptionSearchOptions = {},
 ): Promise<ParsedMarketplaceShippingOption[]> {
-  const events = await pool.querySync(relays, shippingOptionSearchFilter(query))
-  return events.filter(validateShippingOptionEvent).map(parseShippingOptionEvent)
+  const events = await pool.querySync(relays, shippingOptionSearchFilter(query), options)
+  const shippingOptions: ParsedMarketplaceShippingOption[] = []
+  for (const event of events) {
+    const decoded = decodeMarketplaceEvent(event, parseShippingOptionEvent, {
+      source: 'shippingOption.search',
+      oninvalid: options.oninvalid,
+    })
+    if (!decoded.ok) continue
+    shippingOptions.push(decoded.value)
+  }
+  return shippingOptions
 }
 
 export const shippingOption = {

@@ -36,9 +36,6 @@ export function marketplaceIdentityPubkeys(
     for (const role of identityRoles(identity, fallbackRoles)) {
       for (let index = 0; index < tempKeyWindow; index += 1) {
         pubkeys.push(deriveMarketplaceTradeMaterial(seed, { index, role }).tradePubkey)
-        if (role === 'buyer') {
-          pubkeys.push(deriveMarketplaceTradeMaterial(seed, { index, role, extra: 'auction-bid' }).tradePubkey)
-        }
       }
     }
   }

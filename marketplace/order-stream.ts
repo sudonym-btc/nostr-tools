@@ -1,7 +1,7 @@
 import type { AbstractSimplePool, SubCloser } from '../abstract-pool.ts'
 import type {
-  MyOrderGroupQuery,
-  OrderGroupBuckets,
+  OrderGroupIdentityQuery,
+  OrderGroupRoles,
   OrderGroupEvent,
   OrderGroupSubscribeOptions,
   OrderGroupSubscribePool,
@@ -16,9 +16,9 @@ import {
   type OrderSubscribeOptions,
 } from './order-query.ts'
 import {
-  bucketOrderGroups,
+  roleOrderGroups,
   defaultMyOrderIdentity,
-  subscribeMyOrderGroups,
+  subscribeOrderGroupsForIdentity,
   subscribeOrderGroups,
 } from './order-group-query.ts'
 import {
@@ -32,7 +32,7 @@ export type MarketplaceOrderGroupStream =
   MarketplaceStream<OrderGroupEvent, ParsedOrderGroup[]>
 
 export type MarketplaceMyOrderGroupStream =
-  MarketplaceStream<OrderGroupEvent, OrderGroupBuckets>
+  MarketplaceStream<OrderGroupEvent, OrderGroupRoles>
 
 export type MarketplaceOrderStream =
   MarketplaceStream<ParsedOrder, ParsedOrder[]>
@@ -72,9 +72,7 @@ export function streamOrders(
       stream.emitEvent(order)
       stream.emitSnapshot(sortOrders(orders.values()))
     },
-    oninvalid(_event, error) {
-      stream.fail(error)
-    },
+    oninvalid() {},
     oneose() {
       stream.markEose({ eventCount })
       stream.markLive({ eventCount })
@@ -116,9 +114,7 @@ export function streamOrderGroups(
     ongroups(groups) {
       stream.emitSnapshot(groups)
     },
-    oninvalid(_event, error) {
-      stream.fail(error)
-    },
+    oninvalid() {},
     oneose() {
       stream.markEose({ eventCount })
       stream.markLive({ eventCount })
@@ -133,29 +129,27 @@ export function streamOrderGroups(
 export function streamMyOrderGroups(
   pool: OrderGroupSubscribePool,
   relays: string[],
-  query: MyOrderGroupQuery,
+  query: OrderGroupIdentityQuery,
   options: OrderGroupSubscribeOptions = {},
 ): MarketplaceMyOrderGroupStream {
   const identity = defaultMyOrderIdentity(query.identity)
   const resolvedQuery = { ...query, identity }
   let eventCount = 0
   let sub: SubCloser | undefined
-  const stream = new MarketplaceStream<OrderGroupEvent, OrderGroupBuckets>({
+  const stream = new MarketplaceStream<OrderGroupEvent, OrderGroupRoles>({
     onClose: reason => sub?.close(reason),
   })
-  stream.emitSnapshot(bucketOrderGroups([], identity))
+  stream.emitSnapshot(roleOrderGroups([], identity))
   stream.markQuerying({ requestCount: streamRequestCount(relays, resolvedQuery) })
-  sub = subscribeMyOrderGroups(pool, relays, resolvedQuery, {
+  sub = subscribeOrderGroupsForIdentity(pool, relays, resolvedQuery, {
     onevent(event) {
       eventCount += 1
       stream.emitEvent(event)
     },
-    onbuckets(buckets) {
-      stream.emitSnapshot(buckets)
+    onroles(roles) {
+      stream.emitSnapshot(roles)
     },
-    oninvalid(_event, error) {
-      stream.fail(error)
-    },
+    oninvalid() {},
     oneose() {
       stream.markEose({ eventCount })
       stream.markLive({ eventCount })
@@ -203,7 +197,7 @@ export async function queryOrderStream(
 
 export async function queryMyOrderGroupStream(
   stream: MarketplaceMyOrderGroupStream,
-): Promise<OrderGroupBuckets> {
+): Promise<OrderGroupRoles> {
   if (
     !(stream.currentStatus instanceof StreamEose) &&
     !(stream.currentStatus instanceof StreamLive) &&
@@ -215,7 +209,7 @@ export async function queryMyOrderGroupStream(
       stream.until(StreamClosed),
     ])
   }
-  return stream.currentSnapshot ?? bucketOrderGroups([], {})
+  return stream.currentSnapshot ?? roleOrderGroups([], {})
 }
 
 export const orderStreams = {

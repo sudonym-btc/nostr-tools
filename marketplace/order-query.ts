@@ -11,6 +11,10 @@ import {
 } from '../kinds.ts'
 import { marketplaceIdentityPubkeys, type MarketplaceOrderIdentity } from './identity.ts'
 import { parseOrderEvent, type ParsedOrder } from './order.ts'
+import {
+  decodeMarketplaceEvent,
+  type MarketplaceInvalidEventHandler,
+} from './event-decoder.ts'
 
 export type { MarketplaceOrderIdentity } from './identity.ts'
 
@@ -28,6 +32,7 @@ export type OrderQuery = {
 
 export type OrderSearchOptions = {
   maxWait?: number
+  oninvalid?: MarketplaceInvalidEventHandler
 }
 
 export type OrderSubscribeHandlers = {
@@ -115,9 +120,11 @@ export async function searchOrders(
   const events = [...uniqueEvents.values()]
   const orders: ParsedOrder[] = []
   for (const event of events) {
-    try {
-      orders.push(parseOrderEvent(event))
-    } catch (_) {}
+    const decoded = decodeMarketplaceEvent(event, parseOrderEvent, {
+      source: 'orders.search',
+      oninvalid: options.oninvalid,
+    })
+    if (decoded.ok) orders.push(decoded.value)
   }
   return orders
 }
@@ -137,11 +144,11 @@ export function subscribeOrders(
     onevent(event: Event) {
       if (seen.has(event.id)) return
       seen.add(event.id)
-      try {
-        handlers.onevent?.(parseOrderEvent(event))
-      } catch (err) {
-        handlers.oninvalid?.(event, err instanceof Error ? err : new Error('Invalid marketplace order'))
-      }
+      const decoded = decodeMarketplaceEvent(event, parseOrderEvent, {
+        source: 'orders.subscribe',
+        oninvalid: invalid => handlers.oninvalid?.(invalid.event, invalid.error),
+      })
+      if (decoded.ok) handlers.onevent?.(decoded.value)
     },
     oneose() {
       handlers.oneose?.()

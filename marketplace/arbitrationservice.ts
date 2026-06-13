@@ -2,6 +2,7 @@ import type { AbstractSimplePool } from '../abstract-pool.ts'
 import type { Event, EventTemplate } from '../core.ts'
 import type { Filter } from '../filter.ts'
 import { MarketplacePaymentMethod, ArbitrationService, ArbitrationServiceSelection } from '../kinds.ts'
+import { decodeMarketplaceEvent, type MarketplaceInvalidEventHandler } from './event-decoder.ts'
 import {
   eventToArbitrationContextValue,
   isEvmAddress,
@@ -57,6 +58,11 @@ export type ArbitrationServiceFindQuery = {
   serviceType?: ArbitrationType
   chainId?: number
   limit?: number
+}
+
+export type ArbitrationServiceSearchOptions = {
+  maxWait?: number
+  oninvalid?: MarketplaceInvalidEventHandler
 }
 
 export type ArbitrationServiceSelectionContent = {
@@ -161,18 +167,27 @@ export async function findArbitrationService(
   pool: Pick<AbstractSimplePool, 'querySync'>,
   relays: string[],
   query: ArbitrationServiceFindQuery = {},
+  options: ArbitrationServiceSearchOptions = {},
 ): Promise<ParsedArbitrationService | null> {
-  return (await searchArbitrationServices(pool, relays, query))[0] ?? null
+  return (await searchArbitrationServices(pool, relays, query, options))[0] ?? null
 }
 
 export async function searchArbitrationServices(
   pool: Pick<AbstractSimplePool, 'querySync'>,
   relays: string[],
   query: ArbitrationServiceFindQuery = {},
+  options: ArbitrationServiceSearchOptions = {},
 ): Promise<ParsedArbitrationService[]> {
-  return (await pool.querySync(relays, arbitrationServiceFilter(query)))
-    .filter(validateArbitrationServiceEvent)
-    .map(parseArbitrationServiceEvent)
+  const services: ParsedArbitrationService[] = []
+  const events = await pool.querySync(relays, arbitrationServiceFilter(query), options)
+  for (const event of events) {
+    const decoded = decodeMarketplaceEvent(event, parseArbitrationServiceEvent, {
+      source: 'arbitrationServices.search',
+      oninvalid: options.oninvalid,
+    })
+    if (decoded.ok) services.push(decoded.value)
+  }
+  return services
     .filter(service => {
       if (query.serviceType && service.content.type !== query.serviceType) return false
       if (query.chainId !== undefined && service.content.params.chainId !== query.chainId) return false

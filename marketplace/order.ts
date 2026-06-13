@@ -1,18 +1,19 @@
 import type { Event, EventTemplate } from '../core.ts'
+import type { MarketplaceDriverPaymentTerms } from '@sudonym-btc/marketplace-driver-interface'
 import { CommitAuthorization, MarketplaceOrder, StructuredMessage } from '../kinds.ts'
 import { parseListingEvent } from './listing.ts'
 import {
   generateOrderCancelEventTemplate,
-  generateOrderPaymentAckEventTemplate,
-  generateOrderPaymentEventTemplate,
-  generateOrderPaymentNackEventTemplate,
-  generateOrderPaymentSettlementEventTemplate,
+  generatePaymentAckEventTemplate,
+  generatePaymentEventTemplate,
+  generatePaymentNackEventTemplate,
+  generatePaymentSettlementEventTemplate,
   parseOrderCancelEvent,
-  parseOrderPaymentAckEvent,
-  parseOrderPaymentEvent,
-  parseOrderPaymentNackEvent,
-  parseOrderPaymentSettlementEvent,
-} from './order-lifecycle.ts'
+  parsePaymentAckEvent,
+  parsePaymentEvent,
+  parsePaymentNackEvent,
+  parsePaymentSettlementEvent,
+} from './payment-lifecycle.ts'
 import { orderGroups } from './order-group.ts'
 import { isOrderGroupRole, orderGroupIdForRoleParticipants, type OrderGroupRole } from './order-id.ts'
 import { orderQueries } from './order-query.ts'
@@ -343,13 +344,14 @@ export function generateStructuredMessageEventTemplate(message: StructuredMessag
 
 export function paymentProofForEvm(opts: {
   driver: string
+  terms: MarketplaceDriverPaymentTerms
   txHash: string
   arbitrationService: Event | string
   paymentMethod: Event | string
 }): PaymentProof {
   if (!isTransactionHash(opts.txHash)) throw new Error('Invalid EVM txHash')
   return {
-    paymentProof: { driver: opts.driver, params: { txHash: opts.txHash } },
+    paymentProof: { driver: opts.driver, terms: opts.terms, params: { txHash: opts.txHash } },
     arbitration: {
       arbitrationService: eventToArbitrationContextValue(opts.arbitrationService),
       paymentMethod: eventToArbitrationContextValue(opts.paymentMethod),
@@ -359,12 +361,14 @@ export function paymentProofForEvm(opts: {
 
 export function paymentProofForZap(opts: {
   driver: string
+  terms: MarketplaceDriverPaymentTerms
   receipt: Event | string
   recipientProfile: Event
 }): PaymentProof {
   return {
     paymentProof: {
       driver: opts.driver,
+      terms: opts.terms,
       params: {
         receipt: typeof opts.receipt === 'string' ? opts.receipt : JSON.stringify(opts.receipt),
         recipientProfile: opts.recipientProfile,
@@ -377,15 +381,15 @@ export const orders = {
   parse: parseOrderEvent,
   validate: validateOrderEvent,
   template: generateOrderEventTemplate,
-  paymentTemplate: generateOrderPaymentEventTemplate,
-  paymentAckTemplate: generateOrderPaymentAckEventTemplate,
-  paymentNackTemplate: generateOrderPaymentNackEventTemplate,
-  paymentSettlementTemplate: generateOrderPaymentSettlementEventTemplate,
+  paymentTemplate: generatePaymentEventTemplate,
+  paymentAckTemplate: generatePaymentAckEventTemplate,
+  paymentNackTemplate: generatePaymentNackEventTemplate,
+  paymentSettlementTemplate: generatePaymentSettlementEventTemplate,
   cancelTemplate: generateOrderCancelEventTemplate,
-  parsePayment: parseOrderPaymentEvent,
-  parsePaymentAck: parseOrderPaymentAckEvent,
-  parsePaymentNack: parseOrderPaymentNackEvent,
-  parsePaymentSettlement: parseOrderPaymentSettlementEvent,
+  parsePayment: parsePaymentEvent,
+  parsePaymentAck: parsePaymentAckEvent,
+  parsePaymentNack: parsePaymentNackEvent,
+  parsePaymentSettlement: parsePaymentSettlementEvent,
   parseCancel: parseOrderCancelEvent,
   commitHash: orderCommitHash,
   committedTerms: committedOrderTerms,

@@ -2,6 +2,8 @@ import {
   isMarketplaceDriverEncryptedPaymentProofParams,
   type MarketplaceDriverPaymentProofParamsDecryptor,
   type MarketplaceDriverEncryptedPaymentProofParams,
+  type MarketplaceDriverPaymentTerms,
+  type MarketplaceDriverSealedPaymentTerms,
 } from '@sudonym-btc/marketplace-driver-interface'
 import {
   parseEventJson,
@@ -21,6 +23,7 @@ import {
 } from './participant-proof.ts'
 
 export type PaymentProofPrivacy = 'public' | 'sealed' | 'params'
+export type PaymentTermsPrivacy = 'public' | 'sealed'
 
 export type SealedPaymentProof = {
   version: 1
@@ -29,11 +32,13 @@ export type SealedPaymentProof = {
   payload: string
 }
 
+export type SealedPaymentTerms = MarketplaceDriverSealedPaymentTerms
 export type EncryptedPaymentProofParams = MarketplaceDriverEncryptedPaymentProofParams
 export type PaymentProofKeyTag = ProofDisclosureKeyTag
 
 export type PaymentProofResolutionStatus = 'missing' | 'invalid' | 'not_for_us' | 'resolved'
 export type PaymentProofParamsResolutionStatus = 'clear' | 'invalid' | 'not_for_us' | 'resolved'
+export type PaymentTermsResolutionStatus = 'clear' | 'invalid' | 'not_for_us' | 'resolved'
 
 export type PaymentProofResolution = {
   status: PaymentProofResolutionStatus
@@ -46,6 +51,13 @@ export type PaymentProofParamsResolution = {
   status: PaymentProofParamsResolutionStatus
   proofId?: string
   params?: Record<string, unknown>
+  error?: string
+}
+
+export type PaymentTermsResolution = {
+  status: PaymentTermsResolutionStatus
+  proofId?: string
+  terms?: MarketplaceDriverPaymentTerms
   error?: string
 }
 
@@ -69,8 +81,29 @@ export type PaymentProofContainer = (PaymentProofFields & {
 
 export type BuildPaymentProofPayloadOptions = {
   mode?: PaymentProofPrivacy
+  termsMode?: PaymentTermsPrivacy
   senderSecretKey: Uint8Array
   recipientPubkeys: Iterable<string | undefined>
+}
+
+function isPaymentTerms(value: unknown): value is MarketplaceDriverPaymentTerms {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    (value as Record<string, unknown>).version === 1 &&
+    (value as Record<string, unknown>).asset &&
+    typeof (value as Record<string, unknown>).asset === 'object' &&
+    Array.isArray((value as Record<string, unknown>).parties) &&
+    (value as Record<string, unknown>).lock &&
+    typeof (value as Record<string, unknown>).lock === 'object',
+  )
+}
+
+function parsePaymentTerms(value: unknown): MarketplaceDriverPaymentTerms | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  if (!isPaymentTerms(value)) throw new Error('Invalid payment proof terms')
+  return value
 }
 
 export function parsePaymentProof(json: unknown): PaymentProof | null | undefined {
@@ -81,13 +114,17 @@ export function parsePaymentProof(json: unknown): PaymentProof | null | undefine
   let paymentProof: PaymentProofEvidence | null = null
   if (rawPaymentProof && typeof rawPaymentProof === 'object' && !Array.isArray(rawPaymentProof)) {
     const proofRecord = rawPaymentProof as Record<string, unknown>
-    paymentProof = {
-      driver: requireString(proofRecord.driver, 'paymentProof.driver'),
-      params:
-        proofRecord.params && typeof proofRecord.params === 'object' && !Array.isArray(proofRecord.params)
-          ? (proofRecord.params as Record<string, unknown>)
-          : {},
-    }
+    const terms = parsePaymentTerms(proofRecord.terms)
+    const sealedTerms = parseSealedPaymentTerms(proofRecord.sealedTerms)
+    if (!terms && !sealedTerms) throw new Error('Payment proof requires terms')
+    const driver = requireString(proofRecord.driver, 'paymentProof.driver')
+    const params =
+      proofRecord.params && typeof proofRecord.params === 'object' && !Array.isArray(proofRecord.params)
+        ? (proofRecord.params as Record<string, unknown>)
+        : {}
+    paymentProof = terms
+      ? { driver, terms, params }
+      : { driver, sealedTerms: sealedTerms!, params }
   }
   let arbitration: PaymentProof['arbitration']
   if (record.arbitration && typeof record.arbitration === 'object' && !Array.isArray(record.arbitration)) {
@@ -108,6 +145,10 @@ export function paymentProofParamsId(params: Record<string, unknown>): string {
   return sha256Hex(sortedJson(params))
 }
 
+export function paymentTermsId(terms: MarketplaceDriverPaymentTerms): string {
+  return sha256Hex(sortedJson(terms))
+}
+
 export function isSealedPaymentProof(value: unknown): value is SealedPaymentProof {
   return Boolean(
     value &&
@@ -120,12 +161,48 @@ export function isSealedPaymentProof(value: unknown): value is SealedPaymentProo
   )
 }
 
+export function isSealedPaymentTerms(value: unknown): value is SealedPaymentTerms {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    (value as Record<string, unknown>).version === 1 &&
+    (value as Record<string, unknown>).mode === 'sealed:v1' &&
+    typeof (value as Record<string, unknown>).proofId === 'string' &&
+    typeof (value as Record<string, unknown>).payload === 'string',
+  )
+}
+
+export function parseSealedPaymentTerms(value: unknown): SealedPaymentTerms | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const record = value as Record<string, unknown>
+  if (record.mode === undefined) return undefined
+  if (!isSealedPaymentTerms(value)) throw new Error('Invalid sealed payment terms')
+  return value
+}
+
 export function parseSealedPaymentProof(value: unknown): SealedPaymentProof | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
   const record = value as Record<string, unknown>
   if (record.mode === undefined) return undefined
   if (!isSealedPaymentProof(value)) throw new Error('Invalid sealed payment proof')
   return value
+}
+
+export function sealPaymentTerms(terms: MarketplaceDriverPaymentTerms, disclosureKey?: Uint8Array): {
+  terms: SealedPaymentTerms
+  disclosureKey: Uint8Array
+} {
+  const sealed = sealProofPayload(JSON.stringify(terms), disclosureKey)
+  return {
+    terms: {
+      version: 1,
+      mode: 'sealed:v1',
+      proofId: paymentTermsId(terms),
+      payload: sealed.payload,
+    },
+    disclosureKey: sealed.disclosureKey,
+  }
 }
 
 export function sealPaymentProofParams(params: Record<string, unknown>, disclosureKey?: Uint8Array): {
@@ -192,29 +269,69 @@ export function buildPaymentProofPayload(
   proof: PaymentProof,
   options: BuildPaymentProofPayloadOptions,
 ): { proof: PaymentProof | SealedPaymentProof; paymentProofKeys: PaymentProofKeyTag[] } {
-  if ((options.mode ?? 'public') === 'public') return { proof, paymentProofKeys: [] }
+  const mode = options.mode ?? 'public'
+  const termsMode = options.termsMode ?? 'public'
+  if (mode === 'public' && termsMode === 'public') return { proof, paymentProofKeys: [] }
   const recipientPubkeys = [...new Set([...options.recipientPubkeys].filter((pubkey): pubkey is string =>
     typeof pubkey === 'string' && pubkey.length > 0,
   ))]
-  if (options.mode === 'params') {
-    if (!proof.paymentProof || isMarketplaceDriverEncryptedPaymentProofParams(proof.paymentProof.params)) {
-      return { proof, paymentProofKeys: [] }
-    }
-    const sealed = sealPaymentProofParams(proof.paymentProof.params as Record<string, unknown>)
+  if (mode === 'public' && termsMode === 'sealed') {
+    if (!proof.paymentProof?.terms) return { proof, paymentProofKeys: [] }
+    const sealedTerms = sealPaymentTerms(proof.paymentProof.terms)
     return {
       proof: {
         ...proof,
         paymentProof: {
-          ...proof.paymentProof,
-          params: sealed.params,
+          driver: proof.paymentProof.driver,
+          sealedTerms: sealedTerms.terms,
+          params: proof.paymentProof.params,
         },
       },
       paymentProofKeys: recipientPubkeys.map(recipientPubkey => proofDisclosureKeyWrap({
-        proofId: sealed.params.proofId,
+        proofId: sealedTerms.terms.proofId,
         recipientPubkey,
         senderSecretKey: options.senderSecretKey,
-        disclosureKey: sealed.disclosureKey,
+        disclosureKey: sealedTerms.disclosureKey,
       })),
+    }
+  }
+  if (mode === 'params') {
+    if (!proof.paymentProof || isMarketplaceDriverEncryptedPaymentProofParams(proof.paymentProof.params)) {
+      return { proof, paymentProofKeys: [] }
+    }
+    const sealed = sealPaymentProofParams(proof.paymentProof.params as Record<string, unknown>)
+    const terms = proof.paymentProof.terms
+    const sealedTerms = termsMode === 'sealed' && terms ? sealPaymentTerms(terms) : undefined
+    return {
+      proof: {
+        ...proof,
+        paymentProof: sealedTerms
+          ? {
+              driver: proof.paymentProof.driver,
+              sealedTerms: sealedTerms.terms,
+              params: sealed.params,
+            }
+          : {
+              ...proof.paymentProof,
+              params: sealed.params,
+            },
+      },
+      paymentProofKeys: [
+        ...recipientPubkeys.map(recipientPubkey => proofDisclosureKeyWrap({
+          proofId: sealed.params.proofId,
+          recipientPubkey,
+          senderSecretKey: options.senderSecretKey,
+          disclosureKey: sealed.disclosureKey,
+        })),
+        ...(sealedTerms
+          ? recipientPubkeys.map(recipientPubkey => proofDisclosureKeyWrap({
+              proofId: sealedTerms.terms.proofId,
+              recipientPubkey,
+              senderSecretKey: options.senderSecretKey,
+              disclosureKey: sealedTerms.disclosureKey,
+            }))
+          : []),
+      ],
     }
   }
   const sealed = sealPaymentProof(proof)
@@ -239,6 +356,32 @@ function paymentProofFields(container: PaymentProofContainer): PaymentProofField
     }
   }
   return container
+}
+
+export async function resolvePaymentTerms(
+  proof: PaymentProofEvidence,
+  options: ResolvePaymentProofOptions = {},
+): Promise<PaymentTermsResolution> {
+  if (proof.terms) return { status: 'clear', terms: proof.terms, proofId: paymentTermsId(proof.terms) }
+  if (!proof.sealedTerms) return { status: 'invalid', error: 'Payment proof terms are missing' }
+  const disclosureKey = await unwrapProofDisclosureKey(proof.sealedTerms.proofId, options)
+  if (!disclosureKey) {
+    return { status: 'not_for_us', proofId: proof.sealedTerms.proofId, error: 'No payment terms key for signer' }
+  }
+  try {
+    const decoded = JSON.parse(openSealedProofPayload(proof.sealedTerms.payload, disclosureKey))
+    const terms = parsePaymentTerms(decoded)
+    if (!terms) throw new Error('Invalid decrypted payment terms')
+    const proofId = paymentTermsId(terms)
+    if (proofId !== proof.sealedTerms.proofId) throw new Error('Payment terms id mismatch')
+    return { status: 'resolved', proofId, terms }
+  } catch (err) {
+    return {
+      status: 'invalid',
+      proofId: proof.sealedTerms.proofId,
+      error: err instanceof Error ? err.message : 'Invalid sealed payment terms',
+    }
+  }
 }
 
 export async function resolvePaymentProofParams(
@@ -268,6 +411,50 @@ export async function resolvePaymentProofParams(
       proofId: encrypted.proofId,
       error: err instanceof Error ? err.message : 'Invalid payment proof params',
     }
+  }
+}
+
+export async function resolvePaymentProofEvidence(
+  proof: PaymentProofEvidence,
+  options: ResolvePaymentProofOptions = {},
+): Promise<{
+  status: 'resolved' | 'invalid' | 'not_for_us'
+  proof?: PaymentProofEvidence & { terms: MarketplaceDriverPaymentTerms }
+  proofId?: string
+  error?: string
+}> {
+  const termsResolution = await resolvePaymentTerms(proof, options)
+  if (
+    termsResolution.status !== 'clear' &&
+    termsResolution.status !== 'resolved'
+  ) {
+    return {
+      status: termsResolution.status === 'not_for_us' ? 'not_for_us' : 'invalid',
+      proofId: termsResolution.proofId,
+      error: termsResolution.error ?? 'Payment terms could not be resolved',
+    }
+  }
+  const paramsResolution = await resolvePaymentProofParams(proof, options)
+  if (
+    paramsResolution.status !== 'clear' &&
+    paramsResolution.status !== 'resolved'
+  ) {
+    return {
+      status: paramsResolution.status === 'not_for_us' ? 'not_for_us' : 'invalid',
+      proofId: paramsResolution.proofId,
+      error: paramsResolution.error ?? 'Payment proof params could not be resolved',
+    }
+  }
+  if (!termsResolution.terms || !paramsResolution.params) {
+    return { status: 'invalid', error: 'Payment proof evidence could not be resolved' }
+  }
+  return {
+    status: 'resolved',
+    proof: {
+      driver: proof.driver,
+      terms: termsResolution.terms,
+      params: paramsResolution.params,
+    },
   }
 }
 
@@ -315,11 +502,17 @@ export async function resolvePaymentProof(
 export const paymentProofs = {
   id: paymentProofId,
   paramsId: paymentProofParamsId,
+  termsId: paymentTermsId,
   parse: parsePaymentProof,
   isSealed: isSealedPaymentProof,
   parseSealed: parseSealedPaymentProof,
+  isSealedTerms: isSealedPaymentTerms,
+  parseSealedTerms: parseSealedPaymentTerms,
+  sealTerms: sealPaymentTerms,
+  resolveTerms: resolvePaymentTerms,
   sealParams: sealPaymentProofParams,
   resolveParams: resolvePaymentProofParams,
+  resolveEvidence: resolvePaymentProofEvidence,
   paramsDecryptor: paymentProofParamsDecryptor,
   seal: sealPaymentProof,
   build: buildPaymentProofPayload,

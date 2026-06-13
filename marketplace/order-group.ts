@@ -25,11 +25,9 @@ import { resolveOrderGroupParticipants } from './order-group-resolution.ts'
 import { resolveAndValidateOrderGroup, validateOrderGroupPayments } from './order-group-payment.ts'
 import { validateMarketplaceOrder } from './order-validation.ts'
 import {
-  bucketOrderGroups,
+  roleOrderGroups,
   fetchOrderGroups,
-  searchMyOrderGroups,
   searchOrderGroups,
-  subscribeMyOrderGroups,
   subscribeOrderGroups,
 } from './order-group-query.ts'
 
@@ -55,7 +53,5 @@ export const orderGroups = {
   fetch: fetchOrderGroups,
   search: searchOrderGroups,
   subscribe: subscribeOrderGroups,
-  buckets: bucketOrderGroups,
-  mine: searchMyOrderGroups,
-  subscribeMine: subscribeMyOrderGroups,
+  roles: roleOrderGroups,
 }

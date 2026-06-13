@@ -12,7 +12,6 @@ import {
   parseAmount,
   parseJsonObject,
   requireString,
-  tagValue,
   type MarketplaceAmount,
   type PaymentAckStatus,
   type PaymentNackStatus,
@@ -42,7 +41,20 @@ import {
   type SealedPaymentProof,
 } from './payment-proof.ts'
 
-export type OrderLinkedEventRefs = {
+export type PaymentLifecycleAnchorMarker = 'listing' | 'auction'
+
+export type PaymentLifecycleAnchor = {
+  value: string
+  marker: PaymentLifecycleAnchorMarker
+}
+
+export type PaymentLifecycleAnchors = {
+  all: PaymentLifecycleAnchor[]
+  listing?: string
+  auction?: string
+}
+
+export type PaymentLifecycleRefs = {
   orders: string[]
   auctionBids: string[]
   auctionCompletes: string[]
@@ -53,40 +65,39 @@ export type OrderLinkedEventRefs = {
   cancels: string[]
 }
 
-export type ParsedOrderLinkedFields = {
+export type ParsedPaymentLifecycleFields = {
   orderGroupId: string
   tradeId: string
-  listingAnchor: string
+  anchors: PaymentLifecycleAnchors
   participants: MarketplaceParticipantTag[]
-  refs: OrderLinkedEventRefs
+  refs: PaymentLifecycleRefs
 }
 
-export type OrderLinkedEventTemplate = {
+export type PaymentLifecycleTemplate = {
   orderGroupId?: string
   tradeId: string
-  listingAnchor: string
-  anchorMarker?: string
+  anchors: PaymentLifecycleAnchor[]
   participants?: MarketplaceParticipantTag[]
-  refs?: Partial<OrderLinkedEventRefs>
+  refs?: Partial<PaymentLifecycleRefs>
   extraTags?: string[][]
   createdAt?: number
 }
 
-export type OrderPaymentContent = {
+export type PaymentContent = {
   amount?: MarketplaceAmount
   sealedAmount?: SealedPaymentAmount
   proof?: PaymentProof
   sealedProof?: SealedPaymentProof
 }
 
-export type ParsedOrderPayment = ParsedOrderLinkedFields & {
+export type ParsedPayment = ParsedPaymentLifecycleFields & {
   event: Event
-  content: OrderPaymentContent
+  content: PaymentContent
   paymentAmountKeys: PaymentAmountKeyTag[]
   paymentProofKeys: PaymentProofKeyTag[]
 }
 
-export type OrderPaymentTemplate = OrderLinkedEventTemplate & {
+export type PaymentTemplate = PaymentLifecycleTemplate & {
   amount?: MarketplaceAmount
   sealedAmount?: SealedPaymentAmount
   proof: PaymentProof | SealedPaymentProof
@@ -94,31 +105,31 @@ export type OrderPaymentTemplate = OrderLinkedEventTemplate & {
   paymentProofKeys?: PaymentProofKeyTag[]
 }
 
-export type OrderPaymentAckContent = {
+export type PaymentAckContent = {
   status: PaymentAckStatus
   message?: string
 }
 
-export type ParsedOrderPaymentAck = ParsedOrderLinkedFields & {
+export type ParsedPaymentAck = ParsedPaymentLifecycleFields & {
   event: Event
-  content: OrderPaymentAckContent
+  content: PaymentAckContent
 }
 
-export type OrderPaymentAckTemplate = OrderLinkedEventTemplate & OrderPaymentAckContent
+export type PaymentAckTemplate = PaymentLifecycleTemplate & PaymentAckContent
 
-export type OrderPaymentNackContent = {
+export type PaymentNackContent = {
   status: PaymentNackStatus
   message?: string
 }
 
-export type ParsedOrderPaymentNack = ParsedOrderLinkedFields & {
+export type ParsedPaymentNack = ParsedPaymentLifecycleFields & {
   event: Event
-  content: OrderPaymentNackContent
+  content: PaymentNackContent
 }
 
-export type OrderPaymentNackTemplate = OrderLinkedEventTemplate & OrderPaymentNackContent
+export type PaymentNackTemplate = PaymentLifecycleTemplate & PaymentNackContent
 
-export type OrderPaymentSettlementOutput = {
+export type PaymentSettlementOutput = {
   role?: string
   pubkey?: string
   amount?: string
@@ -126,33 +137,33 @@ export type OrderPaymentSettlementOutput = {
   data?: Record<string, unknown>
 }
 
-export type OrderPaymentSettlementContent = {
+export type PaymentSettlementContent = {
   method: PaymentMethod
   action: PaymentSettlementAction
   inputs?: Array<Record<string, unknown>>
-  outputs?: OrderPaymentSettlementOutput[]
+  outputs?: PaymentSettlementOutput[]
   data?: Record<string, unknown>
 }
 
-export type ParsedOrderPaymentSettlement = ParsedOrderLinkedFields & {
+export type ParsedPaymentSettlement = ParsedPaymentLifecycleFields & {
   event: Event
-  content: OrderPaymentSettlementContent
+  content: PaymentSettlementContent
 }
 
-export type OrderPaymentSettlementTemplate = OrderLinkedEventTemplate & OrderPaymentSettlementContent
+export type PaymentSettlementTemplate = PaymentLifecycleTemplate & PaymentSettlementContent
 
 export type OrderCancelContent = {
   reason?: string
 }
 
-export type ParsedOrderCancel = ParsedOrderLinkedFields & {
+export type ParsedOrderCancel = ParsedPaymentLifecycleFields & {
   event: Event
   content: OrderCancelContent
 }
 
-export type OrderCancelTemplate = OrderLinkedEventTemplate & OrderCancelContent
+export type OrderCancelTemplate = PaymentLifecycleTemplate & OrderCancelContent
 
-function referenceTags(refs: Partial<OrderLinkedEventRefs> | undefined): string[][] {
+function referenceTags(refs: Partial<PaymentLifecycleRefs> | undefined): string[][] {
   return [
     ...(refs?.orders ?? []).map(id => ['e', id, '', 'order']),
     ...(refs?.auctionBids ?? []).map(id => ['e', id, '', 'auction-bid']),
@@ -165,12 +176,13 @@ function referenceTags(refs: Partial<OrderLinkedEventRefs> | undefined): string[
   ]
 }
 
-function linkedTags(template: OrderLinkedEventTemplate): string[][] {
+function linkedTags(template: PaymentLifecycleTemplate): string[][] {
   const orderGroupId =
     template.orderGroupId ?? orderGroupIdForRoleParticipants(template.tradeId, template.participants ?? [])
-  if (!orderGroupId) throw new Error('Order linked event requires an order group id')
+  if (!orderGroupId) throw new Error('Payment lifecycle event requires a group id')
+  if (template.anchors.length === 0) throw new Error('Payment lifecycle event requires at least one anchor')
   return [
-    ['a', template.listingAnchor, ...(template.anchorMarker ? ['', template.anchorMarker] : [])],
+    ...template.anchors.map(anchor => ['a', anchor.value, '', anchor.marker]),
     ['d', orderGroupId],
     ['trade', template.tradeId],
     ...(template.participants ?? []).map(participantTag),
@@ -179,8 +191,34 @@ function linkedTags(template: OrderLinkedEventTemplate): string[][] {
   ]
 }
 
-function linkedFields(event: Event, label: string): ParsedOrderLinkedFields {
-  const refs: OrderLinkedEventRefs = {
+function parsePaymentLifecycleAnchors(event: Event, label: string): PaymentLifecycleAnchors {
+  const anchors: PaymentLifecycleAnchor[] = []
+  for (const tag of event.tags) {
+    if (tag[0] !== 'a' || !tag[1]) continue
+    const marker = tag[3]
+    if (marker !== 'listing' && marker !== 'auction') {
+      throw new Error(`${label} anchor marker must be listing or auction`)
+    }
+    anchors.push({ value: tag[1], marker })
+  }
+  if (anchors.length === 0) throw new Error(`${label} requires at least one anchor`)
+  return {
+    all: anchors,
+    listing: anchors.find(anchor => anchor.marker === 'listing')?.value,
+    auction: anchors.find(anchor => anchor.marker === 'auction')?.value,
+  }
+}
+
+export function paymentLifecycleHasAnchor(
+  event: ParsedPaymentLifecycleFields,
+  value: string,
+  marker?: PaymentLifecycleAnchorMarker,
+): boolean {
+  return event.anchors.all.some(anchor => anchor.value === value && (!marker || anchor.marker === marker))
+}
+
+function linkedFields(event: Event, label: string): ParsedPaymentLifecycleFields {
+  const refs: PaymentLifecycleRefs = {
     orders: [],
     auctionBids: [],
     auctionCompletes: [],
@@ -202,9 +240,9 @@ function linkedFields(event: Event, label: string): ParsedOrderLinkedFields {
     else if (tag[3] === 'cancel') refs.cancels.push(tag[1])
   }
   return {
-    orderGroupId: requireString(tagValue(event, 'd'), `${label} order group id`),
-    tradeId: requireString(tagValue(event, 'trade'), `${label} trade id`),
-    listingAnchor: requireString(tagValue(event, 'a'), `${label} listing anchor`),
+    orderGroupId: requireString(event.tags.find(tag => tag[0] === 'd')?.[1], `${label} order group id`),
+    tradeId: requireString(event.tags.find(tag => tag[0] === 'trade')?.[1], `${label} trade id`),
+    anchors: parsePaymentLifecycleAnchors(event, label),
     participants: event.tags
       .map(parseParticipantTag)
       .filter((tag): tag is MarketplaceParticipantTag => tag !== null),
@@ -212,7 +250,7 @@ function linkedFields(event: Event, label: string): ParsedOrderLinkedFields {
   }
 }
 
-function parsePaymentContent(content: string): OrderPaymentContent {
+function parsePaymentContent(content: string): PaymentContent {
   const json = parseJsonObject(content, 'payment content')
   const amount = parseAmount(json.amount)
   const sealedAmount = amount ? undefined : parseSealedPaymentAmount(json.amount)
@@ -234,7 +272,7 @@ function parsePaymentContent(content: string): OrderPaymentContent {
   }
 }
 
-function parsePaymentAckContent(content: string): OrderPaymentAckContent {
+function parsePaymentAckContent(content: string): PaymentAckContent {
   const json = parseJsonObject(content, 'payment ack content')
   const status = requireString(json.status, 'payment ack status') as PaymentAckStatus
   if (status !== 'accepted') throw new Error('Invalid payment ack status')
@@ -244,7 +282,7 @@ function parsePaymentAckContent(content: string): OrderPaymentAckContent {
   }
 }
 
-function parsePaymentNackContent(content: string): OrderPaymentNackContent {
+function parsePaymentNackContent(content: string): PaymentNackContent {
   const json = parseJsonObject(content, 'payment nack content')
   const status = requireString(json.status, 'payment nack status') as PaymentNackStatus
   if (status !== 'rejected') throw new Error('Invalid payment nack status')
@@ -254,13 +292,13 @@ function parsePaymentNackContent(content: string): OrderPaymentNackContent {
   }
 }
 
-function parseSettlementContent(content: string): OrderPaymentSettlementContent {
+function parseSettlementContent(content: string): PaymentSettlementContent {
   const json = parseJsonObject(content, 'payment settlement content')
   return {
     method: requireString(json.method, 'payment settlement method'),
     action: requireString(json.action, 'payment settlement action'),
     ...(Array.isArray(json.inputs) ? { inputs: json.inputs as Array<Record<string, unknown>> } : {}),
-    ...(Array.isArray(json.outputs) ? { outputs: json.outputs as OrderPaymentSettlementOutput[] } : {}),
+    ...(Array.isArray(json.outputs) ? { outputs: json.outputs as PaymentSettlementOutput[] } : {}),
     ...(json.data && typeof json.data === 'object' && !Array.isArray(json.data)
       ? { data: json.data as Record<string, unknown> }
       : {}),
@@ -274,7 +312,7 @@ function parseCancelContent(content: string): OrderCancelContent {
   }
 }
 
-export function parseOrderPaymentEvent(event: Event): ParsedOrderPayment {
+export function parsePaymentEvent(event: Event): ParsedPayment {
   if (event.kind !== MarketplacePayment) throw new Error('Invalid payment kind')
   const content = parsePaymentContent(event.content)
   return {
@@ -290,7 +328,7 @@ export function parseOrderPaymentEvent(event: Event): ParsedOrderPayment {
   }
 }
 
-export function parseOrderPaymentAckEvent(event: Event): ParsedOrderPaymentAck {
+export function parsePaymentAckEvent(event: Event): ParsedPaymentAck {
   if (event.kind !== MarketplacePaymentAck) throw new Error('Invalid payment ack kind')
   return {
     event,
@@ -299,7 +337,7 @@ export function parseOrderPaymentAckEvent(event: Event): ParsedOrderPaymentAck {
   }
 }
 
-export function parseOrderPaymentNackEvent(event: Event): ParsedOrderPaymentNack {
+export function parsePaymentNackEvent(event: Event): ParsedPaymentNack {
   if (event.kind !== MarketplacePaymentNack) throw new Error('Invalid payment nack kind')
   return {
     event,
@@ -308,7 +346,7 @@ export function parseOrderPaymentNackEvent(event: Event): ParsedOrderPaymentNack
   }
 }
 
-export function parseOrderPaymentSettlementEvent(event: Event): ParsedOrderPaymentSettlement {
+export function parsePaymentSettlementEvent(event: Event): ParsedPaymentSettlement {
   if (event.kind !== MarketplacePaymentSettlement) throw new Error('Invalid payment settlement kind')
   return {
     event,
@@ -326,7 +364,7 @@ export function parseOrderCancelEvent(event: Event): ParsedOrderCancel {
   }
 }
 
-export function generateOrderPaymentEventTemplate(payment: OrderPaymentTemplate): EventTemplate {
+export function generatePaymentEventTemplate(payment: PaymentTemplate): EventTemplate {
   if (!payment.amount && !payment.sealedAmount) throw new Error('Payment event requires an amount')
   return {
     kind: MarketplacePayment,
@@ -343,7 +381,7 @@ export function generateOrderPaymentEventTemplate(payment: OrderPaymentTemplate)
   }
 }
 
-export function generateOrderPaymentAckEventTemplate(ack: OrderPaymentAckTemplate): EventTemplate {
+export function generatePaymentAckEventTemplate(ack: PaymentAckTemplate): EventTemplate {
   return {
     kind: MarketplacePaymentAck,
     created_at: ack.createdAt ?? now(),
@@ -355,7 +393,7 @@ export function generateOrderPaymentAckEventTemplate(ack: OrderPaymentAckTemplat
   }
 }
 
-export function generateOrderPaymentNackEventTemplate(nack: OrderPaymentNackTemplate): EventTemplate {
+export function generatePaymentNackEventTemplate(nack: PaymentNackTemplate): EventTemplate {
   return {
     kind: MarketplacePaymentNack,
     created_at: nack.createdAt ?? now(),
@@ -367,8 +405,8 @@ export function generateOrderPaymentNackEventTemplate(nack: OrderPaymentNackTemp
   }
 }
 
-export function generateOrderPaymentSettlementEventTemplate(
-  settlement: OrderPaymentSettlementTemplate,
+export function generatePaymentSettlementEventTemplate(
+  settlement: PaymentSettlementTemplate,
 ): EventTemplate {
   return {
     kind: MarketplacePaymentSettlement,
@@ -395,15 +433,15 @@ export function generateOrderCancelEventTemplate(cancel: OrderCancelTemplate): E
   }
 }
 
-export const orderLifecycle = {
-  paymentTemplate: generateOrderPaymentEventTemplate,
-  paymentAckTemplate: generateOrderPaymentAckEventTemplate,
-  paymentNackTemplate: generateOrderPaymentNackEventTemplate,
-  paymentSettlementTemplate: generateOrderPaymentSettlementEventTemplate,
+export const paymentLifecycle = {
+  paymentTemplate: generatePaymentEventTemplate,
+  paymentAckTemplate: generatePaymentAckEventTemplate,
+  paymentNackTemplate: generatePaymentNackEventTemplate,
+  paymentSettlementTemplate: generatePaymentSettlementEventTemplate,
   cancelTemplate: generateOrderCancelEventTemplate,
-  parsePayment: parseOrderPaymentEvent,
-  parsePaymentAck: parseOrderPaymentAckEvent,
-  parsePaymentNack: parseOrderPaymentNackEvent,
-  parsePaymentSettlement: parseOrderPaymentSettlementEvent,
+  parsePayment: parsePaymentEvent,
+  parsePaymentAck: parsePaymentAckEvent,
+  parsePaymentNack: parsePaymentNackEvent,
+  parsePaymentSettlement: parsePaymentSettlementEvent,
   parseCancel: parseOrderCancelEvent,
 }

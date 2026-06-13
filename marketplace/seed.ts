@@ -39,7 +39,6 @@ export type MarketplaceSeedDerivationContext = {
   nonce?: string
   listingAnchor?: string
   role?: string
-  extra?: string
 }
 
 export type MarketplaceTradeMaterial = {

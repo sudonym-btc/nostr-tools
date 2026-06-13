@@ -2,11 +2,13 @@ import type { AbstractSimplePool } from '../../abstract-pool.ts'
 import type { Event, EventTemplate } from '../../core.ts'
 import type { Filter } from '../../filter.ts'
 import { ClassifiedListing } from '../../kinds.ts'
+import { decodeMarketplaceEvent } from '../event-decoder.ts'
 import {
   generateListingEventTemplate,
   listingSearchFilter,
   parseListingEvent,
   type ListingImage,
+  type ListingSearchOptions,
   type ListingSearchQuery,
   type MarketplaceListing,
   type MarketplaceListingTemplate,
@@ -49,6 +51,8 @@ export type AccommodationListingSearchQuery = Omit<ListingSearchQuery, 'profiles
   bedrooms?: number
   bathrooms?: number
 }
+
+export type AccommodationListingSearchOptions = ListingSearchOptions
 
 export const accommodationTagPromotions: readonly TagPromotion[] = [
   tagPromotion.direct('type', 'T'),
@@ -149,9 +153,18 @@ export async function searchAccommodationListings(
   pool: Pick<AbstractSimplePool, 'querySync'>,
   relays: string[],
   query: AccommodationListingSearchQuery = {},
+  options: AccommodationListingSearchOptions = {},
 ): Promise<AccommodationMarketplaceListing[]> {
-  const events = await pool.querySync(relays, accommodationListingSearchFilter(query))
-  return events.filter(validateAccommodationListingEvent).map(parseAccommodationListingEvent)
+  const events = await pool.querySync(relays, accommodationListingSearchFilter(query), options)
+  const listings: AccommodationMarketplaceListing[] = []
+  for (const event of events) {
+    const decoded = decodeMarketplaceEvent(event, parseAccommodationListingEvent, {
+      source: 'accommodationListings.search',
+      oninvalid: options.oninvalid,
+    })
+    if (decoded.ok) listings.push(decoded.value)
+  }
+  return listings
 }
 
 export const accommodationListings = {

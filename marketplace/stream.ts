@@ -8,6 +8,12 @@ export type ReplayStreamSubscribeOptions = {
   replay?: boolean
 }
 
+export type MarketplaceValue<T> = {
+  readonly value: T | undefined
+  readonly latest: T | undefined
+  subscribe(handler: ReplayStreamHandler<T>, options?: ReplayStreamSubscribeOptions): ReplayStreamSubscription
+}
+
 export type ReplayStreamOptions = {
   replayLimit?: number
 }
@@ -28,6 +34,10 @@ export class ReplayStream<T> {
 
   get latest(): T | undefined {
     return this.buffer.at(-1)
+  }
+
+  get value(): T | undefined {
+    return this.latest
   }
 
   next(value: T): void {

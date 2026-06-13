@@ -1,10 +1,11 @@
 import type { Event } from '../core.ts'
 import { marketplaceOrderIdentity } from './identity.ts'
 import { orderGroupEventFilters, orderIdentityPubkeys, type MarketplaceOrderIdentity, type OrderQuery } from './order-query.ts'
-import { groupOrderEvents, orderGroupFilter, parseOrderGroupEvent } from './order-group-core.ts'
+import { groupOrderEvents, orderGroupEventListingAnchor, orderGroupFilter, parseOrderGroupEvent } from './order-group-core.ts'
+import { decodeMarketplaceEvent, type MarketplaceInvalidEventHandler } from './event-decoder.ts'
 import type {
-  MyOrderGroupQuery,
-  OrderGroupBuckets,
+  OrderGroupIdentityQuery,
+  OrderGroupRoles,
   OrderGroupFilterQuery,
   OrderGroupQueryPool,
   OrderGroupSearchOptions,
@@ -21,10 +22,18 @@ export async function fetchOrderGroups(
   pool: OrderGroupQueryPool,
   relays: string[],
   query: OrderGroupFilterQuery = {},
-  options: ReduceOrderGroupOptions = {},
+  options: ReduceOrderGroupOptions & { oninvalid?: MarketplaceInvalidEventHandler } = {},
 ): Promise<ParsedOrderGroup[]> {
   const events = await pool.querySync(relays, orderGroupFilter(query))
-  return groupOrderEvents(events, options)
+  const parsed: OrderGroupEvent[] = []
+  for (const event of events) {
+    const decoded = decodeMarketplaceEvent(event, parseOrderGroupEvent, {
+      source: 'orderGroups.fetch',
+      oninvalid: options.oninvalid,
+    })
+    if (decoded.ok) parsed.push(decoded.value)
+  }
+  return groupOrderEvents(parsed, options)
 }
 
 export async function searchOrderGroups(
@@ -41,9 +50,11 @@ export async function searchOrderGroups(
   }))
   const parsed: OrderGroupEvent[] = []
   for (const event of uniqueEvents.values()) {
-    try {
-      parsed.push(parseOrderGroupEvent(event))
-    } catch (_) {}
+    const decoded = decodeMarketplaceEvent(event, parseOrderGroupEvent, {
+      source: 'orderGroups.search',
+      oninvalid: options.oninvalid,
+    })
+    if (decoded.ok) parsed.push(decoded.value)
   }
   return groupOrderEvents(parsed, options)
 }
@@ -56,10 +67,10 @@ function groupHasIdentityRole(group: ParsedOrderGroup, role: OrderGroupRole, pub
   return false
 }
 
-export function bucketOrderGroups(
+export function roleOrderGroups(
   groups: ParsedOrderGroup[],
   identity: MarketplaceOrderIdentity,
-): OrderGroupBuckets {
+): OrderGroupRoles {
   const pubkeys = new Set(orderIdentityPubkeys(identity))
   const buyer = groups.filter(group => groupHasIdentityRole(group, 'buyer', pubkeys))
   const seller = groups.filter(group => groupHasIdentityRole(group, 'seller', pubkeys))
@@ -69,15 +80,15 @@ export function bucketOrderGroups(
 
 export const defaultMyOrderIdentity = marketplaceOrderIdentity
 
-export async function searchMyOrderGroups(
+export async function searchOrderGroupsForIdentity(
   pool: OrderGroupQueryPool,
   relays: string[],
-  query: MyOrderGroupQuery,
+  query: OrderGroupIdentityQuery,
   options: OrderGroupSearchOptions = {},
-): Promise<OrderGroupBuckets> {
+): Promise<OrderGroupRoles> {
   const identity = defaultMyOrderIdentity(query.identity)
   const groups = await searchOrderGroups(pool, relays, { ...query, identity }, options)
-  return bucketOrderGroups(groups, identity)
+  return roleOrderGroups(groups, identity)
 }
 
 export function subscribeOrderGroups(
@@ -96,19 +107,18 @@ export function subscribeOrderGroups(
     onevent(event: Event) {
       if (seen.has(event.id)) return
       seen.add(event.id)
-      let parsed: OrderGroupEvent
-      try {
-        parsed = parseOrderGroupEvent(event)
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error('Invalid marketplace order group event')
-        handlers.oninvalid?.(event, error)
-        return
-      }
+      const decoded = decodeMarketplaceEvent(event, parseOrderGroupEvent, {
+        source: 'orderGroups.subscribe',
+        oninvalid: invalid => handlers.oninvalid?.(invalid.event, invalid.error),
+      })
+      if (!decoded.ok) return
+      const parsed = decoded.value
       events.set(parsed.event.id, parsed)
       handlers.onevent?.(parsed)
       const groups = groupOrderEvents(events.values(), options)
       handlers.ongroups?.(groups)
-      const group = groups.find(candidate => candidate.id === parsed.orderGroupId && candidate.listingAnchor === parsed.listingAnchor)
+      const listingAnchor = orderGroupEventListingAnchor(parsed)
+      const group = groups.find(candidate => candidate.id === parsed.orderGroupId && candidate.listingAnchor === listingAnchor)
       if (group) handlers.ongroup?.(group)
     },
     oneose() {
@@ -120,12 +130,12 @@ export function subscribeOrderGroups(
   })
 }
 
-export function subscribeMyOrderGroups(
+export function subscribeOrderGroupsForIdentity(
   pool: OrderGroupSubscribePool,
   relays: string[],
-  query: MyOrderGroupQuery,
+  query: OrderGroupIdentityQuery,
   handlers: OrderGroupSubscribeHandlers & {
-    onbuckets?: (buckets: OrderGroupBuckets) => void
+    onroles?: (roles: OrderGroupRoles) => void
   },
   options: OrderGroupSubscribeOptions = {},
 ) {
@@ -134,8 +144,8 @@ export function subscribeMyOrderGroups(
     ...handlers,
     ongroups(groups) {
       handlers.ongroups?.(groups)
-      const buckets = bucketOrderGroups(groups, identity)
-      handlers.onbuckets?.(buckets)
+      const roles = roleOrderGroups(groups, identity)
+      handlers.onroles?.(roles)
     },
   }, options)
 }

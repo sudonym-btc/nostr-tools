@@ -87,21 +87,21 @@ import {
   type ParsedAuctionBidGroup,
 } from './auction-bid-group.ts'
 import {
-  generateOrderPaymentAckEventTemplate,
-  generateOrderPaymentEventTemplate,
-  generateOrderPaymentNackEventTemplate,
-  generateOrderPaymentSettlementEventTemplate,
-  parseOrderPaymentEvent,
-  type OrderPaymentSettlementOutput,
-  type ParsedOrderPayment,
-} from './order-lifecycle.ts'
+  generatePaymentAckEventTemplate,
+  generatePaymentEventTemplate,
+  generatePaymentNackEventTemplate,
+  generatePaymentSettlementEventTemplate,
+  parsePaymentEvent,
+  type PaymentSettlementOutput,
+  type ParsedPayment,
+} from './payment-lifecycle.ts'
 import { paymentValidationRequest } from './order-group-payment.ts'
 import {
   fetchOrderGroups,
-  bucketOrderGroups,
-  searchMyOrderGroups,
+  roleOrderGroups,
+  searchOrderGroupsForIdentity,
   searchOrderGroups,
-  subscribeMyOrderGroups,
+  subscribeOrderGroupsForIdentity,
   subscribeOrderGroups,
   groupOrderEvents,
   orderGroupFilter,
@@ -113,8 +113,8 @@ import {
   resolveOrderGroupParticipants,
   validateOrderGroupPayments,
   type OrderGroupFilterQuery,
-  type MyOrderGroupQuery,
-  type OrderGroupBuckets,
+  type OrderGroupIdentityQuery,
+  type OrderGroupRoles,
   type OrderGroupSearchOptions,
   type OrderGroupSubscribeHandlers,
   type ResolveAndValidateOrderGroupOptions,
@@ -177,8 +177,8 @@ import type {
   MarketplacePaymentIdentity,
   MarketplacePaymentContract,
   MarketplacePaymentIntent,
-  MarketplacePaymentRecoveryItem,
-  MarketplacePaymentRecoveryState,
+  MarketplacePaymentValidationItem,
+  MarketplacePaymentSweepState,
   MarketplacePaymentArbitrationIntent,
   MarketplacePaymentArbitrationState,
   MarketplacePaymentArbitrationRequest,
@@ -230,7 +230,6 @@ import type {
   MarketplaceOrdersApi,
   MarketplaceReviewsApi,
   MarketplaceStructuredMessagesApi,
-  MarketplacePaymentRoutesApi,
   MarketplaceAuctionsApi,
   MarketplaceAuctionBidGroupsApi,
   MarketplacePaymentsApi,
@@ -281,7 +280,6 @@ function nostrWatermarkPubkeys(seed: string, from: number, through: number): Map
   const pubkeys = new Map<string, number>()
   for (let index = from; index <= through; index += 1) {
     pubkeys.set(deriveMarketplaceTradeMaterial(seed, { index, role: 'buyer' }).tradePubkey, index)
-    pubkeys.set(deriveMarketplaceTradeMaterial(seed, { index, role: 'buyer', extra: 'auction-bid' }).tradePubkey, index)
   }
   return pubkeys
 }
@@ -586,8 +584,8 @@ export async function startMarketplaceRuntime(
   })
 
   for (const policy of policies) {
-    if (!policy.startup) continue
-    const started = await policy.startup({
+    const driverRuntime = opts.driverRuntime
+    const context = {
       seed: discovery.seed,
       highWaterMark: discovery.maxUsedIndex,
       nextUnusedIndex: discovery.nextUnusedIndex,
@@ -595,14 +593,56 @@ export async function startMarketplaceRuntime(
       discovery,
       ...(options.now !== undefined ? { now: options.now } : {}),
       ...(opts.logger ? { logger: opts.logger } : {}),
-    })
-    if (started) {
-      const result = { ...started, policy: started.policy || policyName(policy) }
-      policyResults.push(result)
-      logger.info('Payment policy started', {
-        policy: result.policy,
-        data: result.data,
-      })
+    }
+    if (policy.startup) {
+      driverRuntime?.starting(policy)
+      try {
+        const started = await policy.startup(context)
+        if (started) {
+          const result = { ...started, policy: started.policy || policyName(policy) }
+          policyResults.push(result)
+          driverRuntime?.started(policy, result)
+          logger.info('Payment policy started', {
+            policy: result.policy,
+            data: result.data,
+          })
+        } else {
+          driverRuntime?.started(policy)
+        }
+      } catch (error) {
+        driverRuntime?.failed(policy, error)
+        throw error
+      }
+    } else {
+      driverRuntime?.ready(policy)
+    }
+    if (policy.resumeSwapOperations) {
+      driverRuntime?.recovering(policy)
+      try {
+        const resume = await policy.resumeSwapOperations(context)
+        for await (const state of resume) {
+          driverRuntime?.swapResumeState(policy, state)
+          logger.info('Payment policy swap operations resume state', {
+            policy: policyName(policy),
+            type: state.type,
+            data: state.data,
+          })
+          if (state.type === 'noop') continue
+          policyResults.push({
+            policy: policyName(policy),
+            data: {
+              swapResume: state.type,
+              ...(state.type === 'progress' ? { status: state.status } : {}),
+              ...(state.type === 'failed' ? { error: state.error } : {}),
+              ...(state.data ?? {}),
+            },
+          })
+        }
+        driverRuntime?.swapResumeComplete(policy)
+      } catch (error) {
+        driverRuntime?.failed(policy, error)
+        throw error
+      }
     }
   }
 

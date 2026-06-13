@@ -86,21 +86,21 @@ import {
   type ParsedAuctionBidGroup,
 } from './auction-bid-group.ts'
 import {
-  generateOrderPaymentAckEventTemplate,
-  generateOrderPaymentEventTemplate,
-  generateOrderPaymentNackEventTemplate,
-  generateOrderPaymentSettlementEventTemplate,
-  parseOrderPaymentEvent,
-  type OrderPaymentSettlementOutput,
-  type ParsedOrderPayment,
-} from './order-lifecycle.ts'
+  generatePaymentAckEventTemplate,
+  generatePaymentEventTemplate,
+  generatePaymentNackEventTemplate,
+  generatePaymentSettlementEventTemplate,
+  parsePaymentEvent,
+  type PaymentSettlementOutput,
+  type ParsedPayment,
+} from './payment-lifecycle.ts'
 import { paymentValidationRequest } from './order-group-payment.ts'
 import {
   fetchOrderGroups,
-  bucketOrderGroups,
-  searchMyOrderGroups,
+  roleOrderGroups,
+  searchOrderGroupsForIdentity,
   searchOrderGroups,
-  subscribeMyOrderGroups,
+  subscribeOrderGroupsForIdentity,
   subscribeOrderGroups,
   groupOrderEvents,
   orderGroupFilter,
@@ -112,8 +112,8 @@ import {
   resolveOrderGroupParticipants,
   validateOrderGroupPayments,
   type OrderGroupFilterQuery,
-  type MyOrderGroupQuery,
-  type OrderGroupBuckets,
+  type OrderGroupIdentityQuery,
+  type OrderGroupRoles,
   type OrderGroupSearchOptions,
   type OrderGroupSubscribeHandlers,
   type ResolveAndValidateOrderGroupOptions,
@@ -175,8 +175,9 @@ import type {
   MarketplacePaymentIdentity,
   MarketplacePaymentContract,
   MarketplacePaymentIntent,
-  MarketplacePaymentRecoveryItem,
-  MarketplacePaymentRecoveryState,
+  MarketplacePaymentValidationItem,
+  MarketplacePaymentSettlementIntent,
+  MarketplacePaymentSweepState,
   MarketplacePaymentArbitrationIntent,
   MarketplacePaymentArbitrationState,
   MarketplacePaymentArbitrationRequest,
@@ -228,7 +229,6 @@ import type {
   MarketplaceOrdersApi,
   MarketplaceReviewsApi,
   MarketplaceStructuredMessagesApi,
-  MarketplacePaymentRoutesApi,
   MarketplaceAuctionsApi,
   MarketplaceAuctionBidGroupsApi,
   MarketplacePaymentsApi,
@@ -240,7 +240,7 @@ import type {
   MarketplaceSession,
 } from './runtime-types.ts'
 import {
-  paymentRecoveryItemForGroup,
+  paymentValidationItemForGroup,
   policyForPayment,
   publishMarketplaceTemplate,
   requireArbitrationPublisher,
@@ -250,23 +250,164 @@ import {
   validateMarketplacePayment,
 } from './runtime-common.ts'
 
-export function hasPaymentAckFrom(group: ParsedOrderGroup, payment: ParsedOrderPayment, pubkey: string): boolean {
+type ArbitrationPaymentItem = {
+  payment: ParsedPayment
+  item: MarketplacePaymentValidationItem
+  amount: MarketplaceAmount
+}
+
+function uniquePayments(payments: ParsedPayment[]): ParsedPayment[] {
+  const seen = new Set<string>()
+  const unique: ParsedPayment[] = []
+  for (const payment of payments) {
+    if (seen.has(payment.event.id)) continue
+    seen.add(payment.event.id)
+    unique.push(payment)
+  }
+  return unique
+}
+
+function arbitrationPayments(request: MarketplacePaymentArbitrationRequest): ParsedPayment[] {
+  const payments = request.payments?.length
+    ? request.payments
+    : request.payment
+      ? [request.payment]
+      : request.group.payments.length
+        ? request.group.payments
+        : request.group.payment
+          ? [request.group.payment]
+          : []
+  return uniquePayments(payments)
+}
+
+function parseSettlementAmount(value: string | undefined, label: string): bigint {
+  if (value === undefined) throw new Error(`${label} settlement output amount is required`)
+  if (!/^\d+$/.test(value)) throw new Error(`${label} settlement output amount must be an integer string`)
+  return BigInt(value)
+}
+
+function sumPaymentAmounts(items: ArbitrationPaymentItem[]): bigint {
+  return items.reduce((total, item) => total + parseSettlementAmount(item.amount.value, 'Payment'), 0n)
+}
+
+function allocateOutputAmount(
+  outputAmount: bigint,
+  paymentAmount: bigint,
+  totalAmount: bigint,
+): { amount: bigint; remainder: bigint } {
+  const scaled = outputAmount * paymentAmount
+  return {
+    amount: scaled / totalAmount,
+    remainder: scaled % totalAmount,
+  }
+}
+
+function allocateSettlementOutputs(
+  items: ArbitrationPaymentItem[],
+  outputs: PaymentSettlementOutput[] | undefined,
+): Map<string, PaymentSettlementOutput[] | undefined> {
+  const allocations = new Map<string, PaymentSettlementOutput[] | undefined>()
+  if (!outputs || items.length <= 1) {
+    for (const item of items) allocations.set(item.payment.event.id, outputs)
+    return allocations
+  }
+  const totalAmount = sumPaymentAmounts(items)
+  if (totalAmount <= 0n) throw new Error('Payment arbitration requires a positive payment total')
+  for (const item of items) allocations.set(item.payment.event.id, [])
+  for (const output of outputs) {
+    const outputAmount = parseSettlementAmount(output.amount, 'Arbitration')
+    let allocatedTotal = 0n
+    const shares = items.map((item, index) => {
+      const allocation = allocateOutputAmount(
+        outputAmount,
+        parseSettlementAmount(item.amount.value, 'Payment'),
+        totalAmount,
+      )
+      allocatedTotal += allocation.amount
+      return { item, index, ...allocation }
+    })
+    let remainder = outputAmount - allocatedTotal
+    shares
+      .slice()
+      .sort((left, right) =>
+        left.remainder === right.remainder
+          ? left.index - right.index
+          : left.remainder > right.remainder
+            ? -1
+            : 1,
+      )
+      .forEach(share => {
+        if (remainder <= 0n) return
+        share.amount += 1n
+        remainder -= 1n
+      })
+    for (const share of shares) {
+      allocations.get(share.item.payment.event.id)?.push({
+        ...output,
+        amount: share.amount.toString(),
+      })
+    }
+  }
+  return allocations
+}
+
+async function arbitrationPaymentItems(
+  opts: MarketplaceRuntimeOptions,
+  request: MarketplacePaymentArbitrationRequest,
+): Promise<ArbitrationPaymentItem[]> {
+  const payments = arbitrationPayments(request)
+  if (payments.length === 0) throw new Error('Payment arbitration requires at least one payment')
+  const items: ArbitrationPaymentItem[] = []
+  for (const payment of payments) {
+    const amount = await resolvePaymentAmount(payment, { signer: opts.signer })
+    if (amount.status !== 'resolved' || !amount.amount) {
+      throw new Error(amount.error ?? 'Payment arbitration requires a resolvable payment amount')
+    }
+    const item = paymentValidationItemForGroup(request.group, payment, request.now, amount.amount)
+    if (!item) throw new Error('Payment arbitration requires a recoverable payment proof')
+    items.push({ payment, item, amount: amount.amount })
+  }
+  return items
+}
+
+function settlementIntentForPayment(
+  request: MarketplacePaymentArbitrationRequest,
+  entry: ArbitrationPaymentItem,
+  outputs: PaymentSettlementOutput[] | undefined,
+): MarketplacePaymentSettlementIntent {
+  return {
+    paymentId: entry.payment.event.id,
+    tradeId: request.group.tradeId,
+    orderGroupId: request.group.id,
+    listingAnchor: request.group.listingAnchor,
+    createdAt: entry.payment.event.created_at,
+    action: request.action,
+    proof: entry.item.proof,
+    amount: entry.amount,
+    ...(entry.item.expected ? { expected: entry.item.expected } : {}),
+    ...(outputs ? { outputs } : {}),
+    ...(request.reason ? { reason: request.reason } : {}),
+    ...(request.data ? { data: request.data } : {}),
+  }
+}
+
+export function hasPaymentAckFrom(group: ParsedOrderGroup, payment: ParsedPayment, pubkey: string): boolean {
   return group.paymentAcks.some(ack =>
     ack.event.pubkey === pubkey && ack.refs.payments.includes(payment.event.id),
   )
 }
 
-export function hasPaymentNackFrom(group: ParsedOrderGroup, payment: ParsedOrderPayment, pubkey: string): boolean {
+export function hasPaymentNackFrom(group: ParsedOrderGroup, payment: ParsedPayment, pubkey: string): boolean {
   return group.paymentNacks.some(nack =>
     nack.event.pubkey === pubkey && nack.refs.payments.includes(payment.event.id),
   )
 }
 
 type ArbitrationPaymentDecisionTracker = {
-  hasAck: (group: ParsedOrderGroup, payment: ParsedOrderPayment, pubkey: string) => boolean
-  hasNack: (group: ParsedOrderGroup, payment: ParsedOrderPayment, pubkey: string) => boolean
-  markAck: (group: ParsedOrderGroup, payment: ParsedOrderPayment, pubkey: string) => void
-  markNack: (group: ParsedOrderGroup, payment: ParsedOrderPayment, pubkey: string) => void
+  hasAck: (group: ParsedOrderGroup, payment: ParsedPayment, pubkey: string) => boolean
+  hasNack: (group: ParsedOrderGroup, payment: ParsedPayment, pubkey: string) => boolean
+  markAck: (group: ParsedOrderGroup, payment: ParsedPayment, pubkey: string) => void
+  markNack: (group: ParsedOrderGroup, payment: ParsedPayment, pubkey: string) => void
 }
 
 export function arbitrationStartIdentity(
@@ -284,7 +425,7 @@ export function arbitrationStartIdentity(
 export function arbitrationStartQuery(
   options: MarketplaceArbitrationStartOptions,
   identity: MarketplaceOrderIdentity,
-): MyOrderGroupQuery {
+): OrderGroupIdentityQuery {
   const {
     autoAck: _autoAck,
     autoNack: _autoNack,
@@ -339,7 +480,7 @@ export async function processArbitrationGroupPayment(
   options: MarketplaceArbitrationStartOptions,
   identity: MarketplaceOrderIdentity,
   group: ParsedOrderGroup,
-  payment: ParsedOrderPayment,
+  payment: ParsedPayment,
   tracker?: ArbitrationPaymentDecisionTracker,
 ): Promise<void> {
   const arbiterPubkey = identity.pubkey
@@ -355,7 +496,7 @@ export async function processArbitrationGroupPayment(
     })
     return
   }
-  const item = paymentRecoveryItemForGroup(group, payment, options.now, amount.amount)
+  const item = paymentValidationItemForGroup(group, payment, options.now, amount.amount)
   if (!item) {
     await emitArbitrationState(options, { type: 'ignored', group, payment, reason: 'payment has no recoverable proof' })
     return
@@ -370,10 +511,10 @@ export async function processArbitrationGroupPayment(
     }
     const event = await publishMarketplaceTemplate(
       opts,
-      generateOrderPaymentAckEventTemplate({
+      generatePaymentAckEventTemplate({
         orderGroupId: group.id,
         tradeId: group.tradeId,
-        listingAnchor: group.listingAnchor,
+        anchors: [{ value: group.listingAnchor, marker: 'listing' }],
         participants: group.participants,
         refs: { payments: [payment.event.id] },
         status: 'accepted',
@@ -388,10 +529,10 @@ export async function processArbitrationGroupPayment(
     }
     const event = await publishMarketplaceTemplate(
       opts,
-      generateOrderPaymentNackEventTemplate({
+      generatePaymentNackEventTemplate({
         orderGroupId: group.id,
         tradeId: group.tradeId,
-        listingAnchor: group.listingAnchor,
+        anchors: [{ value: group.listingAnchor, marker: 'listing' }],
         participants: group.participants,
         refs: { payments: [payment.event.id] },
         status: 'rejected',
@@ -456,7 +597,7 @@ export function startMarketplaceOrderArbitration(
     }
   }
 
-  const closer = subscribeMyOrderGroups(
+  const closer = subscribeOrderGroupsForIdentity(
     requireSubscribePool(opts.pool),
     opts.relays,
     arbitrationStartQuery(options, identity),
@@ -495,58 +636,69 @@ export async function* arbitrateMarketplacePayment(
   request: MarketplacePaymentArbitrationRequest,
 ): AsyncIterable<MarketplacePaymentArbitrationRuntimeState> {
   requireArbitrationPublisher(opts)
-  const payment = request.payment ?? request.group.payment
-  if (!payment) throw new Error('Payment arbitration requires a payment')
-  const amount = await resolvePaymentAmount(payment, { signer: opts.signer })
-  if (amount.status !== 'resolved' || !amount.amount) {
-    throw new Error(amount.error ?? 'Payment arbitration requires a resolvable payment amount')
-  }
-  const item = paymentRecoveryItemForGroup(request.group, payment, request.now, amount.amount)
-  if (!item) throw new Error('Payment arbitration requires a recoverable payment proof')
-  const policy = policyForPayment(opts, item)
-  if (!policy?.arbitrate) {
-    throw new Error(policy ? 'Payment policy does not support arbitration' : 'No matching payment policy')
-  }
-  const stream = await policy.arbitrate({
-    purpose: 'order',
-    group: request.group,
-    payment,
-    proof: item.proof,
-    action: request.action,
-    ...(item.expected ? { expected: item.expected } : {}),
-    ...(request.outputs ? { outputs: request.outputs } : {}),
-    ...(request.reason ? { reason: request.reason } : {}),
-    ...(request.data ? { data: request.data } : {}),
-  })
+  const items = await arbitrationPaymentItems(opts, request)
+  const outputAllocations = allocateSettlementOutputs(items, request.outputs)
 
-  for await (const state of stream) {
-    yield state
-    if ((state.type === 'settlement_ready' || state.type === 'completed') && state.proof) {
-      const event = await publishMarketplaceTemplate(
-        opts,
-        generateOrderPaymentSettlementEventTemplate({
-          orderGroupId: request.group.id,
-          tradeId: request.group.tradeId,
-          listingAnchor: request.group.listingAnchor,
-          participants: request.group.participants,
-          refs: { payments: [payment.event.id] },
-          method: item.proof.driver,
-          action: request.action,
-          ...(state.inputs ? { inputs: state.inputs } : {}),
-          ...(state.outputs ?? request.outputs ? { outputs: state.outputs ?? request.outputs } : {}),
-          data: {
+  for (const entry of items) {
+    const policy = policyForPayment(opts, entry.item)
+    if (!policy) throw new Error('No matching payment policy')
+    const outputs = outputAllocations.get(entry.payment.event.id)
+    const stream = policy.settlePayment
+      ? await policy.settlePayment(settlementIntentForPayment(request, entry, outputs))
+      : policy.arbitrate
+        ? await policy.arbitrate({
+            purpose: 'order',
+            group: request.group,
+            payment: entry.payment,
+            proof: entry.item.proof,
+            action: request.action,
+            ...(entry.item.expected ? { expected: entry.item.expected } : {}),
+            ...(outputs ? { outputs } : {}),
             ...(request.reason ? { reason: request.reason } : {}),
-            ...(request.data ?? {}),
-            ...(state.data ?? {}),
-            proof: state.proof,
-          },
-        }),
-      )
-      yield {
-        type: 'settlement_published',
-        event,
-        proof: state.proof,
-        data: state.data,
+            ...(request.data ? { data: request.data } : {}),
+          })
+        : undefined
+    if (!stream) throw new Error('Payment policy does not support settlement')
+
+    for await (const state of stream) {
+      yield state
+      if ((state.type === 'settlement_ready' || state.type === 'completed') && state.proof) {
+        const settledOutputs = state.outputs ?? outputs
+        const event = await publishMarketplaceTemplate(
+          opts,
+          generatePaymentSettlementEventTemplate({
+            orderGroupId: request.group.id,
+            tradeId: request.group.tradeId,
+            anchors: [{ value: request.group.listingAnchor, marker: 'listing' }],
+            participants: request.group.participants,
+            refs: { payments: [entry.payment.event.id] },
+            method: entry.item.proof.driver,
+            action: request.action,
+            ...(state.inputs ? { inputs: state.inputs } : {}),
+            ...(settledOutputs ? { outputs: settledOutputs } : {}),
+            data: {
+              ...(request.reason ? { reason: request.reason } : {}),
+              ...(request.data ?? {}),
+              ...(items.length > 1
+                ? {
+                    paymentSet: {
+                      count: items.length,
+                      total: sumPaymentAmounts(items).toString(),
+                      payments: items.map(item => item.payment.event.id),
+                    },
+                  }
+                : {}),
+              ...(state.data ?? {}),
+              proof: state.proof,
+            },
+          }),
+        )
+        yield {
+          type: 'settlement_published',
+          event,
+          proof: state.proof,
+          data: state.data,
+        }
       }
     }
   }

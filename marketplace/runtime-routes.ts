@@ -10,7 +10,6 @@ import {
   canonicalAssetId,
   paymentMethodFilter,
   type PaymentMethodFindQuery,
-  type AcceptedPaymentForm,
   type ParsedPaymentMethod,
 } from './paymentmethod.ts'
 import {
@@ -85,21 +84,21 @@ import {
   type ParsedAuctionBidGroup,
 } from './auction-bid-group.ts'
 import {
-  generateOrderPaymentAckEventTemplate,
-  generateOrderPaymentEventTemplate,
-  generateOrderPaymentNackEventTemplate,
-  generateOrderPaymentSettlementEventTemplate,
-  parseOrderPaymentEvent,
-  type OrderPaymentSettlementOutput,
-  type ParsedOrderPayment,
-} from './order-lifecycle.ts'
+  generatePaymentAckEventTemplate,
+  generatePaymentEventTemplate,
+  generatePaymentNackEventTemplate,
+  generatePaymentSettlementEventTemplate,
+  parsePaymentEvent,
+  type PaymentSettlementOutput,
+  type ParsedPayment,
+} from './payment-lifecycle.ts'
 import { paymentValidationRequest } from './order-group-payment.ts'
 import {
   fetchOrderGroups,
-  bucketOrderGroups,
-  searchMyOrderGroups,
+  roleOrderGroups,
+  searchOrderGroupsForIdentity,
   searchOrderGroups,
-  subscribeMyOrderGroups,
+  subscribeOrderGroupsForIdentity,
   subscribeOrderGroups,
   groupOrderEvents,
   orderGroupFilter,
@@ -111,8 +110,8 @@ import {
   resolveOrderGroupParticipants,
   validateOrderGroupPayments,
   type OrderGroupFilterQuery,
-  type MyOrderGroupQuery,
-  type OrderGroupBuckets,
+  type OrderGroupIdentityQuery,
+  type OrderGroupRoles,
   type OrderGroupSearchOptions,
   type OrderGroupSubscribeHandlers,
   type ResolveAndValidateOrderGroupOptions,
@@ -178,8 +177,8 @@ import type {
   MarketplacePaymentIdentity,
   MarketplacePaymentContract,
   MarketplacePaymentIntent,
-  MarketplacePaymentRecoveryItem,
-  MarketplacePaymentRecoveryState,
+  MarketplacePaymentValidationItem,
+  MarketplacePaymentSweepState,
   MarketplacePaymentArbitrationIntent,
   MarketplacePaymentArbitrationState,
   MarketplacePaymentArbitrationRequest,
@@ -231,7 +230,6 @@ import type {
   MarketplaceOrdersApi,
   MarketplaceReviewsApi,
   MarketplaceStructuredMessagesApi,
-  MarketplacePaymentRoutesApi,
   MarketplaceAuctionsApi,
   MarketplaceAuctionBidGroupsApi,
   MarketplacePaymentsApi,
@@ -413,11 +411,11 @@ export function routeScore(asset: MarketplacePaymentAsset, policy: MarketplacePa
   return score
 }
 
-
-export async function paymentRoutesForListing(
+async function paymentRoutesForListing(
   opts: MarketplaceRuntimeOptions,
   listing: Event | MarketplaceListing,
   options: MarketplacePaymentRouteOptions | null = null,
+  policies?: MarketplacePaymentPolicyImplementation[],
 ): Promise<MarketplacePaymentRoute[]> {
   const routeOptions = options ?? {}
   const parsedListing = 'event' in listing ? listing : parseListingEvent(listing)
@@ -442,20 +440,21 @@ export async function paymentRoutesForListing(
   }
 
   const routes: MarketplacePaymentRoute[] = []
-  const routePolicies =
-    routeOptions.purpose === 'bid'
-      ? opts.bidPolicies ?? []
-      : opts.orderPolicies ?? []
+  const routePolicies = policies ?? []
+  if (routePolicies.length === 0) return []
+
   for (const arbitrationService of services) {
     for (const paymentPolicy of routePolicies) {
       const descriptors = policyDescriptors(paymentPolicy).filter(policy => policyMatchesService(policy, arbitrationService))
       if (descriptors.length === 0) continue
-      const assets = policyAssets(paymentPolicy).filter(asset =>
-        method.acceptedPaymentForms.some(form => assetMatchesForm(asset, form)) &&
-        amountCompatibleWithAsset(routeOptions.amount, asset),
-      )
+      const assets = policyAssets(paymentPolicy)
       for (const descriptor of descriptors) {
-        for (const asset of assets.filter(candidate => assetMatchesPolicyDescriptor(candidate, descriptor))) {
+        for (const asset of assets.filter(candidate =>
+          assetMatchesPolicyDescriptor(candidate, descriptor) &&
+          amountCompatibleWithAsset(routeOptions.amount, candidate)
+        )) {
+          const paymentForm = method.acceptedPaymentForms.find(form => assetMatchesForm(asset, form))
+          if (!paymentForm) continue
           routes.push({
             policy: paymentPolicy,
             listing: parsedListing,
@@ -463,6 +462,7 @@ export async function paymentRoutesForListing(
             arbitrationService,
             descriptor,
             asset,
+            paymentForm,
             score: routeScore(asset, descriptor),
           })
         }
@@ -470,6 +470,25 @@ export async function paymentRoutesForListing(
     }
   }
   return routes.sort((a, b) => b.score - a.score)
+}
+
+export function orderPaymentRoutesForListing(
+  opts: MarketplaceRuntimeOptions,
+  listing: Event | MarketplaceListing,
+  options: MarketplacePaymentRouteOptions | null = null,
+): Promise<MarketplacePaymentRoute[]> {
+  return paymentRoutesForListing(opts, listing, options, opts.orderPolicies)
+}
+
+export async function auctionPaymentRoutesForListing(
+  opts: MarketplaceRuntimeOptions,
+  listing: Event | MarketplaceListing,
+  auction?: Event | ParsedMarketplaceAuction,
+  options: MarketplacePaymentRouteOptions | null = null,
+): Promise<MarketplacePaymentRoute[]> {
+  const parsedAuction = auction ? ('event' in auction ? auction : parseAuctionEvent(auction)) : undefined
+  const routes = await paymentRoutesForListing(opts, listing, options, opts.bidPolicies)
+  return parsedAuction ? routes.filter(route => routeMatchesAuction(route, parsedAuction)) : routes
 }
 
 export function routeMatchesAuction(route: MarketplacePaymentRoute, auction: ParsedMarketplaceAuction): boolean {
