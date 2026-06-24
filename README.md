@@ -19,6 +19,14 @@ If using TypeScript, this package requires TypeScript >= 5.0.
 
 https://jsr.io/@nostr/tools/doc
 
+Marketplace export docs live in [`docs/marketplace`](docs/marketplace/README.md).
+Start with [`docs/marketplace/getting-started.md`](docs/marketplace/getting-started.md)
+and regenerate the marketplace API reference with:
+
+```bash
+npm run docs:api
+```
+
 ## Usage
 
 ### Generating a private key and a public key

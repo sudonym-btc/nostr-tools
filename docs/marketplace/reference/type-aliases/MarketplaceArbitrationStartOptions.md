@@ -1,0 +1,65 @@
+# Type Alias: MarketplaceArbitrationStartOptions
+
+> **MarketplaceArbitrationStartOptions** = `Omit`\<[`OrderQuery`](OrderQuery.md), `"identity"`\> & [`OrderSubscribeOptions`](OrderSubscribeOptions.md) & [`ReduceOrderGroupOptions`](ReduceOrderGroupOptions.md) & `object`
+
+Defined in: [nostr-tools/marketplace/runtime-types.ts:851](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L851)
+
+## Type Declaration
+
+### auctionBidQuery?
+
+> `optional` **auctionBidQuery?**: `Omit`\<[`AuctionBidGroupQuery`](AuctionBidGroupQuery.md), `"auctionAnchor"` \| `"participantPubkeys"`\>
+
+### auctionQuery?
+
+> `optional` **auctionQuery?**: `Omit`\<[`MarketplaceAuctionSearchQuery`](MarketplaceAuctionSearchQuery.md), `"arbiterPubkeys"`\>
+
+### auctions?
+
+> `optional` **auctions?**: `boolean`
+
+### auctionSettlement?
+
+> `optional` **auctionSettlement?**: `Omit`\<[`MarketplaceAuctionSettlementRequest`](MarketplaceAuctionSettlementRequest.md), `"auctionAnchor"` \| `"auctionId"` \| `"listingAnchor"`\>
+
+### auctionSettlementSweepIntervalMs?
+
+> `optional` **auctionSettlementSweepIntervalMs?**: `number`
+
+### autoAck?
+
+> `optional` **autoAck?**: `boolean`
+
+### autoNack?
+
+> `optional` **autoNack?**: `boolean`
+
+### autoSettleAuctions?
+
+> `optional` **autoSettleAuctions?**: `boolean`
+
+### identity?
+
+> `optional` **identity?**: [`MarketplaceOrderIdentity`](MarketplaceOrderIdentity.md)
+
+### now?
+
+> `optional` **now?**: `number`
+
+### onstate?
+
+> `optional` **onstate?**: (`event`) => `void` \| `Promise`\<`void`\>
+
+#### Parameters
+
+##### event
+
+[`MarketplaceArbitrationStartEvent`](MarketplaceArbitrationStartEvent.md)
+
+#### Returns
+
+`void` \| `Promise`\<`void`\>
+
+### orders?
+
+> `optional` **orders?**: `boolean`
