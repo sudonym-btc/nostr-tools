@@ -19,7 +19,8 @@ If using TypeScript, this package requires TypeScript >= 5.0.
 
 https://jsr.io/@nostr/tools/doc
 
-Marketplace export docs live in [`docs/marketplace`](docs/marketplace/README.md).
+Marketplace export docs live in [`docs/marketplace`](docs/marketplace/README.md)
+and are published at <https://sudonym-btc.github.io/nostr-tools/>.
 Start with [`docs/marketplace/getting-started.md`](docs/marketplace/getting-started.md)
 and regenerate the marketplace API reference with:
 
