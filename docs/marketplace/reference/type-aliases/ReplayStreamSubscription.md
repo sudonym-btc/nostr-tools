@@ -2,7 +2,7 @@
 
 > **ReplayStreamSubscription** = `object`
 
-Defined in: [nostr-tools/marketplace/stream.ts:1](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L1)
+Defined in: [nostr-tools/marketplace/stream.ts:1](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L1)
 
 ## Methods
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/stream.ts:1](https://github.com/sudonym-btc
 
 > **unsubscribe**(): `void`
 
-Defined in: [nostr-tools/marketplace/stream.ts:2](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L2)
+Defined in: [nostr-tools/marketplace/stream.ts:2](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L2)
 
 #### Returns
 

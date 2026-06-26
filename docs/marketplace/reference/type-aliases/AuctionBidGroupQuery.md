@@ -2,7 +2,7 @@
 
 > **AuctionBidGroupQuery** = `object`
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:100](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/auction-bid-group.ts#L100)
+Defined in: [nostr-tools/marketplace/auction-bid-group.ts:100](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L100)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:100](https://github.co
 
 > `optional` **auctionAnchor?**: `string`
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:101](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/auction-bid-group.ts#L101)
+Defined in: [nostr-tools/marketplace/auction-bid-group.ts:101](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L101)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:101](https://github.co
 
 > `optional` **authors?**: `string`[]
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:103](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/auction-bid-group.ts#L103)
+Defined in: [nostr-tools/marketplace/auction-bid-group.ts:103](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L103)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:103](https://github.co
 
 > `optional` **identity?**: [`MarketplaceOrderIdentity`](MarketplaceOrderIdentity.md)
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:105](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/auction-bid-group.ts#L105)
+Defined in: [nostr-tools/marketplace/auction-bid-group.ts:105](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L105)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:105](https://github.co
 
 > `optional` **limit?**: `number`
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:108](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/auction-bid-group.ts#L108)
+Defined in: [nostr-tools/marketplace/auction-bid-group.ts:108](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L108)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:108](https://github.co
 
 > `optional` **participantPubkeys?**: `string`[]
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:104](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/auction-bid-group.ts#L104)
+Defined in: [nostr-tools/marketplace/auction-bid-group.ts:104](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L104)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:104](https://github.co
 
 > `optional` **since?**: `number`
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:106](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/auction-bid-group.ts#L106)
+Defined in: [nostr-tools/marketplace/auction-bid-group.ts:106](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L106)
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:106](https://github.co
 
 > `optional` **tradeIds?**: `string`[]
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:102](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/auction-bid-group.ts#L102)
+Defined in: [nostr-tools/marketplace/auction-bid-group.ts:102](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L102)
 
 ***
 
@@ -66,4 +66,4 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:102](https://github.co
 
 > `optional` **until?**: `number`
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:107](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/auction-bid-group.ts#L107)
+Defined in: [nostr-tools/marketplace/auction-bid-group.ts:107](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L107)

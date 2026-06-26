@@ -2,7 +2,7 @@
 
 > **MarketplaceSeedSigner** = `object`
 
-Defined in: [nostr-tools/marketplace/seed.ts:69](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/seed.ts#L69)
+Defined in: [nostr-tools/marketplace/seed.ts:69](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/seed.ts#L69)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/seed.ts:69](https://github.com/sudonym-btc/
 
 > `optional` **getPublicKey?**: () => `string` \| `Promise`\<`string`\>
 
-Defined in: [nostr-tools/marketplace/seed.ts:70](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/seed.ts#L70)
+Defined in: [nostr-tools/marketplace/seed.ts:70](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/seed.ts#L70)
 
 #### Returns
 
@@ -22,7 +22,7 @@ Defined in: [nostr-tools/marketplace/seed.ts:70](https://github.com/sudonym-btc/
 
 > **nip44Decrypt**: (`pubkey`, `ciphertext`) => `string` \| `Promise`\<`string`\>
 
-Defined in: [nostr-tools/marketplace/seed.ts:72](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/seed.ts#L72)
+Defined in: [nostr-tools/marketplace/seed.ts:72](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/seed.ts#L72)
 
 #### Parameters
 
@@ -44,7 +44,7 @@ Defined in: [nostr-tools/marketplace/seed.ts:72](https://github.com/sudonym-btc/
 
 > **nip44Encrypt**: (`pubkey`, `plaintext`) => `string` \| `Promise`\<`string`\>
 
-Defined in: [nostr-tools/marketplace/seed.ts:71](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/seed.ts#L71)
+Defined in: [nostr-tools/marketplace/seed.ts:71](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/seed.ts#L71)
 
 #### Parameters
 
@@ -66,7 +66,7 @@ Defined in: [nostr-tools/marketplace/seed.ts:71](https://github.com/sudonym-btc/
 
 > **signEvent**: (`event`) => `Event` \| `VerifiedEvent` \| `Promise`\<`Event` \| `VerifiedEvent`\>
 
-Defined in: [nostr-tools/marketplace/seed.ts:73](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/seed.ts#L73)
+Defined in: [nostr-tools/marketplace/seed.ts:73](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/seed.ts#L73)
 
 #### Parameters
 

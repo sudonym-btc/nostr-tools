@@ -1,6 +1,6 @@
 # Interface: MarketplaceMeInboxApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1099](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1099)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1102](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1102)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1099](https://github.com/s
 
 > **filter**: (`query`) => `Filter`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1100](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1100)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1103](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1103)
 
 #### Parameters
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1100](https://github.com/s
 
 > **list**(`query?`, `options?`): `Promise`\<[`MarketplaceInboxItem`](../type-aliases/MarketplaceInboxItem.md)[]\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1101](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1101)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1104](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1104)
 
 #### Parameters
 
@@ -48,7 +48,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1101](https://github.com/s
 
 > **watch**(`query?`, `options?`): [`MarketplaceInboxStream`](../type-aliases/MarketplaceInboxStream.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1105](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1105)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1108](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1108)
 
 #### Parameters
 

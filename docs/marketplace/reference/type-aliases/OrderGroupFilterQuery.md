@@ -2,7 +2,7 @@
 
 > **OrderGroupFilterQuery** = `object`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:113](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L113)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:113](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L113)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:113](https://github.co
 
 > `optional` **authors?**: `string`[]
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:118](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L118)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:118](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L118)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:118](https://github.co
 
 > `optional` **limit?**: `number`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:121](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L121)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:121](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L121)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:121](https://github.co
 
 > `optional` **listingAnchor?**: `string`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:116](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L116)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:116](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L116)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:116](https://github.co
 
 > `optional` **orderGroupId?**: `string`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:114](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L114)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:114](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L114)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:114](https://github.co
 
 > `optional` **participantPubkey?**: `string`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:117](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L117)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:117](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L117)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:117](https://github.co
 
 > `optional` **since?**: `number`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:119](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L119)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:119](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L119)
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:119](https://github.co
 
 > `optional` **tradeId?**: `string`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:115](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L115)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:115](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L115)
 
 ***
 
@@ -66,4 +66,4 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:115](https://github.co
 
 > `optional` **until?**: `number`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:120](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L120)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:120](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L120)

@@ -198,7 +198,7 @@ import {
   publicParticipantProof,
   sealedParticipantProof,
 } from './participant-proof.ts'
-import { now, parseEventJson } from './helper.ts'
+import { amountCurrency, now, parseEventJson } from './helper.ts'
 import type {
   MarketplaceAmount,
   OrderParticipantRole,
@@ -289,6 +289,7 @@ import type {
   MarketplaceAuctionBidPaymentPublishedState,
   MarketplaceAuctionBidCompletedState,
   MarketplaceAuctionBidState,
+  MarketplaceAuctionBidAmount,
   MarketplacePaymentPolicyImplementation,
   MarketplaceOrderPolicy,
   MarketplaceBidPolicy,
@@ -1121,6 +1122,29 @@ class MarketplaceAuctionLookup {
   }
 }
 
+function resolveAuctionBidAmount(
+  amount: MarketplaceAuctionBidAmount,
+  auction: ParsedMarketplaceAuction | undefined,
+): MarketplaceAmount {
+  const useAuctionDefaults = Boolean(auction && amount.denomination === undefined)
+  const currency = amount.currency ?? auction?.currency
+  const denomination = amount.denomination ?? auction?.currency
+  const decimals = amount.decimals ?? (useAuctionDefaults ? auction?.decimals : undefined)
+  if (!denomination || decimals === undefined) {
+    throw new Error('Marketplace auction bid amount requires denomination and decimals unless an auction is provided')
+  }
+  const resolved: MarketplaceAmount = {
+    value: amount.value,
+    ...(currency ? { currency } : {}),
+    denomination,
+    decimals,
+  }
+  if (auction && amountCurrency(resolved) !== auction.currency) {
+    throw new Error(`Auction bids must use auction currency ${auction.currency}`)
+  }
+  return resolved
+}
+
 async function publishGiftWrappedRumor(
   opts: MarketplaceRuntimeOptions,
   rumor: Event,
@@ -1604,7 +1628,7 @@ function bindRuntimeClient(opts: MarketplaceRuntimeOptions): MarketplaceClient {
       },
       async *bid(
         listing: Event | MarketplaceListing,
-        bid: Partial<MarketplaceAuctionBidTemplate> & { amount: MarketplaceAmount },
+        bid: Omit<Partial<MarketplaceAuctionBidTemplate>, 'amount'> & { amount: MarketplaceAuctionBidAmount },
         options: MarketplacePayOptions & {
           auction?: Event | ParsedMarketplaceAuction
           identityProofPrivacy?: 'none' | 'public' | 'sealed'
@@ -1619,6 +1643,7 @@ function bindRuntimeClient(opts: MarketplaceRuntimeOptions): MarketplaceClient {
         const listingAnchor = bid.listingAnchor ?? auction?.listingAnchor ?? eventAnchor(listing)
         const auctionAnchor = bid.auctionAnchor ?? auction?.auctionAnchor
         if (!auctionAnchor) throw new Error('Marketplace auction bid requires an auction anchor or auction event')
+        const bidAmount = resolveAuctionBidAmount(bid.amount, auction)
         const trade = deriveMarketplaceTradeMaterial(seed, {
           index: resolvedOptions.accountIndex,
           role: 'buyer',
@@ -1626,11 +1651,8 @@ function bindRuntimeClient(opts: MarketplaceRuntimeOptions): MarketplaceClient {
         const baseBid = {
           tradeId: bid.tradeId ?? trade.tradeId,
           listingAnchor,
-          amount: bid.amount,
+          amount: bidAmount,
           participants: addParticipant(bid.participants, trade.tradePubkey, 'buyer'),
-        }
-        if (auction && bid.amount.denomination !== auction.currency) {
-          throw new Error(`Auction bids must use ${auction.currency}`)
         }
         const routes = await auctionPaymentRoutesForListing(opts, listing, auction, {
           amount: baseBid.amount,
@@ -1650,7 +1672,7 @@ function bindRuntimeClient(opts: MarketplaceRuntimeOptions): MarketplaceClient {
           auctionAnchor,
         })
         const routedBidOrder = orderWithRouteParticipants(route, baseBid, trade.tradePubkey)
-        const paymentAmount = normalizeAmountForRouteEvent(bid.amount, route.asset)
+        const paymentAmount = normalizeAmountForRouteEvent(bidAmount, route.asset)
         const participantProofs = await resolveParticipantProofsForIdentity({
           label: 'bid',
           mode: resolvedOptions.identityProofPrivacy,
@@ -1669,7 +1691,7 @@ function bindRuntimeClient(opts: MarketplaceRuntimeOptions): MarketplaceClient {
           auctionAnchor,
           listingAnchor,
           bidChainId: bid.bidChainId ?? auctionBidChainId(seed, auctionAnchor),
-          amount: bid.amount,
+          amount: bidAmount,
           participants: routedBidOrder.participants,
           participantProofs: participantProofs.participantProofs,
           participantProofKeys: participantProofs.participantProofKeys,

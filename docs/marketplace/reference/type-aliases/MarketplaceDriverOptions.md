@@ -2,7 +2,7 @@
 
 > **MarketplaceDriverOptions** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:883](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L883)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:886](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L886)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:883](https://github.com/su
 
 > `optional` **auctionDrivers?**: [`MarketplaceAuctionDriver`](MarketplaceAuctionDriver.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:885](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L885)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:888](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L888)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:885](https://github.com/su
 
 > `optional` **orderDrivers?**: [`MarketplaceOrderDriver`](MarketplaceOrderDriver.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:884](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L884)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:887](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L887)

@@ -2,7 +2,7 @@
 
 > **MarketplacePaymentRoute** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:349](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L349)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:349](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L349)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:349](https://github.com/su
 
 > **arbitrationService**: [`ParsedArbitrationService`](ParsedArbitrationService.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:353](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L353)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:353](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L353)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:353](https://github.com/su
 
 > **asset**: [`MarketplacePaymentAsset`](MarketplacePaymentAsset.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:355](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L355)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:355](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L355)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:355](https://github.com/su
 
 > **descriptor**: [`MarketplacePaymentPolicy`](MarketplacePaymentPolicy.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:354](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L354)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:354](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L354)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:354](https://github.com/su
 
 > **listing**: [`MarketplaceListing`](MarketplaceListing.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:351](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L351)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:351](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L351)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:351](https://github.com/su
 
 > `optional` **paymentForm?**: [`AcceptedPaymentForm`](AcceptedPaymentForm.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:356](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L356)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:356](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L356)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:356](https://github.com/su
 
 > **paymentMethod**: [`ParsedPaymentMethod`](ParsedPaymentMethod.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:352](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L352)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:352](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L352)
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:352](https://github.com/su
 
 > **policy**: [`MarketplacePaymentPolicyImplementation`](MarketplacePaymentPolicyImplementation.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:350](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L350)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:350](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L350)
 
 ***
 
@@ -66,4 +66,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:350](https://github.com/su
 
 > **score**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:357](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L357)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:357](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L357)

@@ -622,6 +622,9 @@ export type MarketplaceAuctionBidState =
   | MarketplaceAuctionBidPaymentPublishedState
   | MarketplaceAuctionBidCompletedState
 
+export type MarketplaceAuctionBidAmount = Pick<MarketplaceAmount, 'value'> &
+  Partial<Omit<MarketplaceAmount, 'value'>>
+
 export type MarketplaceOrderPolicy<State = MarketplacePolicyPaymentState> = MarketplaceDriverOrderPolicy<
   State,
   MarketplacePaymentPolicy,
@@ -1200,7 +1203,7 @@ export interface MarketplaceAuctionsApi {
   bidGroups: MarketplaceAuctionBidGroupsApi
   bid(
     listing: Event | MarketplaceListing,
-    bid: Partial<MarketplaceAuctionBidTemplate> & { amount: MarketplaceAmount },
+    bid: Omit<Partial<MarketplaceAuctionBidTemplate>, 'amount'> & { amount: MarketplaceAuctionBidAmount },
     options?: MarketplacePayOptions & {
       auction?: Event | ParsedMarketplaceAuction
       identityProofPrivacy?: MarketplaceIdentityProofMode

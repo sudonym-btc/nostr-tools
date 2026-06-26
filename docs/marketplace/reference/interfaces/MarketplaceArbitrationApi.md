@@ -1,6 +1,6 @@
 # Interface: MarketplaceArbitrationApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1281](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1281)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1284](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1284)
 
 ## Methods
 
@@ -8,7 +8,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1281](https://github.com/s
 
 > **arbitrate**(`request`): `AsyncIterable`\<[`MarketplacePaymentArbitrationRuntimeState`](../type-aliases/MarketplacePaymentArbitrationRuntimeState.md)\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1283](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1283)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1286](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1286)
 
 #### Parameters
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1283](https://github.com/s
 
 > **start**(`options?`): [`MarketplaceArbitrationRuntime`](../type-aliases/MarketplaceArbitrationRuntime.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1282](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1282)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1285](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1285)
 
 #### Parameters
 

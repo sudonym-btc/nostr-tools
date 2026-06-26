@@ -2,7 +2,7 @@
 
 > **MarketplaceSessionDriverRecoveryFailure** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:680](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L680)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:683](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L683)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:680](https://github.com/su
 
 > **error**: `string`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:682](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L682)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:685](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L685)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:682](https://github.com/su
 
 > `optional` **operationId?**: `string`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:681](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L681)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:684](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L684)

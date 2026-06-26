@@ -2,7 +2,7 @@
 
 > **PaymentLifecycleAnchors** = `object`
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:51](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-lifecycle.ts#L51)
+Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:51](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L51)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:51](https://github.com
 
 > **all**: [`PaymentLifecycleAnchor`](PaymentLifecycleAnchor.md)[]
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:52](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-lifecycle.ts#L52)
+Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:52](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L52)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:52](https://github.com
 
 > `optional` **auction?**: `string`
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:54](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-lifecycle.ts#L54)
+Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:54](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L54)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:54](https://github.com
 
 > `optional` **listing?**: `string`
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:53](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-lifecycle.ts#L53)
+Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:53](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L53)

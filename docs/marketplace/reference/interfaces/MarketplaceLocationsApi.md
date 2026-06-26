@@ -1,6 +1,6 @@
 # Interface: MarketplaceLocationsApi
 
-Defined in: [nostr-tools/marketplace/location.ts:16](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/location.ts#L16)
+Defined in: [nostr-tools/marketplace/location.ts:16](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/location.ts#L16)
 
 ## Extends
 
@@ -34,7 +34,7 @@ Defined in: [marketplace-location-interface-ts/dist/index.d.ts:23](https://githu
 
 > **gTags**(`cells`): [`MarketplaceLocationGTag`](../type-aliases/MarketplaceLocationGTag.md)[]
 
-Defined in: [nostr-tools/marketplace/location.ts:17](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/location.ts#L17)
+Defined in: [nostr-tools/marketplace/location.ts:17](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/location.ts#L17)
 
 #### Parameters
 

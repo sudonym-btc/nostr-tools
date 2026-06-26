@@ -2,7 +2,7 @@
 
 > **MarketplacePaymentRequiredState** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:556](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L556)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:556](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L556)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:556](https://github.com/su
 
 > `optional` **data?**: `Record`\<`string`, `unknown`\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:559](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L559)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:559](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L559)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:559](https://github.com/su
 
 > **request**: [`MarketplacePaymentRequest`](MarketplacePaymentRequest.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:558](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L558)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:558](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L558)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:558](https://github.com/su
 
 > **type**: `"payment_required"`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:557](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L557)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:557](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L557)

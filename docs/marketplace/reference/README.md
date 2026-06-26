@@ -92,6 +92,7 @@
 - [MarketplaceArbitrationRuntime](type-aliases/MarketplaceArbitrationRuntime.md)
 - [MarketplaceArbitrationStartEvent](type-aliases/MarketplaceArbitrationStartEvent.md)
 - [MarketplaceArbitrationStartOptions](type-aliases/MarketplaceArbitrationStartOptions.md)
+- [MarketplaceAuctionBidAmount](type-aliases/MarketplaceAuctionBidAmount.md)
 - [MarketplaceAuctionBidCompletedState](type-aliases/MarketplaceAuctionBidCompletedState.md)
 - [MarketplaceAuctionBidContent](type-aliases/MarketplaceAuctionBidContent.md)
 - [MarketplaceAuctionBidPaymentPublishedState](type-aliases/MarketplaceAuctionBidPaymentPublishedState.md)

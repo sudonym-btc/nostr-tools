@@ -2,7 +2,7 @@
 
 > **MarketplaceOrderValidationResult** = `object`
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:33](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L33)
+Defined in: [nostr-tools/marketplace/order-validation.ts:33](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L33)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:33](https://github.com/
 
 > **errors**: `string`[]
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:53](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L53)
+Defined in: [nostr-tools/marketplace/order-validation.ts:53](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L53)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:53](https://github.com/
 
 > `optional` **expected?**: `object`
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:38](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L38)
+Defined in: [nostr-tools/marketplace/order-validation.ts:38](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L38)
 
 #### amount?
 
@@ -42,7 +42,7 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:38](https://github.com/
 
 > `optional` **listingEventId?**: `string`
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:36](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L36)
+Defined in: [nostr-tools/marketplace/order-validation.ts:36](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L36)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:36](https://github.com/
 
 > `optional` **listingMatched?**: `boolean`
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:45](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L45)
+Defined in: [nostr-tools/marketplace/order-validation.ts:45](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L45)
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:45](https://github.com/
 
 > `optional` **orderAmountMatched?**: `boolean`
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:47](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L47)
+Defined in: [nostr-tools/marketplace/order-validation.ts:47](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L47)
 
 ***
 
@@ -66,7 +66,7 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:47](https://github.com/
 
 > **orderEventId**: `string`
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:35](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L35)
+Defined in: [nostr-tools/marketplace/order-validation.ts:35](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L35)
 
 ***
 
@@ -74,7 +74,7 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:35](https://github.com/
 
 > `optional` **paymentAmountMatched?**: `boolean`
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:48](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L48)
+Defined in: [nostr-tools/marketplace/order-validation.ts:48](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L48)
 
 ***
 
@@ -82,7 +82,7 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:48](https://github.com/
 
 > **paymentEventIds**: `string`[]
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:37](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L37)
+Defined in: [nostr-tools/marketplace/order-validation.ts:37](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L37)
 
 ***
 
@@ -90,7 +90,7 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:37](https://github.com/
 
 > `optional` **securityBondMatched?**: `boolean`
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:49](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L49)
+Defined in: [nostr-tools/marketplace/order-validation.ts:49](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L49)
 
 ***
 
@@ -98,7 +98,7 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:49](https://github.com/
 
 > `optional` **sellerMatched?**: `boolean`
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:46](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L46)
+Defined in: [nostr-tools/marketplace/order-validation.ts:46](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L46)
 
 ***
 
@@ -106,7 +106,7 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:46](https://github.com/
 
 > `optional` **settlementMatched?**: `boolean`
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:51](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L51)
+Defined in: [nostr-tools/marketplace/order-validation.ts:51](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L51)
 
 ***
 
@@ -114,7 +114,7 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:51](https://github.com/
 
 > **status**: [`MarketplaceOrderValidationStatus`](MarketplaceOrderValidationStatus.md)
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:34](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L34)
+Defined in: [nostr-tools/marketplace/order-validation.ts:34](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L34)
 
 ***
 
@@ -122,7 +122,7 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:34](https://github.com/
 
 > `optional` **timeoutMatched?**: `boolean`
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:50](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L50)
+Defined in: [nostr-tools/marketplace/order-validation.ts:50](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L50)
 
 ***
 
@@ -130,7 +130,7 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:50](https://github.com/
 
 > **totals**: [`MarketplaceOrderValidationTotals`](MarketplaceOrderValidationTotals.md)
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:44](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L44)
+Defined in: [nostr-tools/marketplace/order-validation.ts:44](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L44)
 
 ***
 
@@ -138,4 +138,4 @@ Defined in: [nostr-tools/marketplace/order-validation.ts:44](https://github.com/
 
 > `optional` **tradeMatched?**: `boolean`
 
-Defined in: [nostr-tools/marketplace/order-validation.ts:52](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-validation.ts#L52)
+Defined in: [nostr-tools/marketplace/order-validation.ts:52](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-validation.ts#L52)

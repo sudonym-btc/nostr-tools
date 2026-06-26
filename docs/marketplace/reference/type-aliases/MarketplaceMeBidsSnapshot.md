@@ -2,7 +2,7 @@
 
 > **MarketplaceMeBidsSnapshot** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1063](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1063)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1066](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1066)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1063](https://github.com/s
 
 > **all**: [`ParsedAuctionBidGroup`](ParsedAuctionBidGroup.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1067](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1067)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1070](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1070)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1067](https://github.com/s
 
 > **arbitrating**: [`ParsedAuctionBidGroup`](ParsedAuctionBidGroup.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1066](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1066)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1069](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1069)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1066](https://github.com/s
 
 > **placed**: [`ParsedAuctionBidGroup`](ParsedAuctionBidGroup.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1064](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1064)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1067](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1067)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1064](https://github.com/s
 
 > **received**: [`ParsedAuctionBidGroup`](ParsedAuctionBidGroup.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1065](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1065)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1068](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1068)

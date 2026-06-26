@@ -2,7 +2,7 @@
 
 > **ParticipantProofContext** = `object`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:45](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L45)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:45](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L45)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:45](https://github.com
 
 > **listingAnchor**: `string`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:46](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L46)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:46](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L46)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:46](https://github.com
 
 > `optional` **orderGroupId?**: `string`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:48](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L48)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:48](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L48)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:48](https://github.com
 
 > `optional` **participantPubkey?**: `string`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:50](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L50)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:50](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L50)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:50](https://github.com
 
 > `optional` **requireOrderGroupId?**: `boolean`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:51](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L51)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:51](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L51)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:51](https://github.com
 
 > `optional` **role?**: `string`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:49](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L49)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:49](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L49)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:49](https://github.com
 
 > **tradeId**: `string`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:47](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L47)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:47](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L47)

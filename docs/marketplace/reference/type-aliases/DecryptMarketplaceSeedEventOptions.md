@@ -2,7 +2,7 @@
 
 > **DecryptMarketplaceSeedEventOptions** = `object`
 
-Defined in: [nostr-tools/marketplace/seed.ts:31](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/seed.ts#L31)
+Defined in: [nostr-tools/marketplace/seed.ts:31](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/seed.ts#L31)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/seed.ts:31](https://github.com/sudonym-btc/
 
 > **event**: `Event`
 
-Defined in: [nostr-tools/marketplace/seed.ts:32](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/seed.ts#L32)
+Defined in: [nostr-tools/marketplace/seed.ts:32](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/seed.ts#L32)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/seed.ts:32](https://github.com/sudonym-btc/
 
 > `optional` **identityPubkey?**: `string`
 
-Defined in: [nostr-tools/marketplace/seed.ts:34](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/seed.ts#L34)
+Defined in: [nostr-tools/marketplace/seed.ts:34](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/seed.ts#L34)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [nostr-tools/marketplace/seed.ts:34](https://github.com/sudonym-btc/
 
 > **identitySecretKey**: `Uint8Array`
 
-Defined in: [nostr-tools/marketplace/seed.ts:33](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/seed.ts#L33)
+Defined in: [nostr-tools/marketplace/seed.ts:33](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/seed.ts#L33)

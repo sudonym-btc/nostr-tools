@@ -2,7 +2,7 @@
 
 > **MarketplacePaymentMethodDefaults** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:318](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L318)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:318](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L318)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:318](https://github.com/su
 
 > `optional` **cashuPubkey?**: `string`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:322](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L322)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:322](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L322)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:322](https://github.com/su
 
 > `optional` **evmAddress?**: `string`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:320](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L320)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:320](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L320)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:320](https://github.com/su
 
 > `optional` **evmAddressProof?**: `string`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:321](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L321)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:321](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L321)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:321](https://github.com/su
 
 > `optional` **trustedArbiterPubkeys?**: `string`[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:319](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L319)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:319](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L319)

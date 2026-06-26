@@ -2,7 +2,7 @@
 
 > **Indeterminate**\<`T`\> = `object`
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:88](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-group.ts#L88)
+Defined in: [nostr-tools/marketplace/payment-group.ts:88](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L88)
 
 ## Type Parameters
 
@@ -16,7 +16,7 @@ Defined in: [nostr-tools/marketplace/payment-group.ts:88](https://github.com/sud
 
 > **basis**: [`PaymentValidationBasis`](PaymentValidationBasis.md)
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:91](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-group.ts#L91)
+Defined in: [nostr-tools/marketplace/payment-group.ts:91](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L91)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [nostr-tools/marketplace/payment-group.ts:91](https://github.com/sud
 
 > **status**: `"indeterminate"`
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:89](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-group.ts#L89)
+Defined in: [nostr-tools/marketplace/payment-group.ts:89](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L89)
 
 ***
 
@@ -32,4 +32,4 @@ Defined in: [nostr-tools/marketplace/payment-group.ts:89](https://github.com/sud
 
 > **value**: `T`
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:90](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-group.ts#L90)
+Defined in: [nostr-tools/marketplace/payment-group.ts:90](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L90)

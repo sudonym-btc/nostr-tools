@@ -1,6 +1,6 @@
 # Interface: MarketplaceReviewsApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1007](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1007)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1010](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1010)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1007](https://github.com/s
 
 > **parse**: (`event`) => [`ParsedReview`](../type-aliases/ParsedReview.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1008](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1008)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1011](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1011)
 
 #### Parameters
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1008](https://github.com/s
 
 > **resolveProof**: (`review`) => [`ParticipantProofResolution`](../type-aliases/ParticipantProofResolution.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1011](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1011)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1014](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1014)
 
 #### Parameters
 
@@ -44,7 +44,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1011](https://github.com/s
 
 > **revealedBuyerPubkey**: (`review`) => `string` \| `undefined`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1012](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1012)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1015](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1015)
 
 #### Parameters
 
@@ -62,7 +62,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1012](https://github.com/s
 
 > **template**: (`review`) => `EventTemplate`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1010](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1010)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1013](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1013)
 
 #### Parameters
 
@@ -80,7 +80,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1010](https://github.com/s
 
 > **validate**: (`event`) => `boolean`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1009](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1009)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1012](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1012)
 
 #### Parameters
 
@@ -98,7 +98,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1009](https://github.com/s
 
 > **search**(`query?`, `options?`): `Promise`\<[`ParsedReview`](../type-aliases/ParsedReview.md)[]\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1013](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1013)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1016](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1016)
 
 #### Parameters
 

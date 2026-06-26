@@ -2809,7 +2809,7 @@ describe('marketplace reviews and runtime facade', () => {
 
     const result: marketplace.MarketplaceAuctionBidState[] = []
     for await (const state of api.auctions.bid(listing, {
-      amount: { value: '2500', denomination: 'USD', decimals: 2 },
+      amount: { value: '2500' },
       createdAt,
     }, {
       auction,
@@ -2831,6 +2831,7 @@ describe('marketplace reviews and runtime facade', () => {
     expect(parsedBid.auctionAnchor).toBe(marketplace.auctions.address(auction))
     expect(parsedBid.listingAnchor).toBe(listingAnchor)
     expect(parsedBid.bidChainId).toBe(expectedBidChainId)
+    expect(parsedBid.amount).toEqual({ value: '2500', currency: 'USD', denomination: 'USD', decimals: 2 })
     expect(hasTag(published[0], ['bid_chain', expectedBidChainId])).toBe(true)
     expect(parsedBid.participantProofs).toHaveLength(1)
     expect(parsedBid.participantProofKeys).toHaveLength(0)

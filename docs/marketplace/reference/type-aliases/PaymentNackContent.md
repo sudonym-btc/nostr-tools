@@ -2,7 +2,7 @@
 
 > **PaymentNackContent** = `object`
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:120](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-lifecycle.ts#L120)
+Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:120](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L120)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:120](https://github.co
 
 > `optional` **message?**: `string`
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:122](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-lifecycle.ts#L122)
+Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:122](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L122)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:122](https://github.co
 
 > **status**: `PaymentNackStatus`
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:121](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-lifecycle.ts#L121)
+Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:121](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L121)

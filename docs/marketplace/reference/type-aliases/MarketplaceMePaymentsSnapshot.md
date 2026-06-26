@@ -2,7 +2,7 @@
 
 > **MarketplaceMePaymentsSnapshot** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1144](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1144)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1147](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1147)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1144](https://github.com/s
 
 > **all**: [`MarketplacePaymentSweepRecord`](MarketplacePaymentSweepRecord.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1150](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1150)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1153](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1153)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1150](https://github.com/s
 
 > **failed**: [`MarketplacePaymentSweepRecord`](MarketplacePaymentSweepRecord.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1149](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1149)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1152](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1152)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1149](https://github.com/s
 
 > **noop**: [`MarketplacePaymentSweepRecord`](MarketplacePaymentSweepRecord.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1148](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1148)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1151](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1151)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1148](https://github.com/s
 
 > **pending**: [`MarketplacePaymentSweepRecord`](MarketplacePaymentSweepRecord.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1145](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1145)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1148](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1148)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1145](https://github.com/s
 
 > **sweeping**: [`MarketplacePaymentSweepRecord`](MarketplacePaymentSweepRecord.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1146](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1146)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1149](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1149)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1146](https://github.com/s
 
 > **swept**: [`MarketplacePaymentSweepRecord`](MarketplacePaymentSweepRecord.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1147](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1147)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1150](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1150)

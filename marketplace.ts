@@ -342,6 +342,7 @@ export type {
 } from './marketplace/event-decoder.ts'
 export type {
   MarketplaceAuctionBidValidation,
+  MarketplaceAuctionBidAmount,
   MarketplaceAuctionBidState,
   MarketplaceAuctionBidPublishedState,
   MarketplaceAuctionBidPaymentPublishedState,

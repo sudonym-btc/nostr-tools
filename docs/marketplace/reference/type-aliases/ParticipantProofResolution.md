@@ -2,7 +2,7 @@
 
 > **ParticipantProofResolution** = `object`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:61](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L61)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:61](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L61)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:61](https://github.com
 
 > `optional` **authorizationEventId?**: `string`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:67](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L67)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:67](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L67)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:67](https://github.com
 
 > `optional` **error?**: `string`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:68](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L68)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:68](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L68)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:68](https://github.com
 
 > `optional` **participantPubkey?**: `string`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:64](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L64)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:64](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L64)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:64](https://github.com
 
 > `optional` **proofId?**: `string`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:65](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L65)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:65](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L65)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:65](https://github.com
 
 > `optional` **realPubkey?**: `string`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:66](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L66)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:66](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L66)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:66](https://github.com
 
 > `optional` **role?**: `string`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:63](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L63)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:63](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L63)
 
 ***
 
@@ -58,4 +58,4 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:63](https://github.com
 
 > **status**: [`ParticipantProofResolutionStatus`](ParticipantProofResolutionStatus.md)
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:62](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L62)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:62](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L62)

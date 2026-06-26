@@ -2,7 +2,7 @@
 
 > **OrderSubscribeHandlers** = `object`
 
-Defined in: [nostr-tools/marketplace/order-query.ts:38](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-query.ts#L38)
+Defined in: [nostr-tools/marketplace/order-query.ts:38](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L38)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/order-query.ts:38](https://github.com/sudon
 
 > `optional` **onclose?**: (`reasons`) => `void`
 
-Defined in: [nostr-tools/marketplace/order-query.ts:42](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-query.ts#L42)
+Defined in: [nostr-tools/marketplace/order-query.ts:42](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L42)
 
 #### Parameters
 
@@ -28,7 +28,7 @@ Defined in: [nostr-tools/marketplace/order-query.ts:42](https://github.com/sudon
 
 > `optional` **oneose?**: () => `void`
 
-Defined in: [nostr-tools/marketplace/order-query.ts:41](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-query.ts#L41)
+Defined in: [nostr-tools/marketplace/order-query.ts:41](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L41)
 
 #### Returns
 
@@ -40,7 +40,7 @@ Defined in: [nostr-tools/marketplace/order-query.ts:41](https://github.com/sudon
 
 > `optional` **onevent?**: (`order`) => `void`
 
-Defined in: [nostr-tools/marketplace/order-query.ts:39](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-query.ts#L39)
+Defined in: [nostr-tools/marketplace/order-query.ts:39](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L39)
 
 #### Parameters
 
@@ -58,7 +58,7 @@ Defined in: [nostr-tools/marketplace/order-query.ts:39](https://github.com/sudon
 
 > `optional` **oninvalid?**: (`event`, `error`) => `void`
 
-Defined in: [nostr-tools/marketplace/order-query.ts:40](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-query.ts#L40)
+Defined in: [nostr-tools/marketplace/order-query.ts:40](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L40)
 
 #### Parameters
 

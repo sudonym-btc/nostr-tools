@@ -140,18 +140,11 @@ if (auction) {
   for await (const state of api.auctions.bid(
     listing,
     {
-      amount: {
-        value: '15000',
-        currency: auction.currency,
-        denomination: auction.currency,
-        decimals: auction.decimals,
-      },
+      amount: { value: '15000' },
     },
     { auction },
   )) {
     if (state.type === 'payment_required') renderPaymentRequest(state.request)
-    if (state.type === 'bid_published') renderBidEvent(state.event)
-    if (state.type === 'payment_published') renderPaymentEvent(state.event, state.proof)
     if (state.type === 'completed') renderBidComplete(state.bid, state.payment)
   }
 

@@ -2,7 +2,7 @@
 
 > **ShippingOptionPrice** = `object`
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:11](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/shipping-option.ts#L11)
+Defined in: [nostr-tools/marketplace/shipping-option.ts:11](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L11)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/shipping-option.ts:11](https://github.com/s
 
 > **amount**: `string`
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:12](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/shipping-option.ts#L12)
+Defined in: [nostr-tools/marketplace/shipping-option.ts:12](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L12)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [nostr-tools/marketplace/shipping-option.ts:12](https://github.com/s
 
 > **currency**: `string`
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:13](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/shipping-option.ts#L13)
+Defined in: [nostr-tools/marketplace/shipping-option.ts:13](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L13)

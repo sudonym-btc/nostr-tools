@@ -1,6 +1,6 @@
 # Class: ReplayStream\<T\>
 
-Defined in: [nostr-tools/marketplace/stream.ts:21](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L21)
+Defined in: [nostr-tools/marketplace/stream.ts:21](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L21)
 
 ## Type Parameters
 
@@ -14,7 +14,7 @@ Defined in: [nostr-tools/marketplace/stream.ts:21](https://github.com/sudonym-bt
 
 > **new ReplayStream**\<`T`\>(`options?`): `ReplayStream`\<`T`\>
 
-Defined in: [nostr-tools/marketplace/stream.ts:26](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L26)
+Defined in: [nostr-tools/marketplace/stream.ts:26](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L26)
 
 #### Parameters
 
@@ -34,7 +34,7 @@ Defined in: [nostr-tools/marketplace/stream.ts:26](https://github.com/sudonym-bt
 
 > **get** **latest**(): `T` \| `undefined`
 
-Defined in: [nostr-tools/marketplace/stream.ts:35](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L35)
+Defined in: [nostr-tools/marketplace/stream.ts:35](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L35)
 
 ##### Returns
 
@@ -48,7 +48,7 @@ Defined in: [nostr-tools/marketplace/stream.ts:35](https://github.com/sudonym-bt
 
 > **get** **value**(): `T` \| `undefined`
 
-Defined in: [nostr-tools/marketplace/stream.ts:39](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L39)
+Defined in: [nostr-tools/marketplace/stream.ts:39](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L39)
 
 ##### Returns
 
@@ -62,7 +62,7 @@ Defined in: [nostr-tools/marketplace/stream.ts:39](https://github.com/sudonym-bt
 
 > **get** **values**(): readonly `T`[]
 
-Defined in: [nostr-tools/marketplace/stream.ts:31](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L31)
+Defined in: [nostr-tools/marketplace/stream.ts:31](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L31)
 
 ##### Returns
 
@@ -74,7 +74,7 @@ readonly `T`[]
 
 > **clear**(): `void`
 
-Defined in: [nostr-tools/marketplace/stream.ts:68](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L68)
+Defined in: [nostr-tools/marketplace/stream.ts:68](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L68)
 
 #### Returns
 
@@ -86,7 +86,7 @@ Defined in: [nostr-tools/marketplace/stream.ts:68](https://github.com/sudonym-bt
 
 > **next**(`value`): `void`
 
-Defined in: [nostr-tools/marketplace/stream.ts:43](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L43)
+Defined in: [nostr-tools/marketplace/stream.ts:43](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L43)
 
 #### Parameters
 
@@ -104,7 +104,7 @@ Defined in: [nostr-tools/marketplace/stream.ts:43](https://github.com/sudonym-bt
 
 > **subscribe**(`handler`, `options?`): [`ReplayStreamSubscription`](../type-aliases/ReplayStreamSubscription.md)
 
-Defined in: [nostr-tools/marketplace/stream.ts:53](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L53)
+Defined in: [nostr-tools/marketplace/stream.ts:53](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L53)
 
 #### Parameters
 

@@ -2,7 +2,7 @@
 
 > **ShippingOptionDuration** = `object`
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:16](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/shipping-option.ts#L16)
+Defined in: [nostr-tools/marketplace/shipping-option.ts:16](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L16)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/shipping-option.ts:16](https://github.com/s
 
 > **max**: `string`
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:18](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/shipping-option.ts#L18)
+Defined in: [nostr-tools/marketplace/shipping-option.ts:18](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L18)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/shipping-option.ts:18](https://github.com/s
 
 > **min**: `string`
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:17](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/shipping-option.ts#L17)
+Defined in: [nostr-tools/marketplace/shipping-option.ts:17](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L17)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [nostr-tools/marketplace/shipping-option.ts:17](https://github.com/s
 
 > **unit**: [`ShippingOptionDurationUnit`](ShippingOptionDurationUnit.md)
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:19](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/shipping-option.ts#L19)
+Defined in: [nostr-tools/marketplace/shipping-option.ts:19](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L19)

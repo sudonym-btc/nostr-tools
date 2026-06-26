@@ -2,7 +2,7 @@
 
 > **ParsedArbitrationServiceSelection** = `object`
 
-Defined in: [nostr-tools/marketplace/arbitrationservice.ts:73](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/arbitrationservice.ts#L73)
+Defined in: [nostr-tools/marketplace/arbitrationservice.ts:73](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/arbitrationservice.ts#L73)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/arbitrationservice.ts:73](https://github.co
 
 > **content**: [`ArbitrationServiceSelectionContent`](ArbitrationServiceSelectionContent.md)
 
-Defined in: [nostr-tools/marketplace/arbitrationservice.ts:77](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/arbitrationservice.ts#L77)
+Defined in: [nostr-tools/marketplace/arbitrationservice.ts:77](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/arbitrationservice.ts#L77)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/arbitrationservice.ts:77](https://github.co
 
 > **event**: `Event`
 
-Defined in: [nostr-tools/marketplace/arbitrationservice.ts:74](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/arbitrationservice.ts#L74)
+Defined in: [nostr-tools/marketplace/arbitrationservice.ts:74](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/arbitrationservice.ts#L74)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/arbitrationservice.ts:74](https://github.co
 
 > `optional` **listingAnchor?**: `string`
 
-Defined in: [nostr-tools/marketplace/arbitrationservice.ts:76](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/arbitrationservice.ts#L76)
+Defined in: [nostr-tools/marketplace/arbitrationservice.ts:76](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/arbitrationservice.ts#L76)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [nostr-tools/marketplace/arbitrationservice.ts:76](https://github.co
 
 > **tradeId**: `string`
 
-Defined in: [nostr-tools/marketplace/arbitrationservice.ts:75](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/arbitrationservice.ts#L75)
+Defined in: [nostr-tools/marketplace/arbitrationservice.ts:75](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/arbitrationservice.ts#L75)

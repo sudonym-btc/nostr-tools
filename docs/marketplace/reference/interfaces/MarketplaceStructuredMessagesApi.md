@@ -1,6 +1,6 @@
 # Interface: MarketplaceStructuredMessagesApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1016](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1016)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1019](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1019)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1016](https://github.com/s
 
 > **template**: (`message`) => `EventTemplate`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1019](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1019)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1022](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1022)
 
 #### Parameters
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1019](https://github.com/s
 
 > **validate**: (`event`) => `boolean`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1018](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1018)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1021](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1021)
 
 #### Parameters
 
@@ -44,7 +44,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1018](https://github.com/s
 
 > **parse**(`event`): [`ParsedStructuredMessage`](../type-aliases/ParsedStructuredMessage.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1017](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1017)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1020](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1020)
 
 #### Parameters
 

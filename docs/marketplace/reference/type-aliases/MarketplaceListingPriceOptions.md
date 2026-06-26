@@ -2,7 +2,7 @@
 
 > **MarketplaceListingPriceOptions** = `object`
 
-Defined in: [nostr-tools/marketplace/listing.ts:99](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L99)
+Defined in: [nostr-tools/marketplace/listing.ts:99](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/listing.ts#L99)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:99](https://github.com/sudonym-b
 
 > `optional` **end?**: `Date` \| `number` \| `string`
 
-Defined in: [nostr-tools/marketplace/listing.ts:100](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L100)
+Defined in: [nostr-tools/marketplace/listing.ts:100](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/listing.ts#L100)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:100](https://github.com/sudonym-
 
 > `optional` **price?**: [`MarketplacePrice`](MarketplacePrice.md)
 
-Defined in: [nostr-tools/marketplace/listing.ts:101](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L101)
+Defined in: [nostr-tools/marketplace/listing.ts:101](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/listing.ts#L101)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:101](https://github.com/sudonym-
 
 > `optional` **priceIndex?**: `number`
 
-Defined in: [nostr-tools/marketplace/listing.ts:102](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L102)
+Defined in: [nostr-tools/marketplace/listing.ts:102](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/listing.ts#L102)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [nostr-tools/marketplace/listing.ts:102](https://github.com/sudonym-
 
 > `optional` **start?**: `Date` \| `number` \| `string`
 
-Defined in: [nostr-tools/marketplace/listing.ts:103](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L103)
+Defined in: [nostr-tools/marketplace/listing.ts:103](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/listing.ts#L103)

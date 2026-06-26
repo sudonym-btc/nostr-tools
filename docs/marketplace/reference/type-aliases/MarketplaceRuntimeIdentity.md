@@ -2,7 +2,7 @@
 
 > **MarketplaceRuntimeIdentity** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:766](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L766)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:769](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L769)
 
 ## Properties
 
@@ -10,4 +10,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:766](https://github.com/su
 
 > **pubkey**: `string`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:767](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L767)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:770](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L770)

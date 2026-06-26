@@ -2,7 +2,7 @@
 
 > **ParsedArbitrationService** = `object`
 
-Defined in: [nostr-tools/marketplace/arbitrationservice.ts:43](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/arbitrationservice.ts#L43)
+Defined in: [nostr-tools/marketplace/arbitrationservice.ts:43](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/arbitrationservice.ts#L43)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/arbitrationservice.ts:43](https://github.co
 
 > **content**: [`ArbitrationServiceContent`](ArbitrationServiceContent.md)
 
-Defined in: [nostr-tools/marketplace/arbitrationservice.ts:46](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/arbitrationservice.ts#L46)
+Defined in: [nostr-tools/marketplace/arbitrationservice.ts:46](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/arbitrationservice.ts#L46)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/arbitrationservice.ts:46](https://github.co
 
 > **d**: `string`
 
-Defined in: [nostr-tools/marketplace/arbitrationservice.ts:45](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/arbitrationservice.ts#L45)
+Defined in: [nostr-tools/marketplace/arbitrationservice.ts:45](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/arbitrationservice.ts#L45)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [nostr-tools/marketplace/arbitrationservice.ts:45](https://github.co
 
 > **event**: `Event`
 
-Defined in: [nostr-tools/marketplace/arbitrationservice.ts:44](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/arbitrationservice.ts#L44)
+Defined in: [nostr-tools/marketplace/arbitrationservice.ts:44](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/arbitrationservice.ts#L44)

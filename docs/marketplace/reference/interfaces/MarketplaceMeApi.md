@@ -1,6 +1,6 @@
 # Interface: MarketplaceMeApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1169](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1169)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1172](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1172)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1169](https://github.com/s
 
 > **bids**: [`MarketplaceMeBidsApi`](MarketplaceMeBidsApi.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1171](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1171)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1174](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1174)
 
 ***
 
@@ -16,7 +16,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1171](https://github.com/s
 
 > **inbox**: [`MarketplaceMeInboxApi`](MarketplaceMeInboxApi.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1172](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1172)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1175](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1175)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1172](https://github.com/s
 
 > **orders**: [`MarketplaceMeOrdersApi`](MarketplaceMeOrdersApi.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1170](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1170)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1173](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1173)
 
 ***
 
@@ -32,4 +32,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1170](https://github.com/s
 
 > **payments**: [`MarketplaceMePaymentsApi`](MarketplaceMePaymentsApi.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1173](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1173)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1176](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1176)

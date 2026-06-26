@@ -2,7 +2,7 @@
 
 > **PaymentSettlementContent** = `object`
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:140](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-lifecycle.ts#L140)
+Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:140](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L140)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:140](https://github.co
 
 > **action**: [`PaymentSettlementAction`](PaymentSettlementAction.md)
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:142](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-lifecycle.ts#L142)
+Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:142](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L142)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:142](https://github.co
 
 > `optional` **data?**: `Record`\<`string`, `unknown`\>
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:145](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-lifecycle.ts#L145)
+Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:145](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L145)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:145](https://github.co
 
 > `optional` **inputs?**: `Record`\<`string`, `unknown`\>[]
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:143](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-lifecycle.ts#L143)
+Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:143](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L143)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:143](https://github.co
 
 > **method**: [`PaymentMethod`](PaymentMethod.md)
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:141](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-lifecycle.ts#L141)
+Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:141](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L141)
 
 ***
 
@@ -42,4 +42,4 @@ Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:141](https://github.co
 
 > `optional` **outputs?**: [`PaymentSettlementOutput`](PaymentSettlementOutput.md)[]
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:144](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-lifecycle.ts#L144)
+Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:144](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L144)

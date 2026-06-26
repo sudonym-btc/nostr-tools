@@ -1,6 +1,6 @@
 # Interface: MarketplaceMeOrderRoleApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1035](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1035)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1038](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1038)
 
 ## Methods
 
@@ -8,7 +8,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1035](https://github.com/s
 
 > **list**(`query?`, `options?`): `Promise`\<[`ParsedOrderGroup`](../type-aliases/ParsedOrderGroup.md)[]\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1036](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1036)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1039](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1039)
 
 #### Parameters
 
@@ -30,7 +30,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1036](https://github.com/s
 
 > **watch**(`query?`, `options?`): [`MarketplaceMeOrderRoleStream`](../type-aliases/MarketplaceMeOrderRoleStream.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1040](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1040)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1043](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1043)
 
 #### Parameters
 
