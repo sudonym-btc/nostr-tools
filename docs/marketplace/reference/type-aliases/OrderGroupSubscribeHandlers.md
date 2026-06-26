@@ -2,7 +2,7 @@
 
 > **OrderGroupSubscribeHandlers** = `object`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:128](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/order-group-types.ts#L128)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:128](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L128)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:128](https://github.co
 
 > `optional` **onclose?**: (`reasons`) => `void`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:134](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/order-group-types.ts#L134)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:134](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L134)
 
 #### Parameters
 
@@ -28,7 +28,7 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:134](https://github.co
 
 > `optional` **oneose?**: () => `void`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:133](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/order-group-types.ts#L133)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:133](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L133)
 
 #### Returns
 
@@ -40,7 +40,7 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:133](https://github.co
 
 > `optional` **onevent?**: (`event`) => `void`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:129](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/order-group-types.ts#L129)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:129](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L129)
 
 #### Parameters
 
@@ -58,7 +58,7 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:129](https://github.co
 
 > `optional` **ongroup?**: (`group`) => `void`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:130](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/order-group-types.ts#L130)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:130](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L130)
 
 #### Parameters
 
@@ -76,7 +76,7 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:130](https://github.co
 
 > `optional` **ongroups?**: (`groups`) => `void`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:131](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/order-group-types.ts#L131)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:131](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L131)
 
 #### Parameters
 
@@ -94,7 +94,7 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:131](https://github.co
 
 > `optional` **oninvalid?**: (`event`, `error`) => `void`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:132](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/order-group-types.ts#L132)
+Defined in: [nostr-tools/marketplace/order-group-types.ts:132](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/order-group-types.ts#L132)
 
 #### Parameters
 

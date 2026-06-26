@@ -2,7 +2,7 @@
 
 > **MarketplaceOrderIdentity** = `object`
 
-Defined in: [nostr-tools/marketplace/identity.ts:4](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/identity.ts#L4)
+Defined in: [nostr-tools/marketplace/identity.ts:4](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/identity.ts#L4)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/identity.ts:4](https://github.com/sudonym-b
 
 > `optional` **pubkey?**: `string`
 
-Defined in: [nostr-tools/marketplace/identity.ts:5](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/identity.ts#L5)
+Defined in: [nostr-tools/marketplace/identity.ts:5](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/identity.ts#L5)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/identity.ts:5](https://github.com/sudonym-b
 
 > `optional` **roles?**: `OrderGroupRole`[]
 
-Defined in: [nostr-tools/marketplace/identity.ts:7](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/identity.ts#L7)
+Defined in: [nostr-tools/marketplace/identity.ts:7](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/identity.ts#L7)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/identity.ts:7](https://github.com/sudonym-b
 
 > `optional` **seed?**: `string`
 
-Defined in: [nostr-tools/marketplace/identity.ts:6](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/identity.ts#L6)
+Defined in: [nostr-tools/marketplace/identity.ts:6](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/identity.ts#L6)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [nostr-tools/marketplace/identity.ts:6](https://github.com/sudonym-b
 
 > `optional` **tempKeyWindow?**: `number`
 
-Defined in: [nostr-tools/marketplace/identity.ts:8](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/identity.ts#L8)
+Defined in: [nostr-tools/marketplace/identity.ts:8](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/identity.ts#L8)

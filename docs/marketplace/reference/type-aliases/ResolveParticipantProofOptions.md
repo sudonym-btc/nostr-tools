@@ -2,7 +2,7 @@
 
 > **ResolveParticipantProofOptions** = `object`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:76](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/participant-proof.ts#L76)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:76](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L76)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:76](https://github.com
 
 > `optional` **keys?**: `ProofDisclosureKeyTag`[]
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:77](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/participant-proof.ts#L77)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:77](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L77)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:77](https://github.com
 
 > `optional` **signer?**: [`ParticipantProofDecryptSigner`](ParticipantProofDecryptSigner.md)
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:78](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/participant-proof.ts#L78)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:78](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L78)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:78](https://github.com
 
 > `optional` **signerPubkey?**: `string`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:79](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/participant-proof.ts#L79)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:79](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L79)

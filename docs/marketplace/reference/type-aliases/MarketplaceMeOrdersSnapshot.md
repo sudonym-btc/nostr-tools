@@ -2,7 +2,7 @@
 
 > **MarketplaceMeOrdersSnapshot** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1024](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1024)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1024](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1024)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1024](https://github.com/s
 
 > **all**: [`ParsedOrderGroup`](ParsedOrderGroup.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1028](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1028)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1028](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1028)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1028](https://github.com/s
 
 > **arbitrating**: [`ParsedOrderGroup`](ParsedOrderGroup.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1027](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1027)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1027](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1027)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1027](https://github.com/s
 
 > **placed**: [`ParsedOrderGroup`](ParsedOrderGroup.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1025](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1025)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1025](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1025)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1025](https://github.com/s
 
 > **received**: [`ParsedOrderGroup`](ParsedOrderGroup.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1026](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1026)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1026](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1026)

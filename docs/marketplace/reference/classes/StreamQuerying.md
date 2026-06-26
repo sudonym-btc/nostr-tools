@@ -1,6 +1,6 @@
 # Class: StreamQuerying
 
-Defined in: [nostr-tools/marketplace/stream.ts:83](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/stream.ts#L83)
+Defined in: [nostr-tools/marketplace/stream.ts:83](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L83)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [nostr-tools/marketplace/stream.ts:83](https://github.com/sudonym-bt
 
 > **new StreamQuerying**(`options?`): `StreamQuerying`
 
-Defined in: [nostr-tools/marketplace/stream.ts:86](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/stream.ts#L86)
+Defined in: [nostr-tools/marketplace/stream.ts:86](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L86)
 
 #### Parameters
 
@@ -40,7 +40,7 @@ Defined in: [nostr-tools/marketplace/stream.ts:86](https://github.com/sudonym-bt
 
 > `readonly` **at**: `number`
 
-Defined in: [nostr-tools/marketplace/stream.ts:74](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/stream.ts#L74)
+Defined in: [nostr-tools/marketplace/stream.ts:74](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L74)
 
 #### Inherited from
 
@@ -52,4 +52,4 @@ Defined in: [nostr-tools/marketplace/stream.ts:74](https://github.com/sudonym-bt
 
 > `readonly` **requestCount**: `number`
 
-Defined in: [nostr-tools/marketplace/stream.ts:84](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/stream.ts#L84)
+Defined in: [nostr-tools/marketplace/stream.ts:84](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L84)

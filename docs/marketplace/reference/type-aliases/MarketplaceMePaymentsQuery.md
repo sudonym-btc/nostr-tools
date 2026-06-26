@@ -2,7 +2,7 @@
 
 > **MarketplaceMePaymentsQuery** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1111](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1111)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1111](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1111)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1111](https://github.com/s
 
 > `optional` **authors?**: `string`[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1114](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1114)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1114](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1114)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1114](https://github.com/s
 
 > `optional` **identity?**: [`MarketplaceOrderIdentity`](MarketplaceOrderIdentity.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1112](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1112)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1112](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1112)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1112](https://github.com/s
 
 > `optional` **limit?**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1118](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1118)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1118](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1118)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1118](https://github.com/s
 
 > `optional` **participantPubkeys?**: `string`[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1115](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1115)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1115](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1115)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1115](https://github.com/s
 
 > `optional` **paymentIds?**: `string`[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1113](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1113)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1113](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1113)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1113](https://github.com/s
 
 > `optional` **since?**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1116](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1116)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1116](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1116)
 
 ***
 
@@ -58,4 +58,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1116](https://github.com/s
 
 > `optional` **until?**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1117](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1117)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1117](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1117)

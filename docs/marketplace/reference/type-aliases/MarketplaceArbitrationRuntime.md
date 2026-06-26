@@ -2,7 +2,7 @@
 
 > **MarketplaceArbitrationRuntime** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:869](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L869)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:869](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L869)
 
 ## Methods
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:869](https://github.com/su
 
 > **close**(`reason?`): `void`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:870](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L870)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:870](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L870)
 
 #### Parameters
 
@@ -28,7 +28,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:870](https://github.com/su
 
 > **processAuction**(`auction`): `Promise`\<`void`\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:872](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L872)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:872](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L872)
 
 #### Parameters
 
@@ -46,7 +46,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:872](https://github.com/su
 
 > **processAuctionBidGroup**(`auction`, `group`): `Promise`\<`void`\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:873](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L873)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:873](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L873)
 
 #### Parameters
 
@@ -68,7 +68,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:873](https://github.com/su
 
 > **processGroup**(`group`): `Promise`\<`void`\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:871](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L871)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:871](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L871)
 
 #### Parameters
 
@@ -86,7 +86,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:871](https://github.com/su
 
 > **settleAuction**(`auction`): `Promise`\<`void`\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:874](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L874)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:874](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L874)
 
 #### Parameters
 
@@ -104,7 +104,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:874](https://github.com/su
 
 > **settleDueAuctions**(): `Promise`\<`void`\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:875](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L875)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:875](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L875)
 
 #### Returns
 

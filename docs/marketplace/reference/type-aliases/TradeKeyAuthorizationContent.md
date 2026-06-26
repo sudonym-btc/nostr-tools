@@ -2,7 +2,7 @@
 
 > **TradeKeyAuthorizationContent** = `object`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:32](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/participant-proof.ts#L32)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:32](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L32)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:32](https://github.com
 
 > **participantPubkey**: `string`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:35](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/participant-proof.ts#L35)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:35](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L35)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:35](https://github.com
 
 > **role**: `string`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:34](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/participant-proof.ts#L34)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:34](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L34)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:34](https://github.com
 
 > **version**: `number`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:33](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/participant-proof.ts#L33)
+Defined in: [nostr-tools/marketplace/participant-proof.ts:33](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/participant-proof.ts#L33)

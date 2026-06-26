@@ -2,7 +2,7 @@
 
 > **MarketplacePrice** = `object`
 
-Defined in: [nostr-tools/marketplace/helper.ts:108](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/helper.ts#L108)
+Defined in: [nostr-tools/marketplace/helper.ts:108](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/helper.ts#L108)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/helper.ts:108](https://github.com/sudonym-b
 
 > **amount**: `string`
 
-Defined in: [nostr-tools/marketplace/helper.ts:109](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/helper.ts#L109)
+Defined in: [nostr-tools/marketplace/helper.ts:109](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/helper.ts#L109)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/helper.ts:109](https://github.com/sudonym-b
 
 > **currency**: `string`
 
-Defined in: [nostr-tools/marketplace/helper.ts:110](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/helper.ts#L110)
+Defined in: [nostr-tools/marketplace/helper.ts:110](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/helper.ts#L110)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [nostr-tools/marketplace/helper.ts:110](https://github.com/sudonym-b
 
 > `optional` **frequency?**: `string`
 
-Defined in: [nostr-tools/marketplace/helper.ts:111](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/helper.ts#L111)
+Defined in: [nostr-tools/marketplace/helper.ts:111](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/helper.ts#L111)

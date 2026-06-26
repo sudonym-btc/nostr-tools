@@ -2,7 +2,7 @@
 
 > **AuctionBidGroupRoles** = `object`
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:118](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/auction-bid-group.ts#L118)
+Defined in: [nostr-tools/marketplace/auction-bid-group.ts:118](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/auction-bid-group.ts#L118)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:118](https://github.co
 
 > **all**: [`ParsedAuctionBidGroup`](ParsedAuctionBidGroup.md)[]
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:122](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/auction-bid-group.ts#L122)
+Defined in: [nostr-tools/marketplace/auction-bid-group.ts:122](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/auction-bid-group.ts#L122)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:122](https://github.co
 
 > **arbiter**: [`ParsedAuctionBidGroup`](ParsedAuctionBidGroup.md)[]
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:121](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/auction-bid-group.ts#L121)
+Defined in: [nostr-tools/marketplace/auction-bid-group.ts:121](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/auction-bid-group.ts#L121)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:121](https://github.co
 
 > **buyer**: [`ParsedAuctionBidGroup`](ParsedAuctionBidGroup.md)[]
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:119](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/auction-bid-group.ts#L119)
+Defined in: [nostr-tools/marketplace/auction-bid-group.ts:119](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/auction-bid-group.ts#L119)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:119](https://github.co
 
 > **seller**: [`ParsedAuctionBidGroup`](ParsedAuctionBidGroup.md)[]
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:120](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/auction-bid-group.ts#L120)
+Defined in: [nostr-tools/marketplace/auction-bid-group.ts:120](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/auction-bid-group.ts#L120)

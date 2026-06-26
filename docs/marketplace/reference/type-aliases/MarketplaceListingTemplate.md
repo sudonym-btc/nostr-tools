@@ -2,7 +2,7 @@
 
 > **MarketplaceListingTemplate** = `object`
 
-Defined in: [nostr-tools/marketplace/listing.ts:58](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L58)
+Defined in: [nostr-tools/marketplace/listing.ts:58](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L58)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:58](https://github.com/sudonym-b
 
 > `optional` **active?**: `boolean`
 
-Defined in: [nostr-tools/marketplace/listing.ts:69](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L69)
+Defined in: [nostr-tools/marketplace/listing.ts:69](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L69)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:69](https://github.com/sudonym-b
 
 > `optional` **autoAccept?**: `boolean`
 
-Defined in: [nostr-tools/marketplace/listing.ts:70](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L70)
+Defined in: [nostr-tools/marketplace/listing.ts:70](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L70)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:70](https://github.com/sudonym-b
 
 > `optional` **cancellationPolicies?**: [`CancellationPolicy`](CancellationPolicy.md)[]
 
-Defined in: [nostr-tools/marketplace/listing.ts:78](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L78)
+Defined in: [nostr-tools/marketplace/listing.ts:78](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L78)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:78](https://github.com/sudonym-b
 
 > `optional` **createdAt?**: `number`
 
-Defined in: [nostr-tools/marketplace/listing.ts:80](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L80)
+Defined in: [nostr-tools/marketplace/listing.ts:80](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L80)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:80](https://github.com/sudonym-b
 
 > **d**: `string`
 
-Defined in: [nostr-tools/marketplace/listing.ts:59](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L59)
+Defined in: [nostr-tools/marketplace/listing.ts:59](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L59)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:59](https://github.com/sudonym-b
 
 > `optional` **description?**: `string`
 
-Defined in: [nostr-tools/marketplace/listing.ts:62](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L62)
+Defined in: [nostr-tools/marketplace/listing.ts:62](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L62)
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:62](https://github.com/sudonym-b
 
 > `optional` **draft?**: `boolean`
 
-Defined in: [nostr-tools/marketplace/listing.ts:81](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L81)
+Defined in: [nostr-tools/marketplace/listing.ts:81](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L81)
 
 ***
 
@@ -66,7 +66,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:81](https://github.com/sudonym-b
 
 > `optional` **extraTags?**: `string`[][]
 
-Defined in: [nostr-tools/marketplace/listing.ts:79](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L79)
+Defined in: [nostr-tools/marketplace/listing.ts:79](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L79)
 
 ***
 
@@ -74,7 +74,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:79](https://github.com/sudonym-b
 
 > `optional` **images?**: [`ListingImage`](ListingImage.md)[]
 
-Defined in: [nostr-tools/marketplace/listing.ts:67](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L67)
+Defined in: [nostr-tools/marketplace/listing.ts:67](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L67)
 
 ***
 
@@ -82,7 +82,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:67](https://github.com/sudonym-b
 
 > `optional` **location?**: `string`
 
-Defined in: [nostr-tools/marketplace/listing.ts:64](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L64)
+Defined in: [nostr-tools/marketplace/listing.ts:64](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L64)
 
 ***
 
@@ -90,7 +90,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:64](https://github.com/sudonym-b
 
 > `optional` **maxDisputePeriod?**: `number`
 
-Defined in: [nostr-tools/marketplace/listing.ts:77](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L77)
+Defined in: [nostr-tools/marketplace/listing.ts:77](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L77)
 
 ***
 
@@ -98,7 +98,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:77](https://github.com/sudonym-b
 
 > `optional` **minDuration?**: `string`
 
-Defined in: [nostr-tools/marketplace/listing.ts:73](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L73)
+Defined in: [nostr-tools/marketplace/listing.ts:73](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L73)
 
 ***
 
@@ -106,7 +106,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:73](https://github.com/sudonym-b
 
 > `optional` **minPaymentAmount?**: [`MarketplaceAmount`](MarketplaceAmount.md)
 
-Defined in: [nostr-tools/marketplace/listing.ts:76](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L76)
+Defined in: [nostr-tools/marketplace/listing.ts:76](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L76)
 
 ***
 
@@ -114,7 +114,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:76](https://github.com/sudonym-b
 
 > `optional` **negotiable?**: `boolean`
 
-Defined in: [nostr-tools/marketplace/listing.ts:71](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L71)
+Defined in: [nostr-tools/marketplace/listing.ts:71](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L71)
 
 ***
 
@@ -122,7 +122,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:71](https://github.com/sudonym-b
 
 > **prices**: [`MarketplacePrice`](MarketplacePrice.md)[]
 
-Defined in: [nostr-tools/marketplace/listing.ts:68](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L68)
+Defined in: [nostr-tools/marketplace/listing.ts:68](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L68)
 
 ***
 
@@ -130,7 +130,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:68](https://github.com/sudonym-b
 
 > `optional` **profiles?**: `string`[]
 
-Defined in: [nostr-tools/marketplace/listing.ts:66](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L66)
+Defined in: [nostr-tools/marketplace/listing.ts:66](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L66)
 
 ***
 
@@ -138,7 +138,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:66](https://github.com/sudonym-b
 
 > `optional` **publishedAt?**: `number`
 
-Defined in: [nostr-tools/marketplace/listing.ts:63](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L63)
+Defined in: [nostr-tools/marketplace/listing.ts:63](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L63)
 
 ***
 
@@ -146,7 +146,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:63](https://github.com/sudonym-b
 
 > `optional` **quantity?**: `number`
 
-Defined in: [nostr-tools/marketplace/listing.ts:74](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L74)
+Defined in: [nostr-tools/marketplace/listing.ts:74](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L74)
 
 ***
 
@@ -154,7 +154,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:74](https://github.com/sudonym-b
 
 > `optional` **rentOrBuy?**: [`RentOrBuy`](RentOrBuy.md)
 
-Defined in: [nostr-tools/marketplace/listing.ts:72](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L72)
+Defined in: [nostr-tools/marketplace/listing.ts:72](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L72)
 
 ***
 
@@ -162,7 +162,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:72](https://github.com/sudonym-b
 
 > `optional` **securityDeposit?**: [`MarketplaceAmount`](MarketplaceAmount.md)
 
-Defined in: [nostr-tools/marketplace/listing.ts:75](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L75)
+Defined in: [nostr-tools/marketplace/listing.ts:75](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L75)
 
 ***
 
@@ -170,7 +170,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:75](https://github.com/sudonym-b
 
 > `optional` **status?**: `string`
 
-Defined in: [nostr-tools/marketplace/listing.ts:65](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L65)
+Defined in: [nostr-tools/marketplace/listing.ts:65](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L65)
 
 ***
 
@@ -178,7 +178,7 @@ Defined in: [nostr-tools/marketplace/listing.ts:65](https://github.com/sudonym-b
 
 > `optional` **summary?**: `string`
 
-Defined in: [nostr-tools/marketplace/listing.ts:61](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L61)
+Defined in: [nostr-tools/marketplace/listing.ts:61](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L61)
 
 ***
 
@@ -186,4 +186,4 @@ Defined in: [nostr-tools/marketplace/listing.ts:61](https://github.com/sudonym-b
 
 > **title**: `string`
 
-Defined in: [nostr-tools/marketplace/listing.ts:60](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/listing.ts#L60)
+Defined in: [nostr-tools/marketplace/listing.ts:60](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/listing.ts#L60)

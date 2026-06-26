@@ -2,7 +2,7 @@
 
 > **MarketplaceSessionDriversApi** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:710](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L710)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:710](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L710)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:710](https://github.com/su
 
 > `readonly` **all**: [`MarketplaceSessionDriver`](MarketplaceSessionDriver.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:711](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L711)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:711](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L711)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:711](https://github.com/su
 
 > `readonly` **auctions**: [`MarketplaceSessionDriver`](MarketplaceSessionDriver.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:713](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L713)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:713](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L713)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:713](https://github.com/su
 
 > `readonly` **orders**: [`MarketplaceSessionDriver`](MarketplaceSessionDriver.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:712](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L712)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:712](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L712)
 
 ## Methods
 
@@ -34,7 +34,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:712](https://github.com/su
 
 > **byId**(`id`): [`MarketplaceSessionDriver`](MarketplaceSessionDriver.md) \| `undefined`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:714](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L714)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:714](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L714)
 
 #### Parameters
 
@@ -52,7 +52,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:714](https://github.com/su
 
 > **each**(`callback`): `void`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:715](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L715)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:715](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L715)
 
 #### Parameters
 

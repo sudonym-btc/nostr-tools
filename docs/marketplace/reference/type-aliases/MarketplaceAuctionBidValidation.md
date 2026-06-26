@@ -2,7 +2,7 @@
 
 > **MarketplaceAuctionBidValidation** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:475](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L475)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:475](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L475)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:475](https://github.com/su
 
 > **bid**: [`ParsedMarketplaceAuctionBid`](ParsedMarketplaceAuctionBid.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:476](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L476)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:476](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L476)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:476](https://github.com/su
 
 > `optional` **payment?**: [`ParsedPayment`](ParsedPayment.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:477](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L477)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:477](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L477)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:477](https://github.com/su
 
 > **validation**: [`MarketplacePaymentValidationResult`](MarketplacePaymentValidationResult.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:478](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L478)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:478](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L478)

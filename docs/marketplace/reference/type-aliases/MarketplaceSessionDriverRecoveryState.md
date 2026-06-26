@@ -2,7 +2,7 @@
 
 > **MarketplaceSessionDriverRecoveryState** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:685](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L685)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:685](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L685)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:685](https://github.com/su
 
 > **active**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:686](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L686)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:686](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L686)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:686](https://github.com/su
 
 > **failed**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:689](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L689)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:689](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L689)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:689](https://github.com/su
 
 > **failures**: [`MarketplaceSessionDriverRecoveryFailure`](MarketplaceSessionDriverRecoveryFailure.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:690](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L690)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:690](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L690)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:690](https://github.com/su
 
 > **resumed**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:687](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L687)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:687](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L687)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:687](https://github.com/su
 
 > **settled**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:688](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L688)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:688](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L688)
 
 ***
 
@@ -50,4 +50,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:688](https://github.com/su
 
 > **updatedAt**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:691](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L691)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:691](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L691)

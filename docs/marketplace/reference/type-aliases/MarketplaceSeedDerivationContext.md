@@ -2,7 +2,7 @@
 
 > **MarketplaceSeedDerivationContext** = `object`
 
-Defined in: [nostr-tools/marketplace/seed.ts:37](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/seed.ts#L37)
+Defined in: [nostr-tools/marketplace/seed.ts:37](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/seed.ts#L37)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/seed.ts:37](https://github.com/sudonym-btc/
 
 > `optional` **index?**: `number` \| `string`
 
-Defined in: [nostr-tools/marketplace/seed.ts:38](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/seed.ts#L38)
+Defined in: [nostr-tools/marketplace/seed.ts:38](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/seed.ts#L38)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/seed.ts:38](https://github.com/sudonym-btc/
 
 > `optional` **listingAnchor?**: `string`
 
-Defined in: [nostr-tools/marketplace/seed.ts:40](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/seed.ts#L40)
+Defined in: [nostr-tools/marketplace/seed.ts:40](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/seed.ts#L40)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/seed.ts:40](https://github.com/sudonym-btc/
 
 > `optional` **nonce?**: `string`
 
-Defined in: [nostr-tools/marketplace/seed.ts:39](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/seed.ts#L39)
+Defined in: [nostr-tools/marketplace/seed.ts:39](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/seed.ts#L39)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [nostr-tools/marketplace/seed.ts:39](https://github.com/sudonym-btc/
 
 > `optional` **role?**: `string`
 
-Defined in: [nostr-tools/marketplace/seed.ts:41](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/seed.ts#L41)
+Defined in: [nostr-tools/marketplace/seed.ts:41](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/seed.ts#L41)

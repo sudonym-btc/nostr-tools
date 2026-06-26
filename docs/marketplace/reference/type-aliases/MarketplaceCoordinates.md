@@ -2,7 +2,7 @@
 
 > **MarketplaceCoordinates** = `object`
 
-Defined in: [marketplace-location-interface-ts/dist/index.d.ts:2](https://github.com/sudonym-btc/marketplace-location-interface-ts/blob/7ba16fbb299f86967d1636387915a696af17abde/dist/index.d.ts#L2)
+Defined in: [marketplace-location-interface-ts/dist/index.d.ts:2](https://github.com/sudonym-btc/marketplace-location-interface-ts/blob/03212e0fc7665e5f6103a8652885545dbfb3a326/dist/index.d.ts#L2)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [marketplace-location-interface-ts/dist/index.d.ts:2](https://github
 
 > **lat**: `number`
 
-Defined in: [marketplace-location-interface-ts/dist/index.d.ts:3](https://github.com/sudonym-btc/marketplace-location-interface-ts/blob/7ba16fbb299f86967d1636387915a696af17abde/dist/index.d.ts#L3)
+Defined in: [marketplace-location-interface-ts/dist/index.d.ts:3](https://github.com/sudonym-btc/marketplace-location-interface-ts/blob/03212e0fc7665e5f6103a8652885545dbfb3a326/dist/index.d.ts#L3)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [marketplace-location-interface-ts/dist/index.d.ts:3](https://github
 
 > **lng**: `number`
 
-Defined in: [marketplace-location-interface-ts/dist/index.d.ts:4](https://github.com/sudonym-btc/marketplace-location-interface-ts/blob/7ba16fbb299f86967d1636387915a696af17abde/dist/index.d.ts#L4)
+Defined in: [marketplace-location-interface-ts/dist/index.d.ts:4](https://github.com/sudonym-btc/marketplace-location-interface-ts/blob/03212e0fc7665e5f6103a8652885545dbfb3a326/dist/index.d.ts#L4)

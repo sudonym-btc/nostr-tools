@@ -2,7 +2,7 @@
 
 > **MarketplaceSessionSeedOwnershipPath** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1321](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1321)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1321](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1321)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1321](https://github.com/s
 
 > `optional` **from?**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1322](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1322)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1322](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1322)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1322](https://github.com/s
 
 > `optional` **lookahead?**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1324](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1324)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1324](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1324)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1324](https://github.com/s
 
 > `optional` **through?**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1323](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1323)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1323](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1323)

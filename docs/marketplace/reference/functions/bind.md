@@ -2,7 +2,7 @@
 
 > **bind**(`pool`, `relays`, `options?`): [`MarketplaceClient`](../interfaces/MarketplaceClient.md)
 
-Defined in: [nostr-tools/marketplace/runtime-client.ts:1752](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-client.ts#L1752)
+Defined in: [nostr-tools/marketplace/runtime-client.ts:1757](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-client.ts#L1757)
 
 ## Parameters
 

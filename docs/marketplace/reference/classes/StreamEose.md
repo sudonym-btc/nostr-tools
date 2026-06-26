@@ -1,6 +1,6 @@
 # Class: StreamEose
 
-Defined in: [nostr-tools/marketplace/stream.ts:92](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/stream.ts#L92)
+Defined in: [nostr-tools/marketplace/stream.ts:92](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L92)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [nostr-tools/marketplace/stream.ts:92](https://github.com/sudonym-bt
 
 > **new StreamEose**(`options?`): `StreamEose`
 
-Defined in: [nostr-tools/marketplace/stream.ts:95](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/stream.ts#L95)
+Defined in: [nostr-tools/marketplace/stream.ts:95](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L95)
 
 #### Parameters
 
@@ -40,7 +40,7 @@ Defined in: [nostr-tools/marketplace/stream.ts:95](https://github.com/sudonym-bt
 
 > `readonly` **at**: `number`
 
-Defined in: [nostr-tools/marketplace/stream.ts:74](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/stream.ts#L74)
+Defined in: [nostr-tools/marketplace/stream.ts:74](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L74)
 
 #### Inherited from
 
@@ -52,4 +52,4 @@ Defined in: [nostr-tools/marketplace/stream.ts:74](https://github.com/sudonym-bt
 
 > `readonly` **eventCount**: `number`
 
-Defined in: [nostr-tools/marketplace/stream.ts:93](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/stream.ts#L93)
+Defined in: [nostr-tools/marketplace/stream.ts:93](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L93)

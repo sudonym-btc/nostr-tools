@@ -1,6 +1,6 @@
 # Interface: MarketplaceMePaymentsApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1158](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1158)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1158](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1158)
 
 ## Methods
 
@@ -8,7 +8,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1158](https://github.com/s
 
 > **list**(`query?`, `options?`): `Promise`\<[`MarketplaceMePaymentsSnapshot`](../type-aliases/MarketplaceMePaymentsSnapshot.md)\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1159](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1159)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1159](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1159)
 
 #### Parameters
 
@@ -30,7 +30,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1159](https://github.com/s
 
 > **watch**(`query?`, `options?`): [`MarketplaceMePaymentsStream`](../type-aliases/MarketplaceMePaymentsStream.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1163](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1163)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1163](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1163)
 
 #### Parameters
 

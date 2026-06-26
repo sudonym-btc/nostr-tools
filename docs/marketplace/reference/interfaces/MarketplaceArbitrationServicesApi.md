@@ -1,6 +1,6 @@
 # Interface: MarketplaceArbitrationServicesApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:939](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L939)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:939](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L939)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:939](https://github.com/su
 
 > **calculateFee**: (`fee`, `amount`, `asset`) => `bigint`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:946](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L946)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:946](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L946)
 
 #### Parameters
 
@@ -34,7 +34,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:946](https://github.com/su
 
 > **filter**: (`query`) => `Filter`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:943](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L943)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:943](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L943)
 
 #### Parameters
 
@@ -52,7 +52,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:943](https://github.com/su
 
 > **parse**: (`event`) => [`ParsedArbitrationService`](../type-aliases/ParsedArbitrationService.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:940](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L940)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:940](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L940)
 
 #### Parameters
 
@@ -70,7 +70,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:940](https://github.com/su
 
 > **template**: (`service`) => `EventTemplate`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:942](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L942)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:942](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L942)
 
 #### Parameters
 
@@ -88,7 +88,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:942](https://github.com/su
 
 > **validate**: (`event`) => `boolean`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:941](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L941)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:941](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L941)
 
 #### Parameters
 
@@ -106,7 +106,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:941](https://github.com/su
 
 > **findOne**(`query?`, `options?`): `Promise`\<[`ParsedArbitrationService`](../type-aliases/ParsedArbitrationService.md) \| `null`\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:945](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L945)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:945](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L945)
 
 #### Parameters
 
@@ -128,7 +128,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:945](https://github.com/su
 
 > **search**(`query?`, `options?`): `Promise`\<[`ParsedArbitrationService`](../type-aliases/ParsedArbitrationService.md)[]\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:944](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L944)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:944](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L944)
 
 #### Parameters
 

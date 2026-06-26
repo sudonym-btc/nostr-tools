@@ -2,7 +2,7 @@
 
 > **PaymentAmountResolution** = `object`
 
-Defined in: [nostr-tools/marketplace/payment-amount.ts:30](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/payment-amount.ts#L30)
+Defined in: [nostr-tools/marketplace/payment-amount.ts:30](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-amount.ts#L30)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/payment-amount.ts:30](https://github.com/su
 
 > `optional` **amount?**: [`MarketplaceAmount`](MarketplaceAmount.md)
 
-Defined in: [nostr-tools/marketplace/payment-amount.ts:33](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/payment-amount.ts#L33)
+Defined in: [nostr-tools/marketplace/payment-amount.ts:33](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-amount.ts#L33)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/payment-amount.ts:33](https://github.com/su
 
 > `optional` **error?**: `string`
 
-Defined in: [nostr-tools/marketplace/payment-amount.ts:34](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/payment-amount.ts#L34)
+Defined in: [nostr-tools/marketplace/payment-amount.ts:34](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-amount.ts#L34)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/payment-amount.ts:34](https://github.com/su
 
 > `optional` **proofId?**: `string`
 
-Defined in: [nostr-tools/marketplace/payment-amount.ts:32](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/payment-amount.ts#L32)
+Defined in: [nostr-tools/marketplace/payment-amount.ts:32](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-amount.ts#L32)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [nostr-tools/marketplace/payment-amount.ts:32](https://github.com/su
 
 > **status**: [`PaymentAmountResolutionStatus`](PaymentAmountResolutionStatus.md)
 
-Defined in: [nostr-tools/marketplace/payment-amount.ts:31](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/payment-amount.ts#L31)
+Defined in: [nostr-tools/marketplace/payment-amount.ts:31](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-amount.ts#L31)

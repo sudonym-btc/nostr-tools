@@ -2,7 +2,7 @@
 
 > **MarketplaceHighWatermarkDiscovery** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:298](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L298)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:298](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L298)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:298](https://github.com/su
 
 > **converged**: `boolean`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:306](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L306)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:306](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L306)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:306](https://github.com/su
 
 > **maxUsedIndex**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:300](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L300)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:300](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L300)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:300](https://github.com/su
 
 > **nextUnusedIndex**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:301](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L301)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:301](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L301)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:301](https://github.com/su
 
 > **passes**: [`MarketplaceHighWatermarkPass`](MarketplaceHighWatermarkPass.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:303](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L303)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:303](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L303)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:303](https://github.com/su
 
 > **policyResults**: [`MarketplacePolicyWatermarkDiscovery`](MarketplacePolicyWatermarkDiscovery.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:304](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L304)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:304](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L304)
 
 ***
 
@@ -50,7 +50,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:304](https://github.com/su
 
 > **recoveryActions**: `unknown`[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:305](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L305)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:305](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L305)
 
 ***
 
@@ -58,7 +58,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:305](https://github.com/su
 
 > **seed**: `string`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:299](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L299)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:299](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L299)
 
 ***
 
@@ -66,4 +66,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:299](https://github.com/su
 
 > **unusedWindow**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:302](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L302)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:302](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L302)

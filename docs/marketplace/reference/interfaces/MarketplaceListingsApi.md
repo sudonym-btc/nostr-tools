@@ -1,6 +1,6 @@
 # Interface: MarketplaceListingsApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:901](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L901)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:901](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L901)
 
 ## Properties
 
@@ -8,7 +8,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:901](https://github.com/su
 
 > **anchor**: (`listing`) => `string`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:902](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L902)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:902](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L902)
 
 #### Parameters
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:902](https://github.com/su
 
 > **create**: (`listing`) => `EventTemplate`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:905](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L905)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:905](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L905)
 
 #### Parameters
 
@@ -44,7 +44,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:905](https://github.com/su
 
 > **filters**: `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:907](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L907)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:907](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L907)
 
 #### search
 
@@ -66,7 +66,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:907](https://github.com/su
 
 > **parse**: (`event`) => [`MarketplaceListing`](../type-aliases/MarketplaceListing.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:903](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L903)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:903](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L903)
 
 #### Parameters
 
@@ -84,7 +84,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:903](https://github.com/su
 
 > **price**: (`listing`, `options`) => [`MarketplaceAmount`](../type-aliases/MarketplaceAmount.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:908](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L908)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:908](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L908)
 
 #### Parameters
 
@@ -106,7 +106,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:908](https://github.com/su
 
 > **template**: (`listing`) => `EventTemplate`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:906](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L906)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:906](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L906)
 
 #### Parameters
 
@@ -124,7 +124,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:906](https://github.com/su
 
 > **validate**: (`event`) => `boolean`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:904](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L904)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:904](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L904)
 
 #### Parameters
 
@@ -142,7 +142,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:904](https://github.com/su
 
 > **findByAnchor**(`anchor`, `options?`): `Promise`\<[`MarketplaceListing`](../type-aliases/MarketplaceListing.md) \| `null`\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:915](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L915)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:915](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L915)
 
 #### Parameters
 
@@ -164,7 +164,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:915](https://github.com/su
 
 > **findById**(`id`, `options?`): `Promise`\<[`MarketplaceListing`](../type-aliases/MarketplaceListing.md) \| `null`\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:914](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L914)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:914](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L914)
 
 #### Parameters
 
@@ -186,7 +186,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:914](https://github.com/su
 
 > **findOne**(`pubkey`, `query?`, `options?`): `Promise`\<[`MarketplaceListing`](../type-aliases/MarketplaceListing.md) \| `null`\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:909](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L909)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:909](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L909)
 
 #### Parameters
 
@@ -212,7 +212,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:909](https://github.com/su
 
 > **search**(`query?`, `options?`): `Promise`\<[`MarketplaceListing`](../type-aliases/MarketplaceListing.md)[]\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:916](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L916)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:916](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L916)
 
 #### Parameters
 

@@ -18,16 +18,6 @@ submodule:
 import { finalizeEvent, generateSecretKey } from 'nostr-tools/pure'
 import { SimplePool } from 'nostr-tools/pool'
 import * as marketplace from 'nostr-tools/marketplace'
-import {
-  createEvmAuctionPolicy,
-  createEvmEscrowPolicy,
-  MemoryOperationStore,
-} from '@sudonym-btc/marketplace-evm'
-import {
-  createCashuAuctionPolicy,
-  createCashuEscrowPolicy,
-  MemoryCashuEscrowStore,
-} from '@sudonym-btc/marketplace-cashu'
 ```
 
 ## Build and publish an event
@@ -62,63 +52,26 @@ const relays = ['wss://relay.example']
 const pool = new SimplePool()
 
 const signer = {
-  getPublicKey: () => window.nostr.getPublicKey(),
-  nip44Encrypt: (pubkey, plaintext) =>
-    window.nostr.nip44.encrypt(pubkey, plaintext),
-  nip44Decrypt: (pubkey, ciphertext) =>
-    window.nostr.nip44.decrypt(pubkey, ciphertext),
-  signEvent: event => window.nostr.signEvent(event),
+  getPublicKey: window.nostr.getPublicKey.bind(window.nostr),
+  nip44Encrypt: window.nostr.nip44.encrypt.bind(window.nostr.nip44),
+  nip44Decrypt: window.nostr.nip44.decrypt.bind(window.nostr.nip44),
+  signEvent: window.nostr.signEvent.bind(window.nostr),
 }
 
-const evmOperationStore = new MemoryOperationStore()
-const cashuEscrowStore = new MemoryCashuEscrowStore()
-
-function evmOrderDriver() {
-  return createEvmEscrowPolicy({
-    appId: 'marketplace',
-    chains,
-    operationStore: evmOperationStore,
-  })
-}
-
-function evmAuctionDriver() {
-  return createEvmAuctionPolicy({
-    appId: 'marketplace',
-    chains,
-    operationStore: evmOperationStore,
-  })
-}
-
-function cashuOrderDriver() {
-  return createCashuEscrowPolicy({
-    appId: 'marketplace',
-    storage: cashuEscrowStore,
-    mints,
-  })
-}
-
-function cashuAuctionDriver() {
-  return createCashuAuctionPolicy({
-    appId: 'marketplace',
-    storage: cashuEscrowStore,
-    mints,
-  })
-}
-
-const market = marketplace.bind(pool, relays)
-
-const api = await market.session(signer, {
-  publish: event => Promise.allSettled(pool.publish(relays, event)),
-  orderDrivers: [evmOrderDriver(), cashuOrderDriver()],
-  auctionDrivers: [evmAuctionDriver(), cashuAuctionDriver()],
+const market = marketplace.bind(pool, relays, {
+  orderDrivers,
+  auctionDrivers,
 })
 
+const api = await market.session(signer)
 const listings = await api.listings.search({ limit: 20 })
 ```
 
-`chains` and `mints` are app-owned driver configuration. See the EVM and Cashu
-driver docs for the exact network, storage, and wallet settings those factories
-accept.
+`orderDrivers` and `auctionDrivers` come from app-owned driver setup, such as
+the EVM and Cashu driver packages. When the bound pool has a `publish()` method,
+the runtime publishes through the bound `relays` automatically. Pass an explicit
+`publish` function to `bind()` or `session()` only when the app needs custom
+retry, auth, logging, or relay-selection behavior.
 
 ## Place an order
 
@@ -127,19 +80,14 @@ the registered order drivers. If you do not pass a route, the runtime can choose
 one from the listing and available drivers.
 
 ```ts
-const [listing] = listings
-if (!listing) throw new Error('No listings found')
-
-const route = await api.orders.paymentRoute(listing)
-
 for await (const state of api.orders.create(
   listing,
   {
     quantity: 1,
+    // Optional for rentals and reservations.
     start: '2026-07-02',
     end: '2026-07-05',
   },
-  route ? { route } : undefined,
 )) {
   if (state.type === 'payment_required') {
     renderPaymentRequest(state.request)

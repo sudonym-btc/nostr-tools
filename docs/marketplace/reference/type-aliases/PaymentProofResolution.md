@@ -2,7 +2,7 @@
 
 > **PaymentProofResolution** = `object`
 
-Defined in: [nostr-tools/marketplace/payment-proof.ts:43](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/payment-proof.ts#L43)
+Defined in: [nostr-tools/marketplace/payment-proof.ts:43](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-proof.ts#L43)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/payment-proof.ts:43](https://github.com/sud
 
 > `optional` **error?**: `string`
 
-Defined in: [nostr-tools/marketplace/payment-proof.ts:47](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/payment-proof.ts#L47)
+Defined in: [nostr-tools/marketplace/payment-proof.ts:47](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-proof.ts#L47)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/payment-proof.ts:47](https://github.com/sud
 
 > `optional` **proof?**: [`PaymentProof`](PaymentProof.md)
 
-Defined in: [nostr-tools/marketplace/payment-proof.ts:46](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/payment-proof.ts#L46)
+Defined in: [nostr-tools/marketplace/payment-proof.ts:46](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-proof.ts#L46)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/payment-proof.ts:46](https://github.com/sud
 
 > `optional` **proofId?**: `string`
 
-Defined in: [nostr-tools/marketplace/payment-proof.ts:45](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/payment-proof.ts#L45)
+Defined in: [nostr-tools/marketplace/payment-proof.ts:45](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-proof.ts#L45)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [nostr-tools/marketplace/payment-proof.ts:45](https://github.com/sud
 
 > **status**: [`PaymentProofResolutionStatus`](PaymentProofResolutionStatus.md)
 
-Defined in: [nostr-tools/marketplace/payment-proof.ts:44](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/payment-proof.ts#L44)
+Defined in: [nostr-tools/marketplace/payment-proof.ts:44](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/payment-proof.ts#L44)

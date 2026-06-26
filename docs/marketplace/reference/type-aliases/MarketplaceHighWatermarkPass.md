@@ -2,7 +2,7 @@
 
 > **MarketplaceHighWatermarkPass** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:291](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L291)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:291](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L291)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:291](https://github.com/su
 
 > **inputHighWaterMark**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:293](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L293)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:293](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L293)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:293](https://github.com/su
 
 > **outputHighWaterMark**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:294](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L294)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:294](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L294)
 
 ***
 
@@ -26,7 +26,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:294](https://github.com/su
 
 > **pass**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:292](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L292)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:292](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L292)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:292](https://github.com/su
 
 > **policyResults**: [`MarketplacePolicyWatermarkDiscovery`](MarketplacePolicyWatermarkDiscovery.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:295](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L295)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:295](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L295)

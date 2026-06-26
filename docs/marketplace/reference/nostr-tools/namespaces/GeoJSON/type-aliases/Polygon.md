@@ -2,7 +2,7 @@
 
 > **Polygon** = `object`
 
-Defined in: [marketplace-location-interface-ts/dist/index.d.ts:8](https://github.com/sudonym-btc/marketplace-location-interface-ts/blob/7ba16fbb299f86967d1636387915a696af17abde/dist/index.d.ts#L8)
+Defined in: [marketplace-location-interface-ts/dist/index.d.ts:8](https://github.com/sudonym-btc/marketplace-location-interface-ts/blob/03212e0fc7665e5f6103a8652885545dbfb3a326/dist/index.d.ts#L8)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [marketplace-location-interface-ts/dist/index.d.ts:8](https://github
 
 > `optional` **bbox?**: `number`[]
 
-Defined in: [marketplace-location-interface-ts/dist/index.d.ts:11](https://github.com/sudonym-btc/marketplace-location-interface-ts/blob/7ba16fbb299f86967d1636387915a696af17abde/dist/index.d.ts#L11)
+Defined in: [marketplace-location-interface-ts/dist/index.d.ts:11](https://github.com/sudonym-btc/marketplace-location-interface-ts/blob/03212e0fc7665e5f6103a8652885545dbfb3a326/dist/index.d.ts#L11)
 
 ***
 
@@ -18,7 +18,7 @@ Defined in: [marketplace-location-interface-ts/dist/index.d.ts:11](https://githu
 
 > **coordinates**: [`Position`](Position.md)[][]
 
-Defined in: [marketplace-location-interface-ts/dist/index.d.ts:10](https://github.com/sudonym-btc/marketplace-location-interface-ts/blob/7ba16fbb299f86967d1636387915a696af17abde/dist/index.d.ts#L10)
+Defined in: [marketplace-location-interface-ts/dist/index.d.ts:10](https://github.com/sudonym-btc/marketplace-location-interface-ts/blob/03212e0fc7665e5f6103a8652885545dbfb3a326/dist/index.d.ts#L10)
 
 ***
 
@@ -26,4 +26,4 @@ Defined in: [marketplace-location-interface-ts/dist/index.d.ts:10](https://githu
 
 > **type**: `"Polygon"`
 
-Defined in: [marketplace-location-interface-ts/dist/index.d.ts:9](https://github.com/sudonym-btc/marketplace-location-interface-ts/blob/7ba16fbb299f86967d1636387915a696af17abde/dist/index.d.ts#L9)
+Defined in: [marketplace-location-interface-ts/dist/index.d.ts:9](https://github.com/sudonym-btc/marketplace-location-interface-ts/blob/03212e0fc7665e5f6103a8652885545dbfb3a326/dist/index.d.ts#L9)

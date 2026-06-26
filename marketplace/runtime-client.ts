@@ -1160,8 +1160,12 @@ function runtimeOptionsFromBindOptions(
   options: MarketplaceBindOptions = {},
 ): MarketplaceRuntimeOptions {
   const { orderDrivers, auctionDrivers, ...rest } = options
+  const publish = rest.publish ?? (typeof pool.publish === 'function'
+    ? (event: Event) => Promise.allSettled(pool.publish!(relays, event))
+    : undefined)
   return {
     ...rest,
+    ...(publish ? { publish } : {}),
     pool,
     relays,
     orderPolicies: orderDrivers,
@@ -1178,6 +1182,7 @@ function sessionOptionsFromBoundOptions(
     ...(opts.paymentMethod !== undefined ? { paymentMethod: opts.paymentMethod } : {}),
     ...(opts.locationProvider !== undefined ? { locationProvider: opts.locationProvider } : {}),
     ...(opts.logger !== undefined ? { logger: opts.logger } : {}),
+    ...(opts.publish !== undefined ? { publish: opts.publish } : {}),
     ...(opts.orderPolicies !== undefined ? { orderDrivers: opts.orderPolicies } : {}),
     ...(opts.bidPolicies !== undefined ? { auctionDrivers: opts.bidPolicies } : {}),
     ...options,

@@ -1,6 +1,6 @@
 # Class: StreamLive
 
-Defined in: [nostr-tools/marketplace/stream.ts:101](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/stream.ts#L101)
+Defined in: [nostr-tools/marketplace/stream.ts:101](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L101)
 
 ## Extends
 
@@ -12,7 +12,7 @@ Defined in: [nostr-tools/marketplace/stream.ts:101](https://github.com/sudonym-b
 
 > **new StreamLive**(`options?`): `StreamLive`
 
-Defined in: [nostr-tools/marketplace/stream.ts:105](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/stream.ts#L105)
+Defined in: [nostr-tools/marketplace/stream.ts:105](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L105)
 
 #### Parameters
 
@@ -44,7 +44,7 @@ Defined in: [nostr-tools/marketplace/stream.ts:105](https://github.com/sudonym-b
 
 > `readonly` **at**: `number`
 
-Defined in: [nostr-tools/marketplace/stream.ts:74](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/stream.ts#L74)
+Defined in: [nostr-tools/marketplace/stream.ts:74](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L74)
 
 #### Inherited from
 
@@ -56,7 +56,7 @@ Defined in: [nostr-tools/marketplace/stream.ts:74](https://github.com/sudonym-bt
 
 > `readonly` **eventCount**: `number`
 
-Defined in: [nostr-tools/marketplace/stream.ts:102](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/stream.ts#L102)
+Defined in: [nostr-tools/marketplace/stream.ts:102](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L102)
 
 ***
 
@@ -64,4 +64,4 @@ Defined in: [nostr-tools/marketplace/stream.ts:102](https://github.com/sudonym-b
 
 > `readonly` `optional` **since?**: `number`
 
-Defined in: [nostr-tools/marketplace/stream.ts:103](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/stream.ts#L103)
+Defined in: [nostr-tools/marketplace/stream.ts:103](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/stream.ts#L103)

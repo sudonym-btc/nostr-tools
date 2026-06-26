@@ -1746,6 +1746,47 @@ describe('marketplace seeds', () => {
     expect(api.seed.owns(buyerPubkey, { through: 0 })).toBe(true)
     expect(api.seed.owns(getPublicKey(generateSecretKey()), { through: 0 })).toBe(false)
   })
+
+  test('session uses the bound pool publisher when no publish hook is provided', async () => {
+    const identitySecretKey = generateSecretKey()
+    const identityPubkey = getPublicKey(identitySecretKey)
+    const published: Array<{ relays: string[]; event: Event }> = []
+    const pool = {
+      async querySync(): Promise<Event[]> {
+        return []
+      },
+      async get(): Promise<Event | null> {
+        return null
+      },
+      publish(relays: string[], event: Event): Promise<string>[] {
+        published.push({ relays, event })
+        return [Promise.resolve('ok')]
+      },
+    }
+    const signer = {
+      async getPublicKey() {
+        return identityPubkey
+      },
+      async nip44Decrypt() {
+        throw new Error('No seed should be decrypted when no seed event exists')
+      },
+      async nip44Encrypt(_pubkey: string, plaintext: string) {
+        return `encrypted:${plaintext}`
+      },
+      async signEvent(template: EventTemplate) {
+        return sign(template, identitySecretKey)
+      },
+    }
+
+    const api = await marketplace.bind(pool, ['wss://relay.example']).session(signer)
+
+    expect(api.seed.created).toBe(true)
+    expect(published).toHaveLength(1)
+    expect(published[0]).toEqual({
+      relays: ['wss://relay.example'],
+      event: api.seed.event,
+    })
+  })
 })
 
 describe('marketplace reviews and runtime facade', () => {
@@ -2348,6 +2389,7 @@ describe('marketplace reviews and runtime facade', () => {
     const selectedRoute = routes.find(route => route.arbitrationService.event.pubkey === secondArbiterPubkey)
 
     expect(selectedRoute).toBeDefined()
+    published.length = 0
     const states: marketplace.MarketplacePaymentState[] = []
     for await (const state of api.pay(listing, order, {
       route: selectedRoute,
@@ -2531,6 +2573,7 @@ describe('marketplace reviews and runtime facade', () => {
     })
     expect(routes).toHaveLength(1)
     expect(routes[0].asset.denomination).toBe('SAT')
+    published.length = 0
 
     const result: marketplace.MarketplacePaymentState[] = []
     for await (const state of api.pay(listing, {
@@ -2633,6 +2676,7 @@ describe('marketplace reviews and runtime facade', () => {
     })
     expect(routes).toHaveLength(1)
     expect(routes[0].asset.denomination).toBe('BTC')
+    published.length = 0
 
     const result: marketplace.MarketplacePaymentState[] = []
     for await (const state of api.pay(listing, {
@@ -2761,6 +2805,7 @@ describe('marketplace reviews and runtime facade', () => {
       amount: { value: '2500', denomination: 'USD', decimals: 2 },
     })
     expect(orderRoutes).toHaveLength(0)
+    published.length = 0
 
     const result: marketplace.MarketplaceAuctionBidState[] = []
     for await (const state of api.auctions.bid(listing, {
@@ -2913,6 +2958,7 @@ describe('marketplace reviews and runtime facade', () => {
     })
     expect(routes).toHaveLength(1)
     expect(routes[0].asset.denomination).toBe('SAT')
+    published.length = 0
 
     const result: marketplace.MarketplaceAuctionBidState[] = []
     for await (const state of api.auctions.bid(listing, {

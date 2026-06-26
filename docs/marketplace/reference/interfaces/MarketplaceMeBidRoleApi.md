@@ -1,6 +1,6 @@
 # Interface: MarketplaceMeBidRoleApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1074](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1074)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1074](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1074)
 
 ## Methods
 
@@ -8,7 +8,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1074](https://github.com/s
 
 > **list**(`query?`, `options?`): `Promise`\<[`ParsedAuctionBidGroup`](../type-aliases/ParsedAuctionBidGroup.md)[]\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1075](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1075)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1075](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1075)
 
 #### Parameters
 
@@ -30,7 +30,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1075](https://github.com/s
 
 > **watch**(`query?`, `options?`): [`MarketplaceMeBidRoleStream`](../type-aliases/MarketplaceMeBidRoleStream.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1079](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1079)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1079](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1079)
 
 #### Parameters
 

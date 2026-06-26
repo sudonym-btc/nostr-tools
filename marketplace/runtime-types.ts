@@ -768,7 +768,7 @@ export type MarketplaceRuntimeIdentity = {
 }
 
 export type MarketplaceRuntimePool = Pick<AbstractSimplePool, 'querySync' | 'get'> &
-  Partial<Pick<AbstractSimplePool, 'subscribeMap'>>
+  Partial<Pick<AbstractSimplePool, 'publish' | 'subscribeMap'>>
 
 export type MarketplaceRuntimeOptions = {
   pool: MarketplaceRuntimePool

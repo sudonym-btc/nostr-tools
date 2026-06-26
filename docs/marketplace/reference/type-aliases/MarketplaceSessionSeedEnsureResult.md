@@ -2,7 +2,7 @@
 
 > **MarketplaceSessionSeedEnsureResult** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1316](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1316)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1316](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1316)
 
 ## Properties
 
@@ -10,7 +10,7 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1316](https://github.com/s
 
 > **created**: `boolean`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1317](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1317)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1317](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1317)
 
 ***
 
@@ -18,4 +18,4 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1317](https://github.com/s
 
 > **event**: `Event`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1318](https://github.com/sudonym-btc/nostr-tools/blob/9cbf8271208bdb810a6cd927b99a00c24625fa89/marketplace/runtime-types.ts#L1318)
+Defined in: [nostr-tools/marketplace/runtime-types.ts:1318](https://github.com/sudonym-btc/nostr-tools/blob/5d947a5bc614e38846da1b1c885aa2d2c529e269/marketplace/runtime-types.ts#L1318)
