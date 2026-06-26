@@ -105,14 +105,6 @@ for await (const state of api.orders.create(
     renderPaymentStatus(state.status)
   }
 
-  if (state.type === 'order_published') {
-    renderOrderEvent(state.event)
-  }
-
-  if (state.type === 'payment_published') {
-    renderPaymentEvent(state.event, state.proof)
-  }
-
   if (state.type === 'completed') {
     renderOrderComplete(state.order, state.payment, state.proof)
   }
