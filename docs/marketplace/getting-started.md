@@ -111,6 +111,29 @@ for await (const state of api.orders.create(
 }
 ```
 
+### Create a negotiation
+
+Use `orders.negotiate()` when the buyer and seller should agree on order terms
+before starting payment. The runtime signs the proposed order, wraps it as a
+private structured message, and publishes the gift wraps to the seller and the
+current session identity.
+
+```ts
+const negotiation = await api.orders.negotiate(listing, {
+  quantity: 1,
+  start: '2026-07-02',
+  end: '2026-07-05',
+  alt: 'Reservation request',
+})
+
+renderNegotiationOffer({
+  tradeId: negotiation.tradeId,
+  order: negotiation.order,
+  message: negotiation.message,
+  giftWraps: negotiation.giftWraps,
+})
+```
+
 ## Render auctions live
 
 Use `auctions.watch()` for a screen that needs to re-render as the auction,
