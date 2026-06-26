@@ -67,6 +67,9 @@ const api = await market.session(signer)
 const listings = await api.listings.search({ limit: 20 })
 ```
 
+The NIP-07 methods are bound so calls made through `signer` keep the original
+`window.nostr` and `window.nostr.nip44` receivers.
+
 `orderDrivers` and `auctionDrivers` come from app-owned driver setup, such as
 the EVM and Cashu driver packages. When the bound pool has a `publish()` method,
 the runtime publishes through the bound `relays` automatically. Pass an explicit
