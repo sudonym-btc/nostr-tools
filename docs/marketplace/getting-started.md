@@ -30,11 +30,16 @@ const sellerSecretKey = generateSecretKey()
 
 const listing = finalizeEvent(
   marketplace.listings.template({
-    d: 'listing-1',
-    title: 'Weekend cabin',
-    summary: 'A small cabin with a lake view.',
-    prices: [{ amount: '12500', currency: 'USD' }],
-    images: [],
+    d: 'isuzu-trooper-1991',
+    title: 'Isuzu Trooper',
+    summary: 'A clean 4x4 SUV with camping gear and a fresh service.',
+    description: 'Manual transmission, roof rack, recovery boards, and all-terrain tires.',
+    prices: [{ amount: '8500', currency: 'USD' }],
+    profiles: ['vehicle', '4x4', 'off-road', 'suv', 'isuzu'],
+    images: [
+      { url: 'https://example.com/images/isuzu-trooper-front.jpg', dimensions: '1600x1067' },
+      { url: 'https://example.com/images/isuzu-trooper-interior.jpg', dimensions: '1600x1067' },
+    ],
   }),
   sellerSecretKey,
 )
