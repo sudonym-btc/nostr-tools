@@ -731,6 +731,7 @@ export type MarketplaceDriverRuntimeReporter = {
 export type MarketplacePayOptions = {
   seed?: string
   now?: number
+  unlockAt?: number
   accountIndex?: number
   route?: MarketplacePaymentRoute
   settlementId?: string

@@ -515,7 +515,7 @@ export function buildPaymentIntent(
           : {}),
       },
     },
-    unlockAt: unlockAt(order, route.arbitrationService.content.maxDuration, options.now),
+    unlockAt: options.unlockAt ?? unlockAt(order, route.arbitrationService.content.maxDuration, options.now),
     metadata: {
       listingAnchor: order.listingAnchor,
       listingId: route.listing.d,

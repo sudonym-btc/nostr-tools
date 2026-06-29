@@ -473,11 +473,14 @@ export function policyForPaymentSweep(
     ? {}
     : payment.proof.params as Record<string, unknown>
   const policyId = typeof params.policyId === 'string' ? params.policyId : undefined
-  return paymentPolicies(opts).find(policy =>
-    (policyId !== undefined && policy.id === policyId) ||
-    policyName(policy) === payment.proof.driver ||
-    policy.method === payment.proof.driver
-  )
+  return paymentPolicies(opts).find(policy => {
+    if (policy.policies().some(descriptor => paymentPolicyMatchesDescriptor(descriptor, {
+      proof: payment.proof,
+      ...(payment.expected ? { expected: payment.expected } : {}),
+    }))) return true
+    if (policyId !== undefined) return policy.id === policyId
+    return policyName(policy) === payment.proof.driver || policy.method === payment.proof.driver
+  })
 }
 
 export async function paymentValidationItemsForMyOrderGroups(

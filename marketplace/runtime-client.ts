@@ -227,7 +227,7 @@ import {
 } from './payment-group.ts'
 import { paymentTerms } from './payment-terms.ts'
 import { resolvePaymentAmount } from './payment-amount.ts'
-import { resolvePaymentProof, resolvePaymentProofEvidence } from './payment-proof.ts'
+import { parsePaymentProof, resolvePaymentProof, resolvePaymentProofEvidence } from './payment-proof.ts'
 import {
   marketplaceInboxFilter,
   streamMarketplaceInbox,
@@ -787,6 +787,24 @@ function parseMarketplacePaymentEvent(event: Event): ParsedMarketplacePaymentEve
   throw new Error('Invalid marketplace payment event kind')
 }
 
+function settlementPaymentProof(settlement: ParsedPaymentSettlement): PaymentProofEvidence | undefined {
+  const proof = settlement.content.data?.proof
+  if (!proof || typeof proof !== 'object' || Array.isArray(proof)) return undefined
+  try {
+    return parsePaymentProof({ paymentProof: proof })?.paymentProof ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
+function latestSettlementPaymentProof(settlements: ParsedPaymentSettlement[] | undefined): PaymentProofEvidence | undefined {
+  if (!settlements?.length) return undefined
+  return [...settlements]
+    .sort((left, right) => right.event.created_at - left.event.created_at || right.event.id.localeCompare(left.event.id))
+    .map(settlementPaymentProof)
+    .find((proof): proof is PaymentProofEvidence => proof !== undefined)
+}
+
 function emptyPaymentSweepSnapshot(): MarketplaceMePaymentsSnapshot {
   return {
     pending: [],
@@ -908,12 +926,19 @@ class MarketplaceMePaymentsRuntime implements MarketplaceMePaymentsApi {
       payment: ParsedPayment,
       reason: MarketplacePaymentSweepInput['reason'],
     ): Promise<MarketplacePaymentSweepInput | undefined> => {
-      const proofResolution = await resolvePaymentProof(payment, {
-        keys: payment.paymentProofKeys,
-        signer: this.opts.signer,
-      })
-      if (proofResolution.status !== 'resolved' || !proofResolution.proof?.paymentProof) return undefined
-      const evidenceResolution = await resolvePaymentProofEvidence(proofResolution.proof.paymentProof, {
+      const settlementProof = reason === 'settlement'
+        ? latestSettlementPaymentProof(settlementsByPaymentId.get(payment.event.id))
+        : undefined
+      let paymentProof = settlementProof
+      if (!paymentProof) {
+        const proofResolution = await resolvePaymentProof(payment, {
+          keys: payment.paymentProofKeys,
+          signer: this.opts.signer,
+        })
+        if (proofResolution.status !== 'resolved' || !proofResolution.proof?.paymentProof) return undefined
+        paymentProof = proofResolution.proof.paymentProof
+      }
+      const evidenceResolution = await resolvePaymentProofEvidence(paymentProof, {
         keys: payment.paymentProofKeys,
         signer: this.opts.signer,
       })
@@ -928,6 +953,7 @@ class MarketplaceMePaymentsRuntime implements MarketplaceMePaymentsApi {
         listingAnchor: payment.anchors.listing ?? '',
         createdAt: payment.event.created_at,
         proof: evidenceResolution.proof,
+        ...(this.opts.seed ? { seed: runtimeSeed(this.opts) } : {}),
         ...(amountResolution.status === 'resolved' && amountResolution.amount ? { amount: amountResolution.amount } : {}),
         ...(reason ? { reason } : {}),
       }
@@ -1709,6 +1735,7 @@ function bindRuntimeClient(opts: MarketplaceRuntimeOptions): MarketplaceClient {
         }
         const finalOptions = {
           ...resolvedOptions,
+          ...(resolvedOptions.unlockAt === undefined && auction?.endAt !== undefined ? { unlockAt: auction.endAt } : {}),
           settlementId: resolvedOptions.settlementId ?? auctionBid.tradeId,
         }
         const targetTradeId = auctionBid.targetOrder?.tradeId ?? auctionBid.bidChainId ?? auctionBid.tradeId

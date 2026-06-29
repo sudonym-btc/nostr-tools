@@ -2714,6 +2714,7 @@ describe('marketplace reviews and runtime facade', () => {
     const arbiterPubkey = getPublicKey(arbiterSecretKey)
     const listing = listingEvent(sellerSecretKey)
     const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
+    const auctionEndAt = createdAt + 3600
     const auction = sign(
       marketplace.auctions.template({
         d: 'auction-cashu-1',
@@ -2721,6 +2722,7 @@ describe('marketplace reviews and runtime facade', () => {
         arbiterPubkey: arbiterPubkey,
         currency: 'USD',
         decimals: 2,
+        endAt: auctionEndAt,
         createdAt,
       }),
       sellerSecretKey,
@@ -2821,6 +2823,7 @@ describe('marketplace reviews and runtime facade', () => {
 
     expect(receivedIntent?.method).toBe('cashu')
     expect(receivedIntent?.purpose).toBe('bid')
+    expect(receivedIntent?.unlockAt).toBe(auctionEndAt)
     expect(receivedIntent?.asset.assetId).toBe(assetId)
     expect(receivedIntent?.policy.hash).toBe(policyHash)
     expect(result.map(state => state.type)).toEqual(['bid_published', 'payment_published', 'completed'])
