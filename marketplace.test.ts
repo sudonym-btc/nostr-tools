@@ -2052,8 +2052,9 @@ describe('marketplace reviews and runtime facade', () => {
       result.push(state)
     }
 
-    expect(result.map(state => state.type)).toEqual(['order_published', 'payment_published', 'completed'])
-    expect(result[0]?.data).toEqual({ tradeId: 'trade-1', amount: '50000' })
+    expect(result.map(state => state.type)).toEqual(['payment_progress', 'order_published', 'payment_published', 'completed'])
+    expect(result[0]?.data).toEqual({ tradeId: 'trade-1', amount: '50000', stage: 'proof_publishing' })
+    expect(result[1]?.data).toEqual({ tradeId: 'trade-1', amount: '50000' })
     expect(published.map(event => event.kind)).toEqual([MarketplaceOrder, MarketplacePayment])
     expect(published[0].pubkey).toBe(marketplace.seed.deriveTradeMaterial('4'.repeat(64), {
       index: 0,
@@ -2296,7 +2297,7 @@ describe('marketplace reviews and runtime facade', () => {
       result.push(state)
     }
 
-    expect(result.map(state => state.type)).toEqual(['order_published', 'payment_published', 'completed'])
+    expect(result.map(state => state.type)).toEqual(['payment_progress', 'order_published', 'payment_published', 'completed'])
     expect(receivedAmount).toEqual({ value: '600000', currency: 'BTC', denomination: 'SAT', decimals: 0 })
     expect(published.map(event => event.kind)).toEqual([MarketplaceOrder, MarketplacePayment])
     const parsedOrder = marketplace.orders.parse(published[0])
@@ -2397,7 +2398,7 @@ describe('marketplace reviews and runtime facade', () => {
       states.push(state)
     }
 
-    expect(states.map(state => state.type)).toEqual(['order_published', 'payment_published', 'completed'])
+    expect(states.map(state => state.type)).toEqual(['payment_progress', 'order_published', 'payment_published', 'completed'])
     expect(published.map(event => event.kind)).toEqual([MarketplaceOrder, MarketplacePayment])
     expect(receivedArbiterPubkey).toBe(secondArbiterPubkey)
   })
@@ -2483,7 +2484,7 @@ describe('marketplace reviews and runtime facade', () => {
     expect(receivedIntent?.method).toBe('cashu')
     expect(receivedIntent?.asset.assetId).toBe(assetId)
     expect(receivedIntent?.policy.hash).toBe(policyHash)
-    expect(result.map(state => state.type)).toEqual(['order_published', 'payment_published', 'completed'])
+    expect(result.map(state => state.type)).toEqual(['payment_progress', 'order_published', 'payment_published', 'completed'])
     expect(published.map(event => event.kind)).toEqual([MarketplaceOrder, MarketplacePayment])
     expect(marketplace.orders.parse(published[0]).content.amount).toEqual({
       value: '1000',
@@ -2586,7 +2587,7 @@ describe('marketplace reviews and runtime facade', () => {
     }
 
     expect(receivedIntent?.amount).toEqual({ value: '100000', currency: 'BTC', denomination: 'SAT', decimals: 0 })
-    expect(result.map(state => state.type)).toEqual(['order_published', 'payment_published', 'completed'])
+    expect(result.map(state => state.type)).toEqual(['payment_progress', 'order_published', 'payment_published', 'completed'])
     expect(published.map(event => event.kind)).toEqual([MarketplaceOrder, MarketplacePayment])
     expect(marketplace.orders.parse(published[0]).content.amount).toEqual({
       value: '100000',
@@ -2689,7 +2690,7 @@ describe('marketplace reviews and runtime facade', () => {
     }
 
     expect(receivedIntent?.amount).toEqual({ value: '10000', currency: 'BTC', denomination: 'BTC', decimals: 8 })
-    expect(result.map(state => state.type)).toEqual(['order_published', 'payment_published', 'completed'])
+    expect(result.map(state => state.type)).toEqual(['payment_progress', 'order_published', 'payment_published', 'completed'])
     expect(published.map(event => event.kind)).toEqual([MarketplaceOrder, MarketplacePayment])
     expect(marketplace.orders.parse(published[0]).content.amount).toEqual({
       value: '10000',
@@ -2826,7 +2827,7 @@ describe('marketplace reviews and runtime facade', () => {
     expect(receivedIntent?.unlockAt).toBe(auctionEndAt)
     expect(receivedIntent?.asset.assetId).toBe(assetId)
     expect(receivedIntent?.policy.hash).toBe(policyHash)
-    expect(result.map(state => state.type)).toEqual(['bid_published', 'payment_published', 'completed'])
+    expect(result.map(state => state.type)).toEqual(['payment_progress', 'bid_published', 'payment_published', 'completed'])
     expect(published.map(event => event.kind)).toEqual([MarketplaceAuctionBid, MarketplacePayment])
     const parsedBid = marketplace.auctions.parseBid(published[0])
     const parsedPayment = marketplace.orders.parsePayment(published[1])
@@ -2975,7 +2976,7 @@ describe('marketplace reviews and runtime facade', () => {
     }
 
     expect(receivedIntent?.amount).toEqual({ value: '10000', currency: 'BTC', denomination: 'SAT', decimals: 0 })
-    expect(result.map(state => state.type)).toEqual(['bid_published', 'payment_published', 'completed'])
+    expect(result.map(state => state.type)).toEqual(['payment_progress', 'bid_published', 'payment_published', 'completed'])
     expect(published.map(event => event.kind)).toEqual([MarketplaceAuctionBid, MarketplacePayment])
     expect(marketplace.auctions.parseBid(published[0]).amount).toEqual({
       value: '10000',

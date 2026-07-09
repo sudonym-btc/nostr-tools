@@ -434,6 +434,8 @@ export type {
   MarketplacePaymentPublishedState,
   MarketplacePaymentPolicy,
   MarketplacePaymentPolicyImplementation,
+  MarketplacePaymentProgressData,
+  MarketplacePaymentProgressStage,
   MarketplacePaymentProgressState,
   MarketplacePaymentValidationItem,
   MarketplacePaymentSweepInput,

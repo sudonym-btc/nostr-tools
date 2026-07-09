@@ -552,6 +552,11 @@ export async function* publishOrderPayStream(
         data: state.data,
       }
     } else if (state.type === 'paid') {
+      yield {
+        type: 'payment_progress',
+        status: 'Payment confirmed; publishing order payment proof',
+        data: { ...state.data, stage: 'proof_publishing' },
+      }
       const orderEvent = finalizeEvent(routedOrderForPaymentState(route, order, tradePubkey), tradeSecretKey)
       await publishMarketplaceEvent(opts, orderEvent)
       yield {
@@ -646,6 +651,11 @@ export async function* publishAuctionBidPaymentStream(
         data: state.data,
       }
     } else if (state.type === 'paid') {
+      yield {
+        type: 'payment_progress',
+        status: 'Payment confirmed; publishing bid payment proof',
+        data: { ...state.data, stage: 'proof_publishing' },
+      }
       const bidEvent = finalizeEvent(generateAuctionBidEventTemplate(bid), tradeSecretKey)
       await publishMarketplaceEvent(opts, bidEvent)
       yield {

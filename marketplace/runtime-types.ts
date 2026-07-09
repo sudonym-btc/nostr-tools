@@ -246,6 +246,8 @@ import type {
   MarketplaceDriverPaymentSettlementIntent,
   MarketplaceDriverPaymentSettlementState,
   MarketplaceDriverPaymentProof,
+  MarketplaceDriverPaymentProgressData,
+  MarketplaceDriverPaymentProgressStage,
   MarketplaceDriverPaymentState,
   MarketplaceDriverPaymentSweepInput,
   MarketplaceDriverPaymentSweepState,
@@ -265,6 +267,9 @@ import type {
 
 export type MarketplaceLogEntry = MarketplaceDriverLogEntry
 export type MarketplaceLogger = MarketplaceDriverLogger
+
+export type MarketplacePaymentProgressStage = MarketplaceDriverPaymentProgressStage
+export type MarketplacePaymentProgressData = MarketplaceDriverPaymentProgressData
 
 export type MarketplacePolicyWatermarkRecoveryAction = MarketplaceDriverWatermarkRecoveryAction
 
@@ -562,7 +567,7 @@ export type MarketplacePaymentRequiredState = {
 export type MarketplacePaymentProgressState = {
   type: 'payment_progress'
   status: string
-  data?: Record<string, unknown>
+  data?: MarketplacePaymentProgressData
 }
 
 export type MarketplaceOrderPublishedState = {
