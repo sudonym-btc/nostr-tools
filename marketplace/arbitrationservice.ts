@@ -34,6 +34,9 @@ export type ArbitrationServiceParams = Record<string, unknown> & Partial<EvmArbi
 
 export type ArbitrationServiceContent = {
   pubkey: string
+  /** Machine-readable policy identifier used for routing and trust matching. */
+  policy?: string
+  /** Human-readable label only. Never use this field for driver selection. */
   type: ArbitrationType
   maxDuration: number
   fee: ArbitrationFee
@@ -46,7 +49,9 @@ export type ParsedArbitrationService = {
   content: ArbitrationServiceContent
 }
 
-export type ArbitrationServiceTemplate = ArbitrationServiceContent & {
+export type ArbitrationServiceTemplate = Omit<ArbitrationServiceContent, 'policy'> & {
+  /** New service advertisements MUST identify exactly one machine policy. */
+  policy: string
   d: string
   extraTags?: string[][]
   createdAt?: number
@@ -54,6 +59,7 @@ export type ArbitrationServiceTemplate = ArbitrationServiceContent & {
 
 export type ArbitrationServiceFindQuery = {
   author?: string
+  policy?: string
   contractBytecodeHash?: string
   serviceType?: ArbitrationType
   chainId?: number
@@ -123,9 +129,11 @@ export function parseArbitrationServiceEvent(event: Event): ParsedArbitrationSer
   if (!params || typeof params !== 'object' || Array.isArray(params)) throw new Error('Invalid arbitration service params')
   const parsedParams = params as Record<string, unknown>
   const type = requireString(json.type, 'arbitration service type')
+  const policy = typeof json.policy === 'string' && json.policy.length > 0 ? json.policy : undefined
   const maxDuration = parseNonNegativeIntValue(json.maxDuration, 'maxDuration')
   const content: ArbitrationServiceContent = {
     pubkey: requireString(json.pubkey, 'arbitration service pubkey'),
+    ...(policy ? { policy } : {}),
     type,
     maxDuration,
     fee: normalizeFee(
@@ -135,7 +143,9 @@ export function parseArbitrationServiceEvent(event: Event): ParsedArbitrationSer
     ),
     params: { ...parsedParams },
   }
-  if (type === 'EVM') {
+  const hasEvmParams = policy?.toLowerCase().startsWith('evm:') ||
+    ['arbiterAddress', 'contractAddress', 'contractBytecodeHash', 'chainId'].some(key => parsedParams[key] !== undefined)
+  if (hasEvmParams) {
     content.params = {
       ...parsedParams,
       arbiterAddress: requireString(parsedParams.arbiterAddress, 'arbiterAddress'),
@@ -190,6 +200,7 @@ export async function searchArbitrationServices(
   return services
     .filter(service => {
       if (query.serviceType && service.content.type !== query.serviceType) return false
+      if (query.policy && service.content.policy !== query.policy) return false
       if (query.chainId !== undefined && service.content.params.chainId !== query.chainId) return false
       if (query.contractBytecodeHash && service.content.params.contractBytecodeHash !== query.contractBytecodeHash)
         return false

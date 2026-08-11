@@ -142,15 +142,22 @@ export type PaymentSettlementContent = {
   action: PaymentSettlementAction
   inputs?: Array<Record<string, unknown>>
   outputs?: PaymentSettlementOutput[]
+  /** Public settlement proof, when the driver explicitly permits disclosure. */
+  proof?: PaymentProof
+  /** Whole-proof ciphertext for confidential or bearer settlement results. */
+  sealedProof?: SealedPaymentProof
   data?: Record<string, unknown>
 }
 
 export type ParsedPaymentSettlement = ParsedPaymentLifecycleFields & {
   event: Event
   content: PaymentSettlementContent
+  paymentProofKeys: PaymentProofKeyTag[]
 }
 
-export type PaymentSettlementTemplate = PaymentLifecycleTemplate & PaymentSettlementContent
+export type PaymentSettlementTemplate = PaymentLifecycleTemplate & PaymentSettlementContent & {
+  paymentProofKeys?: PaymentProofKeyTag[]
+}
 
 export type OrderCancelContent = {
   reason?: string
@@ -294,11 +301,18 @@ function parsePaymentNackContent(content: string): PaymentNackContent {
 
 function parseSettlementContent(content: string): PaymentSettlementContent {
   const json = parseJsonObject(content, 'payment settlement content')
+  const sealedProof = parseSealedPaymentProof(json.proof)
+  const proof = sealedProof ? undefined : parsePaymentProof(json.proof)
+  if (json.proof !== undefined && !sealedProof && !proof) {
+    throw new Error('Invalid payment settlement proof')
+  }
   return {
     method: requireString(json.method, 'payment settlement method'),
     action: requireString(json.action, 'payment settlement action'),
     ...(Array.isArray(json.inputs) ? { inputs: json.inputs as Array<Record<string, unknown>> } : {}),
     ...(Array.isArray(json.outputs) ? { outputs: json.outputs as PaymentSettlementOutput[] } : {}),
+    ...(proof ? { proof } : {}),
+    ...(sealedProof ? { sealedProof } : {}),
     ...(json.data && typeof json.data === 'object' && !Array.isArray(json.data)
       ? { data: json.data as Record<string, unknown> }
       : {}),
@@ -351,6 +365,9 @@ export function parsePaymentSettlementEvent(event: Event): ParsedPaymentSettleme
   return {
     event,
     ...linkedFields(event, 'payment settlement'),
+    paymentProofKeys: event.tags
+      .map(parsePaymentProofKeyTag)
+      .filter((tag): tag is PaymentProofKeyTag => tag !== null),
     content: parseSettlementContent(event.content),
   }
 }
@@ -408,6 +425,9 @@ export function generatePaymentNackEventTemplate(nack: PaymentNackTemplate): Eve
 export function generatePaymentSettlementEventTemplate(
   settlement: PaymentSettlementTemplate,
 ): EventTemplate {
+  if (settlement.proof && settlement.sealedProof) {
+    throw new Error('Payment settlement cannot contain both public and sealed proofs')
+  }
   return {
     kind: MarketplacePaymentSettlement,
     created_at: settlement.createdAt ?? now(),
@@ -416,9 +436,14 @@ export function generatePaymentSettlementEventTemplate(
       action: settlement.action,
       ...(settlement.inputs ? { inputs: settlement.inputs } : {}),
       ...(settlement.outputs ? { outputs: settlement.outputs } : {}),
+      ...(settlement.proof ? { proof: settlement.proof } : {}),
+      ...(settlement.sealedProof ? { proof: settlement.sealedProof } : {}),
       ...(settlement.data ? { data: settlement.data } : {}),
     }),
-    tags: linkedTags(settlement),
+    tags: [
+      ...linkedTags(settlement),
+      ...(settlement.paymentProofKeys ?? []).map(paymentProofKeyTag),
+    ],
   }
 }
 

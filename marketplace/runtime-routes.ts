@@ -245,8 +245,14 @@ import {
   policyDescriptors,
 } from './runtime-common.ts'
 
-export function serviceMethod(service: ParsedArbitrationService): PaymentMethod {
+/** Legacy-only inference for advertisements that predate machine policy ids. */
+export function serviceMethod(service: ParsedArbitrationService): PaymentMethod | undefined {
+  if (service.content.policy) return undefined
   return service.content.type.toLowerCase()
+}
+
+export function servicePolicyIdentifier(service: ParsedArbitrationService): string | undefined {
+  return service.content.policy
 }
 
 export function servicePolicyHash(service: ParsedArbitrationService): string | undefined {
@@ -264,6 +270,16 @@ export function canonicalPolicyHash(hash: string | undefined): string | undefine
 export function samePolicyHash(left: string | undefined, right: string | undefined): boolean {
   if (!left || !right) return false
   return canonicalPolicyHash(left) === canonicalPolicyHash(right)
+}
+
+export function samePolicyIdentifier(left: string | undefined, right: string | undefined): boolean {
+  if (!left || !right) return false
+  const canonicalLeft = canonicalPolicyHash(left)
+  const canonicalRight = canonicalPolicyHash(right)
+  if (canonicalLeft !== left || canonicalRight !== right || /^[a-fA-F0-9]{64}$/.test(left) || /^[a-fA-F0-9]{64}$/.test(right)) {
+    return canonicalLeft === canonicalRight
+  }
+  return left === right
 }
 
 export function serviceChainId(service: ParsedArbitrationService): number | undefined {
@@ -355,7 +371,14 @@ export function normalizeAmountForPaymentAsset(amount: MarketplaceAmount, asset:
 }
 
 export function policyMatchesService(policy: MarketplacePaymentPolicy, service: ParsedArbitrationService): boolean {
-  if (!sameMethod(policy.method, serviceMethod(service))) return false
+  const servicePolicy = servicePolicyIdentifier(service)
+  if (servicePolicy) {
+    const identifiers = [policy.id, policy.hash, policy.type]
+    if (!identifiers.some(identifier => samePolicyIdentifier(identifier, servicePolicy))) return false
+  } else {
+    const legacyMethod = serviceMethod(service)
+    if (!legacyMethod || !sameMethod(policy.method, legacyMethod)) return false
+  }
   const hash = servicePolicyHash(service)
   if (policy.hash && hash && !samePolicyHash(policy.hash, hash)) return false
   const chainId = serviceChainId(service)
@@ -427,11 +450,12 @@ async function paymentRoutesForListing(
   for (const arbiterPubkey of method.trustedArbiterPubkeys) {
     const arbitrationServices = await searchArbitrationServices(opts.pool, opts.relays, { author: arbiterPubkey, limit: 20 })
     for (const service of arbitrationServices) {
-      const hash = servicePolicyHash(service)
+      const policyIdentifier = servicePolicyIdentifier(service) ?? servicePolicyHash(service)
       if (
         method.supportedContractBytecodeHashes.length > 0 &&
-        hash &&
-        !method.supportedContractBytecodeHashes.some(methodHash => samePolicyHash(methodHash, hash))
+        (!policyIdentifier || !method.supportedContractBytecodeHashes.some(methodPolicy =>
+          samePolicyIdentifier(methodPolicy, policyIdentifier)
+        ))
       ) {
         continue
       }
@@ -444,28 +468,33 @@ async function paymentRoutesForListing(
   if (routePolicies.length === 0) return []
 
   for (const arbitrationService of services) {
-    for (const paymentPolicy of routePolicies) {
-      const descriptors = policyDescriptors(paymentPolicy).filter(policy => policyMatchesService(policy, arbitrationService))
-      if (descriptors.length === 0) continue
+    const matches = routePolicies.flatMap(paymentPolicy =>
+      policyDescriptors(paymentPolicy)
+        .filter(policy => policyMatchesService(policy, arbitrationService))
+        .map(descriptor => ({ paymentPolicy, descriptor })),
+    )
+    // Human labels are accepted only for an old advertisement whose inferred
+    // policy maps to exactly one local descriptor. New advertisements always
+    // route by their explicit machine-readable policy.
+    const unambiguousMatches = arbitrationService.content.policy || matches.length === 1 ? matches : []
+    for (const { paymentPolicy, descriptor } of unambiguousMatches) {
       const assets = policyAssets(paymentPolicy)
-      for (const descriptor of descriptors) {
-        for (const asset of assets.filter(candidate =>
-          assetMatchesPolicyDescriptor(candidate, descriptor) &&
-          amountCompatibleWithAsset(routeOptions.amount, candidate)
-        )) {
-          const paymentForm = method.acceptedPaymentForms.find(form => assetMatchesForm(asset, form))
-          if (!paymentForm) continue
-          routes.push({
-            policy: paymentPolicy,
-            listing: parsedListing,
-            paymentMethod: method,
-            arbitrationService,
-            descriptor,
-            asset,
-            paymentForm,
-            score: routeScore(asset, descriptor),
-          })
-        }
+      for (const asset of assets.filter(candidate =>
+        assetMatchesPolicyDescriptor(candidate, descriptor) &&
+        amountCompatibleWithAsset(routeOptions.amount, candidate)
+      )) {
+        const paymentForm = method.acceptedPaymentForms.find(form => assetMatchesForm(asset, form))
+        if (!paymentForm) continue
+        routes.push({
+          policy: paymentPolicy,
+          listing: parsedListing,
+          paymentMethod: method,
+          arbitrationService,
+          descriptor,
+          asset,
+          paymentForm,
+          score: routeScore(asset, descriptor),
+        })
       }
     }
   }

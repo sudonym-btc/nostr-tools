@@ -240,6 +240,7 @@ import type {
   MarketplaceDriverAuctionSettlementResult,
   MarketplaceDriverBolt11PaymentRequest,
   MarketplaceDriverContract,
+  MarketplaceDriverFinancialActionReceipt,
   MarketplaceDriverIdentity,
   MarketplaceDriverOrderPolicy,
   MarketplaceDriverPaymentIntent,
@@ -470,6 +471,39 @@ export type MarketplaceAuctionSettlementRequest = {
   now?: number
   targetUnlockAt?: number
   targetOrder?: Partial<OrderTemplate>
+}
+
+export type MarketplaceSettlementJournalAction = {
+  operationId: string
+  action: 'auction_refund' | 'auction_promote'
+  bidEventId: string
+  paymentEventId: string
+  status: 'pending' | 'completed'
+  /** Public, non-secret reconciliation receipt. Never persist the proof. */
+  receipt?: MarketplaceDriverFinancialActionReceipt
+  /** SHA-256 of the canonical in-memory result, used to verify recovery. */
+  resultCommitment?: string
+}
+
+export type MarketplaceSettlementOutboxEntry = {
+  event: Event
+  published: boolean
+}
+
+export type MarketplaceSettlementJournalRecord = {
+  version: 1
+  id: string
+  auctionAnchor: string
+  status: 'pending' | 'financial_complete' | 'publishing' | 'completed'
+  actions: Record<string, MarketplaceSettlementJournalAction>
+  outbox: Record<string, MarketplaceSettlementOutboxEntry>
+  updatedAt: number
+}
+
+/** Caller-provided durable storage; an in-memory implementation is not safe. */
+export type MarketplaceSettlementJournal = {
+  get(id: string): MarketplaceSettlementJournalRecord | null | Promise<MarketplaceSettlementJournalRecord | null>
+  put(record: MarketplaceSettlementJournalRecord): void | Promise<void>
 }
 
 export type MarketplaceAuctionBidSettlementInput = {
@@ -786,6 +820,8 @@ export type MarketplaceRuntimeOptions = {
   identity?: MarketplaceRuntimeIdentity
   signer?: MarketplaceSeedSigner
   publish?: (event: Event) => unknown | Promise<unknown>
+  /** Required for auction settlement so financial effects and relay publication can resume safely. */
+  settlementJournal?: MarketplaceSettlementJournal
   orderPolicies?: MarketplaceOrderPolicy[]
   bidPolicies?: MarketplaceBidPolicy[]
   driverRuntime?: MarketplaceDriverRuntimeReporter

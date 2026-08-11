@@ -382,9 +382,10 @@ export function paymentValidationItemForGroup(
   payment: ParsedPayment = group.payment!,
   now?: number,
   amount = payment?.content.amount,
+  resolvedProof = payment?.content.proof,
 ): MarketplacePaymentValidationItem | undefined {
   const order = group.buyerOrder ?? group.orders[0]
-  const paymentProof = payment?.content.proof?.paymentProof ?? undefined
+  const paymentProof = resolvedProof?.paymentProof ?? undefined
   if (!order || !payment || !paymentProof || !amount) return undefined
   const request = paymentValidationRequest({
     group,
@@ -392,8 +393,8 @@ export function paymentValidationItemForGroup(
     payment,
     amount,
     paymentProof,
-    ...(payment.content.proof?.arbitration?.arbitrationService
-      ? { arbitrationService: payment.content.proof.arbitration.arbitrationService as Event }
+    ...(resolvedProof?.arbitration?.arbitrationService
+      ? { arbitrationService: resolvedProof.arbitration.arbitrationService as Event }
       : {}),
     ...(now !== undefined ? { now } : {}),
   })

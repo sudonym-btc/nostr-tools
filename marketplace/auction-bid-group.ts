@@ -231,6 +231,20 @@ function amountUnits(amount: MarketplaceAmount): bigint {
   return amount.value && /^\d+$/.test(amount.value) ? BigInt(amount.value) : 0n
 }
 
+/**
+ * Canonical English-auction order: highest total, then earliest head event,
+ * then lexicographically smallest head event id.
+ */
+export function compareAuctionBidChains(left: ParsedAuctionBidChain, right: ParsedAuctionBidChain): number {
+  const rightAmount = amountUnits(right.amount)
+  const leftAmount = amountUnits(left.amount)
+  if (rightAmount !== leftAmount) return rightAmount > leftAmount ? 1 : -1
+  if (right.head.bid.event.created_at !== left.head.bid.event.created_at) {
+    return left.head.bid.event.created_at - right.head.bid.event.created_at
+  }
+  return left.head.bid.event.id.localeCompare(right.head.bid.event.id)
+}
+
 function sumBidGroupAmounts(groups: ParsedAuctionBidGroup[]): MarketplaceAmount {
   const amount = groups[0]?.amount ?? { value: '0', denomination: '', decimals: 0 }
   const value = groups.reduce((sum, group) => {
@@ -457,15 +471,7 @@ export function buildAuctionBidChains(groups: Iterable<ParsedAuctionBidGroup>): 
     if (!visited.has(group.bid.event.id)) chains.push(collect(group))
   }
 
-  return chains.sort((left, right) => {
-    const rightAmount = amountUnits(right.amount)
-    const leftAmount = amountUnits(left.amount)
-    if (rightAmount !== leftAmount) return rightAmount > leftAmount ? 1 : -1
-    if (right.head.bid.event.created_at !== left.head.bid.event.created_at) {
-      return right.head.bid.event.created_at - left.head.bid.event.created_at
-    }
-    return right.head.bid.event.id.localeCompare(left.head.bid.event.id)
-  })
+  return chains.sort(compareAuctionBidChains)
 }
 
 export async function fetchAuctionBidGroups(

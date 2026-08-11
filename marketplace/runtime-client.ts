@@ -787,7 +787,21 @@ function parseMarketplacePaymentEvent(event: Event): ParsedMarketplacePaymentEve
   throw new Error('Invalid marketplace payment event kind')
 }
 
-function settlementPaymentProof(settlement: ParsedPaymentSettlement): PaymentProofEvidence | undefined {
+async function settlementPaymentProof(
+  settlement: ParsedPaymentSettlement,
+  opts: MarketplaceRuntimeOptions,
+): Promise<PaymentProofEvidence | undefined> {
+  if (settlement.content.proof?.paymentProof) return settlement.content.proof.paymentProof
+  if (settlement.content.sealedProof) {
+    const resolution = await resolvePaymentProof(settlement, {
+      keys: settlement.paymentProofKeys,
+      signer: opts.signer,
+      signerPubkey: opts.identity?.pubkey,
+    })
+    if (resolution.status === 'resolved') return resolution.proof?.paymentProof ?? undefined
+  }
+  // Backward compatibility for settlement events that put a public proof in
+  // data before the dedicated proof field and key tags were defined.
   const proof = settlement.content.data?.proof
   if (!proof || typeof proof !== 'object' || Array.isArray(proof)) return undefined
   try {
@@ -797,12 +811,18 @@ function settlementPaymentProof(settlement: ParsedPaymentSettlement): PaymentPro
   }
 }
 
-function latestSettlementPaymentProof(settlements: ParsedPaymentSettlement[] | undefined): PaymentProofEvidence | undefined {
+async function latestSettlementPaymentProof(
+  settlements: ParsedPaymentSettlement[] | undefined,
+  opts: MarketplaceRuntimeOptions,
+): Promise<PaymentProofEvidence | undefined> {
   if (!settlements?.length) return undefined
-  return [...settlements]
+  const ordered = [...settlements]
     .sort((left, right) => right.event.created_at - left.event.created_at || right.event.id.localeCompare(left.event.id))
-    .map(settlementPaymentProof)
-    .find((proof): proof is PaymentProofEvidence => proof !== undefined)
+  for (const settlement of ordered) {
+    const proof = await settlementPaymentProof(settlement, opts)
+    if (proof) return proof
+  }
+  return undefined
 }
 
 function emptyPaymentSweepSnapshot(): MarketplaceMePaymentsSnapshot {
@@ -927,7 +947,7 @@ class MarketplaceMePaymentsRuntime implements MarketplaceMePaymentsApi {
       reason: MarketplacePaymentSweepInput['reason'],
     ): Promise<MarketplacePaymentSweepInput | undefined> => {
       const settlementProof = reason === 'settlement'
-        ? latestSettlementPaymentProof(settlementsByPaymentId.get(payment.event.id))
+        ? await latestSettlementPaymentProof(settlementsByPaymentId.get(payment.event.id), this.opts)
         : undefined
       let paymentProof = settlementProof
       if (!paymentProof) {
@@ -1232,6 +1252,7 @@ function sessionOptionsFromBoundOptions(
     ...(opts.paymentMethod !== undefined ? { paymentMethod: opts.paymentMethod } : {}),
     ...(opts.locationProvider !== undefined ? { locationProvider: opts.locationProvider } : {}),
     ...(opts.logger !== undefined ? { logger: opts.logger } : {}),
+    ...(opts.settlementJournal !== undefined ? { settlementJournal: opts.settlementJournal } : {}),
     ...(opts.publish !== undefined ? { publish: opts.publish } : {}),
     ...(opts.orderPolicies !== undefined ? { orderDrivers: opts.orderPolicies } : {}),
     ...(opts.bidPolicies !== undefined ? { auctionDrivers: opts.bidPolicies } : {}),
@@ -1407,7 +1428,7 @@ function bindRuntimeClient(opts: MarketplaceRuntimeOptions): MarketplaceClient {
       trade.tradeSecretKey,
       trade.tradePubkey,
       stream as AsyncIterable<MarketplacePolicyPaymentState>,
-      resolvedOptions.paymentProofPrivacy ?? 'public',
+      resolvedOptions.paymentProofPrivacy ?? 'sealed',
       resolvedOptions.paymentAmountPrivacy ?? 'public',
       resolvedOptions.paymentTermsPrivacy ?? resolvedOptions.paymentAmountPrivacy ?? 'public',
     )
@@ -1764,7 +1785,7 @@ function bindRuntimeClient(opts: MarketplaceRuntimeOptions): MarketplaceClient {
           trade.tradeSecretKey,
           trade.tradePubkey,
           stream as AsyncIterable<MarketplacePolicyPaymentState>,
-          resolvedOptions.paymentProofPrivacy ?? 'public',
+          resolvedOptions.paymentProofPrivacy ?? 'sealed',
           resolvedOptions.paymentAmountPrivacy ?? 'public',
           resolvedOptions.paymentTermsPrivacy ?? resolvedOptions.paymentAmountPrivacy ?? 'public',
         )

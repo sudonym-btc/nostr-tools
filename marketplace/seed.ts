@@ -3,7 +3,7 @@ import type { Event, EventTemplate, VerifiedEvent } from '../core.ts'
 import type { Filter } from '../filter.ts'
 import { MarketplaceSeed } from '../kinds.ts'
 import { decrypt, encrypt, getConversationKey } from '../nip44.ts'
-import { finalizeEvent, getPublicKey } from '../pure.ts'
+import { finalizeEvent, getPublicKey, verifyEvent } from '../pure.ts'
 import { bytesToHex, hexToBytes, utf8Encoder } from '../utils.ts'
 import { now, parseJsonObject, requireString, sha256Hex, sortedJson } from './helper.ts'
 import { schnorr } from '@noble/curves/secp256k1.js'
@@ -148,7 +148,32 @@ export function decryptMarketplaceSeedEvent(opts: DecryptMarketplaceSeedEventOpt
 }
 
 export function marketplaceSeedFilter(pubkey: string): Filter {
-  return { kinds: [MarketplaceSeed], authors: [pubkey], limit: 1 }
+  // Relays may disagree about their replaceable-event winner. Fetch a bounded
+  // candidate set and resolve it deterministically after signature/decryption
+  // checks instead of trusting relay ordering.
+  return { kinds: [MarketplaceSeed], authors: [pubkey], limit: 50 }
+}
+
+export function compareMarketplaceSeedEvents(left: Event, right: Event): number {
+  return right.created_at - left.created_at || right.id.localeCompare(left.id)
+}
+
+export function validMarketplaceSeedCandidates(events: Iterable<Event>, pubkey: string): Event[] {
+  const unique = new Map<string, Event>()
+  for (const event of events) {
+    if (event.pubkey !== pubkey || !validateMarketplaceSeedEvent(event) || !verifyEvent(event)) continue
+    unique.set(event.id, event)
+  }
+  return [...unique.values()].sort(compareMarketplaceSeedEvents)
+}
+
+export async function fetchMarketplaceSeedCandidates(
+  pool: Pick<AbstractSimplePool, 'querySync'>,
+  relays: string[],
+  pubkey: string,
+): Promise<Event[]> {
+  const events = await pool.querySync(relays, marketplaceSeedFilter(pubkey))
+  return validMarketplaceSeedCandidates(events, pubkey)
 }
 
 export async function fetchMarketplaceSeedEvent(
@@ -156,17 +181,22 @@ export async function fetchMarketplaceSeedEvent(
   relays: string[],
   pubkey: string,
 ): Promise<Event | null> {
-  const events = await pool.querySync(relays, { ...marketplaceSeedFilter(pubkey), limit: 50 })
-  return events
-    .filter(validateMarketplaceSeedEvent)
-    .sort((a, b) => b.created_at - a.created_at || b.id.localeCompare(a.id))[0] ?? null
+  return (await fetchMarketplaceSeedCandidates(pool, relays, pubkey))[0] ?? null
 }
 
 export async function ensureMarketplaceSeed(opts: EnsureMarketplaceSeedOptions): Promise<MarketplaceSeedResolution> {
-  const existing = await fetchMarketplaceSeedEvent(opts.pool, opts.relays, opts.pubkey)
-  if (existing) {
-    const payload = await opts.decrypt(existing)
-    return { event: existing, payload, seed: payload.seed, created: false }
+  const candidates = await fetchMarketplaceSeedCandidates(opts.pool, opts.relays, opts.pubkey)
+  for (const existing of candidates) {
+    try {
+      const payload = await opts.decrypt(existing)
+      return { event: existing, payload, seed: payload.seed, created: false }
+    } catch (_) {
+      // A newer relay result can be corrupt or encrypted for another key. The
+      // newest signed candidate that actually decrypts is authoritative.
+    }
+  }
+  if (candidates.length > 0) {
+    throw new Error('No signed marketplace seed candidate could be decrypted')
   }
 
   const created = await opts.create()
@@ -283,6 +313,9 @@ export const seed = {
   createEvent: createMarketplaceSeedEvent,
   decryptEvent: decryptMarketplaceSeedEvent,
   filter: marketplaceSeedFilter,
+  compareEvents: compareMarketplaceSeedEvents,
+  validCandidates: validMarketplaceSeedCandidates,
+  fetchCandidates: fetchMarketplaceSeedCandidates,
   fetchEvent: fetchMarketplaceSeedEvent,
   ensure: ensureMarketplaceSeed,
   getOrCreate: getOrCreateMarketplaceSeed,

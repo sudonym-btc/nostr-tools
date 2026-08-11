@@ -427,6 +427,21 @@ function paymentProofRecipientPubkeys(participants: PTag[] | undefined, senderPu
   ])]
 }
 
+/** Apply a driver's declared disclosure floor without allowing callers to weaken it. */
+export function enforcedPaymentProofPrivacy(
+  policy: MarketplacePaymentRoute['policy'],
+  requested: PaymentProofPrivacy,
+): PaymentProofPrivacy {
+  const requestedRank = requested === 'sealed' ? 2 : requested === 'params' ? 1 : 0
+  const requiredRank = policy.proofSensitivity === 'secret'
+    ? 2
+    : policy.proofSensitivity === 'confidential'
+      ? 1
+      : 0
+  const rank = Math.max(requestedRank, requiredRank)
+  return rank === 2 ? 'sealed' : rank === 1 ? 'params' : 'public'
+}
+
 function paymentProofPayloadForState(
   route: MarketplacePaymentRoute,
   proof: PaymentProofEvidence | null,
@@ -437,7 +452,7 @@ function paymentProofPayloadForState(
   termsPrivacy: PaymentTermsPrivacy,
 ): { proof: PaymentProof | SealedPaymentProof; paymentProofKeys: PaymentProofKeyTag[] } {
   return buildPaymentProofPayload(paymentProofForRoute(route, proof), {
-    mode: privacy,
+    mode: enforcedPaymentProofPrivacy(route.policy, privacy),
     termsMode: termsPrivacy,
     senderSecretKey,
     recipientPubkeys: paymentProofRecipientPubkeys(participants, senderPubkey),
@@ -531,7 +546,7 @@ export async function* publishOrderPayStream(
   tradeSecretKey: Uint8Array,
   tradePubkey: string,
   stream: AsyncIterable<MarketplacePolicyPaymentState>,
-  paymentProofPrivacy: PaymentProofPrivacy = 'public',
+  paymentProofPrivacy: PaymentProofPrivacy = 'sealed',
   paymentAmountPrivacy: PaymentAmountPrivacy = 'public',
   paymentTermsPrivacy: PaymentTermsPrivacy = paymentAmountPrivacy,
 ): AsyncIterable<MarketplacePaymentState> {
@@ -630,7 +645,7 @@ export async function* publishAuctionBidPaymentStream(
   tradeSecretKey: Uint8Array,
   tradePubkey: string,
   stream: AsyncIterable<MarketplacePolicyPaymentState>,
-  paymentProofPrivacy: PaymentProofPrivacy = 'public',
+  paymentProofPrivacy: PaymentProofPrivacy = 'sealed',
   paymentAmountPrivacy: PaymentAmountPrivacy = 'public',
   paymentTermsPrivacy: PaymentTermsPrivacy = paymentAmountPrivacy,
 ): AsyncIterable<MarketplaceAuctionBidState> {

@@ -161,6 +161,7 @@ export type {
 export type {
   ParticipantProofContext,
   ParticipantProofDecryptSigner,
+  ParticipantProofEncryptSigner,
   ParticipantProofKeyScheme,
   ParticipantProofKeyTag,
   ParticipantProofMode,
@@ -184,6 +185,7 @@ export type {
 } from './marketplace/payment-amount.ts'
 export type {
   BuildPaymentProofPayloadOptions,
+  BuildPaymentProofPayloadWithSignerOptions,
   EncryptedPaymentProofParams,
   PaymentProofContainer,
   PaymentProofKeyTag,
@@ -465,6 +467,10 @@ export type {
   MarketplaceLogEntry,
   MarketplaceRuntimeIdentity,
   MarketplaceRuntimeOptions,
+  MarketplaceSettlementJournal,
+  MarketplaceSettlementJournalAction,
+  MarketplaceSettlementJournalRecord,
+  MarketplaceSettlementOutboxEntry,
   MarketplaceRuntimePool,
   MarketplaceStartOptions,
   MarketplaceStartResult,

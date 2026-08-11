@@ -16,9 +16,11 @@ import {
 import {
   openSealedProofPayload,
   proofDisclosureKeyWrap,
+  proofDisclosureKeyWrapWithSigner,
   sealProofPayload,
   unwrapProofDisclosureKey,
   type ParticipantProofDecryptSigner,
+  type ParticipantProofEncryptSigner,
   type ProofDisclosureKeyTag,
 } from './participant-proof.ts'
 
@@ -83,6 +85,12 @@ export type BuildPaymentProofPayloadOptions = {
   mode?: PaymentProofPrivacy
   termsMode?: PaymentTermsPrivacy
   senderSecretKey: Uint8Array
+  recipientPubkeys: Iterable<string | undefined>
+}
+
+export type BuildPaymentProofPayloadWithSignerOptions = {
+  signer: ParticipantProofEncryptSigner
+  senderPubkey?: string
   recipientPubkeys: Iterable<string | undefined>
 }
 
@@ -275,6 +283,9 @@ export function buildPaymentProofPayload(
   const recipientPubkeys = [...new Set([...options.recipientPubkeys].filter((pubkey): pubkey is string =>
     typeof pubkey === 'string' && pubkey.length > 0,
   ))]
+  if ((mode !== 'public' || termsMode === 'sealed') && recipientPubkeys.length === 0) {
+    throw new Error('Protected payment proof requires at least one disclosure-key recipient')
+  }
   if (mode === 'public' && termsMode === 'sealed') {
     if (!proof.paymentProof?.terms) return { proof, paymentProofKeys: [] }
     const sealedTerms = sealPaymentTerms(proof.paymentProof.terms)
@@ -344,6 +355,30 @@ export function buildPaymentProofPayload(
       disclosureKey: sealed.disclosureKey,
     })),
   }
+}
+
+/** Seal a complete proof when the publisher is a remote signer. */
+export async function buildPaymentProofPayloadWithSigner(
+  proof: PaymentProof,
+  options: BuildPaymentProofPayloadWithSignerOptions,
+): Promise<{ proof: SealedPaymentProof; paymentProofKeys: PaymentProofKeyTag[] }> {
+  const recipientPubkeys = [...new Set([...options.recipientPubkeys].filter((pubkey): pubkey is string =>
+    typeof pubkey === 'string' && pubkey.length > 0,
+  ))]
+  if (recipientPubkeys.length === 0) {
+    throw new Error('Protected payment proof requires at least one disclosure-key recipient')
+  }
+  const sealed = sealPaymentProof(proof)
+  const paymentProofKeys = await Promise.all(recipientPubkeys.map(recipientPubkey =>
+    proofDisclosureKeyWrapWithSigner({
+      proofId: sealed.proof.proofId,
+      recipientPubkey,
+      ...(options.senderPubkey ? { senderPubkey: options.senderPubkey } : {}),
+      signer: options.signer,
+      disclosureKey: sealed.disclosureKey,
+    }),
+  ))
+  return { proof: sealed.proof, paymentProofKeys }
 }
 
 function paymentProofFields(container: PaymentProofContainer): PaymentProofFields & {
@@ -516,6 +551,7 @@ export const paymentProofs = {
   paramsDecryptor: paymentProofParamsDecryptor,
   seal: sealPaymentProof,
   build: buildPaymentProofPayload,
+  buildWithSigner: buildPaymentProofPayloadWithSigner,
   keyTag: paymentProofKeyTag,
   parseKeyTag: parsePaymentProofKeyTag,
   resolve: resolvePaymentProof,

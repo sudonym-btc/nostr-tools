@@ -291,8 +291,8 @@
   },
   "license": "Unlicense",
   "dependencies": {
-    "@sudonym-btc/marketplace-driver-interface": "file:../marketplace-driver-interface-ts",
-    "@sudonym-btc/marketplace-location-interface": "file:../marketplace-location-interface-ts",
+    "@sudonym-btc/marketplace-driver-interface": "0.1.0",
+    "@sudonym-btc/marketplace-location-interface": "0.1.0",
     "@noble/ciphers": "2.1.1",
     "@noble/curves": "2.0.1",
     "@noble/hashes": "2.0.1",
@@ -335,8 +335,10 @@
     "typescript": "^5.8.2"
   },
   "scripts": {
+    "build": "rm -rf lib && bun run build.js && tsc",
     "docs": "npm run docs:api",
-    "docs:api": "typedoc --plugin typedoc-plugin-markdown --tsconfig tsconfig.json --name \"nostr-tools/marketplace\" --out docs/marketplace/reference --readme none --githubPages false --hideBreadcrumbs true --hidePageHeader true marketplace.ts",
-    "prepublish": "just build"
+    "docs:api": "typedoc --plugin typedoc-plugin-markdown --tsconfig tsconfig.json --name \"nostr-tools/marketplace\" --out docs/marketplace/reference --readme none --githubPages false --hideBreadcrumbs true --hidePageHeader true --disableSources marketplace.ts",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run build"
   }
 }

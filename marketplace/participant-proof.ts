@@ -73,6 +73,11 @@ export type ParticipantProofDecryptSigner = {
   nip44Decrypt: (pubkey: string, ciphertext: string) => Promise<string> | string
 }
 
+export type ParticipantProofEncryptSigner = {
+  getPublicKey?: () => Promise<string> | string
+  nip44Encrypt: (pubkey: string, plaintext: string) => Promise<string> | string
+}
+
 export type ResolveParticipantProofOptions = {
   keys?: ProofDisclosureKeyTag[]
   signer?: ParticipantProofDecryptSigner
@@ -212,6 +217,26 @@ export function proofDisclosureKeyWrap(opts: {
     senderPubkey,
     scheme: 'nip44',
     payload: encrypt(bytesToHex(opts.disclosureKey), conversationKey),
+  }
+}
+
+export async function proofDisclosureKeyWrapWithSigner(opts: {
+  proofId: string
+  recipientPubkey: string
+  senderPubkey?: string
+  signer: ParticipantProofEncryptSigner
+  disclosureKey: Uint8Array
+}): Promise<ProofDisclosureKeyTag> {
+  if (opts.disclosureKey.length !== 32) throw new Error('Proof disclosure key must be 32 bytes')
+  const senderPubkey = opts.senderPubkey ?? await opts.signer.getPublicKey?.()
+  if (!senderPubkey) throw new Error('Proof disclosure-key sender pubkey is required')
+  return {
+    version: 1,
+    proofId: opts.proofId,
+    recipientPubkey: opts.recipientPubkey,
+    senderPubkey,
+    scheme: 'nip44',
+    payload: await opts.signer.nip44Encrypt(opts.recipientPubkey, bytesToHex(opts.disclosureKey)),
   }
 }
 
@@ -376,6 +401,7 @@ export const participantProofs = {
   sealPayload: sealProofPayload,
   openPayload: openSealedProofPayload,
   disclosureKeyWrap: proofDisclosureKeyWrap,
+  disclosureKeyWrapWithSigner: proofDisclosureKeyWrapWithSigner,
   unwrapDisclosureKey: unwrapProofDisclosureKey,
   validateAuthorization: validateTradeKeyAuthorization,
   resolvePublic: resolvePublicParticipantProof,

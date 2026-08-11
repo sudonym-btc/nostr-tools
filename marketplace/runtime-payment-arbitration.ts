@@ -154,6 +154,7 @@ import type {
 } from './payment-validation.ts'
 import { isPaymentValidationAccepted } from './payment-validation.ts'
 import { resolvePaymentAmount } from './payment-amount.ts'
+import { resolvePaymentProof } from './payment-proof.ts'
 import type {
   MarketplacePolicyWatermarkRecoveryAction,
   MarketplacePolicyWatermarkContext,
@@ -363,7 +364,19 @@ async function arbitrationPaymentItems(
     if (amount.status !== 'resolved' || !amount.amount) {
       throw new Error(amount.error ?? 'Payment arbitration requires a resolvable payment amount')
     }
-    const item = paymentValidationItemForGroup(request.group, payment, request.now, amount.amount)
+    let proof = payment.content.proof
+    if (!proof && payment.content.sealedProof) {
+      const resolution = await resolvePaymentProof(payment, {
+        keys: payment.paymentProofKeys,
+        signer: opts.signer,
+        signerPubkey: opts.identity?.pubkey,
+      })
+      if (resolution.status !== 'resolved' || !resolution.proof) {
+        throw new Error(resolution.error ?? 'Payment arbitration requires a resolvable payment proof')
+      }
+      proof = resolution.proof
+    }
+    const item = paymentValidationItemForGroup(request.group, payment, request.now, amount.amount, proof)
     if (!item) throw new Error('Payment arbitration requires a recoverable payment proof')
     items.push({ payment, item, amount: amount.amount })
   }

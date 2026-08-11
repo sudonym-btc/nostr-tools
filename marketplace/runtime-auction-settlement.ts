@@ -136,7 +136,7 @@ import {
   type OrderSubscribeOptions,
 } from './order-query.ts'
 import { generateReviewEventTemplate, parseReviewEvent, validateReviewEvent } from './review.ts'
-import { amountCurrency, parseEventJson } from './helper.ts'
+import { amountCurrency, parseEventJson, sha256Hex, sortedJson } from './helper.ts'
 import type {
   MarketplaceAmount,
   OrderParticipantRole,
@@ -161,8 +161,16 @@ import {
   normalizePaymentValidationResult,
 } from './payment-validation.ts'
 import { resolvePaymentAmount } from './payment-amount.ts'
-import { paymentProofParamsDecryptor, resolvePaymentProof, resolvePaymentProofEvidence } from './payment-proof.ts'
-import { isMarketplaceDriverEncryptedPaymentProofParams } from '@sudonym-btc/marketplace-driver-interface'
+import {
+  buildPaymentProofPayloadWithSigner,
+  paymentProofParamsDecryptor,
+  resolvePaymentProof,
+  resolvePaymentProofEvidence,
+} from './payment-proof.ts'
+import {
+  isMarketplaceDriverEncryptedPaymentProofParams,
+  type MarketplaceDriverFinancialActionReceipt,
+} from '@sudonym-btc/marketplace-driver-interface'
 import type {
   MarketplacePolicyWatermarkRecoveryAction,
   MarketplacePolicyWatermarkContext,
@@ -196,6 +204,8 @@ import type {
   MarketplaceAuctionPaymentSettlementIntent,
   MarketplaceAuctionPaymentSettlementResult,
   MarketplaceAuctionSettlementState,
+  MarketplaceSettlementJournal,
+  MarketplaceSettlementJournalRecord,
   MarketplaceBolt11PaymentRequest,
   MarketplacePaymentRequest,
   MarketplacePolicyPaymentRequiredState,
@@ -266,6 +276,7 @@ type MarketplaceAuctionSettlementPlan = {
   group: ParsedAuctionBidGroup
   bid: MarketplaceAuctionBidValidation
   action: 'auction_refund' | 'auction_promote'
+  operationId: string
   result: MarketplaceAuctionPaymentSettlementResult
   targetTradeId?: string
   targetOrderGroupId?: string
@@ -317,6 +328,154 @@ export function auctionAnchorForRequest(request: MarketplaceAuctionSettlementReq
 
 export function auctionIdForRequest(request: MarketplaceAuctionSettlementRequest): string {
   return request.auctionId ?? request.auctionAnchor ?? 'auction'
+}
+
+export function auctionSettlementJournalId(request: MarketplaceAuctionSettlementRequest): string {
+  return `auction:${sha256Hex(sortedJson(['auction-settlement-journal-v1', auctionAnchorForRequest(request)]))}`
+}
+
+export function auctionSettlementOperationId(
+  request: MarketplaceAuctionSettlementRequest,
+  bid: MarketplaceAuctionBidValidation,
+  action: 'auction_refund' | 'auction_promote',
+): string {
+  if (!bid.payment) throw new Error('Auction settlement operation requires a payment')
+  return `auction-action:${sha256Hex(sortedJson([
+    'auction-settlement-action-v1',
+    auctionAnchorForRequest(request),
+    bid.bid.event.id,
+    bid.payment.event.id,
+    action,
+  ]))}`
+}
+
+type SettlementJournalContext = {
+  journal: MarketplaceSettlementJournal
+  record: MarketplaceSettlementJournalRecord
+  save(record: MarketplaceSettlementJournalRecord): Promise<void>
+  options: MarketplaceRuntimeOptions
+}
+
+async function settlementJournalContext(
+  opts: MarketplaceRuntimeOptions,
+  request: MarketplaceAuctionSettlementRequest,
+): Promise<SettlementJournalContext> {
+  const journal = opts.settlementJournal
+  if (!journal) throw new Error('Auction settlement requires a durable settlementJournal')
+  if (request.now === undefined || !Number.isSafeInteger(request.now) || request.now < 0) {
+    throw new Error('Auction settlement requires a deterministic non-negative now value')
+  }
+  const publish = opts.publish
+  if (!publish) throw new Error('Marketplace arbitration mode requires a publish function')
+  const signer = opts.signer
+  if (!signer) throw new Error('Marketplace arbitration mode requires a signer')
+  const id = auctionSettlementJournalId(request)
+  const auctionAnchor = auctionAnchorForRequest(request)
+  const existingRecord = await journal.get(id)
+  let record = existingRecord ?? {
+    version: 1,
+    id,
+    auctionAnchor,
+    status: 'pending',
+    actions: {},
+    outbox: {},
+    updatedAt: request.now,
+  }
+  if (record.version !== 1 || record.id !== id || record.auctionAnchor !== auctionAnchor) {
+    throw new Error('Auction settlement journal record does not match this auction')
+  }
+  const context = {} as SettlementJournalContext
+  context.journal = journal
+  context.record = record
+  context.save = async next => {
+    record = next
+    context.record = next
+    await journal.put(next)
+  }
+  let outboxSequence = 0
+  const outboxSigner: MarketplaceSeedSigner = {
+    ...(signer.getPublicKey ? { getPublicKey: () => signer.getPublicKey!() } : {}),
+    nip44Encrypt: (pubkey, plaintext) => signer.nip44Encrypt(pubkey, plaintext),
+    nip44Decrypt: (pubkey, ciphertext) => signer.nip44Decrypt(pubkey, ciphertext),
+    signEvent: async (template: EventTemplate) => {
+      const key = `${outboxSequence.toString().padStart(6, '0')}:${template.kind}`
+      outboxSequence += 1
+      const existing = context.record.outbox[key]
+      if (existing) {
+        if (existing.event.kind !== template.kind) throw new Error(`Settlement outbox sequence mismatch: ${key}`)
+        return existing.event
+      }
+      const event = await signer.signEvent(template)
+      await context.save({
+        ...context.record,
+        status: 'publishing',
+        outbox: { ...context.record.outbox, [key]: { event, published: false } },
+        updatedAt: request.now!,
+      })
+      return event
+    },
+  }
+  context.options = {
+    ...opts,
+    signer: outboxSigner,
+    publish: async event => {
+      const outboxEntry = Object.entries(context.record.outbox).find(([, candidate]) => candidate.event.id === event.id)
+      if (!outboxEntry) throw new Error(`Settlement event was not journaled before publication: ${event.id}`)
+      const [key, existing] = outboxEntry
+      if (existing.published) return
+      await publish(event)
+      await context.save({
+        ...context.record,
+        status: 'publishing',
+        outbox: { ...context.record.outbox, [key]: { event, published: true } },
+        updatedAt: request.now!,
+      })
+    },
+  }
+  if (!existingRecord) await journal.put(record)
+  return context
+}
+
+function requireCompletedFinancialResult(
+  result: MarketplaceAuctionPaymentSettlementResult,
+  operationId: string,
+): MarketplaceAuctionPaymentSettlementResult {
+  if (!result.receipt || result.receipt.status !== 'completed' || result.receipt.operationId !== operationId) {
+    throw new Error(`Auction financial action did not return a matching completed receipt: ${operationId}`)
+  }
+  return result
+}
+
+/**
+ * Keep the runtime journal and public settlement event independent of
+ * driver-defined evidence. The complete driver result is committed and its
+ * proof is sealed separately; only the fields needed to identify a completed
+ * idempotent operation cross this boundary.
+ */
+function publicFinancialReceipt(
+  receipt: MarketplaceDriverFinancialActionReceipt,
+): MarketplaceDriverFinancialActionReceipt {
+  return {
+    status: 'completed',
+    operationId: receipt.operationId,
+    ...(receipt.externalId ? { externalId: receipt.externalId } : {}),
+  }
+}
+
+/** Driver validation `data`, `terms.data`, and errors may contain provider or
+ * proof details. Public auction events need only the normalized verdict. */
+function publicValidationResult(
+  validation: MarketplacePaymentValidationResult,
+): MarketplacePaymentValidationResult {
+  return {
+    driver: validation.driver,
+    status: validation.status,
+    ...(validation.confirmations !== undefined ? { confirmations: validation.confirmations } : {}),
+    ...(validation.amountMatched !== undefined ? { amountMatched: validation.amountMatched } : {}),
+    ...(validation.assetMatched !== undefined ? { assetMatched: validation.assetMatched } : {}),
+    ...(validation.recipientMatched !== undefined ? { recipientMatched: validation.recipientMatched } : {}),
+    ...(validation.arbiterMatched !== undefined ? { arbiterMatched: validation.arbiterMatched } : {}),
+  }
 }
 
 export function invalidPaymentResult(
@@ -497,10 +656,10 @@ export function auctionSettlementData(input: {
   winningChain?: ParsedAuctionBidChain
   proof?: PaymentProofEvidence
   sourceProof?: PaymentProofEvidence
+  receipt?: MarketplaceAuctionPaymentSettlementResult['receipt']
   targetTradeId?: string
   targetOrderGroupId?: string
   targetUnlockAt?: number
-  data?: Record<string, unknown>
 }): Record<string, unknown> {
   return {
     auctionId: input.auctionId,
@@ -510,7 +669,7 @@ export function auctionSettlementData(input: {
     bidAmount: input.bid.bid.amount,
     ...(input.bid.bid.bidChainId ? { bidChainId: input.bid.bid.bidChainId } : {}),
     ...(input.bidChain ? { bidChainTotal: input.bidChain.amount, bidChainHeadId: input.bidChain.head.bid.event.id } : {}),
-    validation: input.bid.validation,
+    validation: publicValidationResult(input.bid.validation),
     ...(input.winner ? { winnerTradeId: input.winner.bid.tradeId, winnerEventId: input.winner.bid.event.id } : {}),
     ...(input.winningChain ? {
       winningBidChainId: input.winningChain.id,
@@ -520,9 +679,9 @@ export function auctionSettlementData(input: {
     ...(input.targetTradeId ? { targetTradeId: input.targetTradeId } : {}),
     ...(input.targetOrderGroupId ? { targetOrderGroupId: input.targetOrderGroupId } : {}),
     ...(input.targetUnlockAt !== undefined ? { targetUnlockAt: input.targetUnlockAt } : {}),
-    ...(input.sourceProof ? { sourceProof: input.sourceProof } : {}),
-    ...(input.proof ? { proof: input.proof } : {}),
-    ...(input.data ?? {}),
+    ...(input.sourceProof ? { sourceProofCommitment: sha256Hex(sortedJson(input.sourceProof)) } : {}),
+    ...(input.proof ? { proofCommitment: sha256Hex(sortedJson(input.proof)) } : {}),
+    ...(input.receipt ? { receipt: publicFinancialReceipt(input.receipt) } : {}),
   }
 }
 
@@ -828,6 +987,7 @@ export async function refundAuctionBid(
   opts: MarketplaceRuntimeOptions,
   bid: MarketplaceAuctionBidValidation,
   request: MarketplaceAuctionSettlementRequest,
+  operationId: string,
   winner?: MarketplaceAuctionBidValidation,
 ): Promise<MarketplaceAuctionPaymentSettlementResult> {
   if (!bid.payment) throw new Error('Auction settlement requires a bid payment')
@@ -838,6 +998,8 @@ export async function refundAuctionBid(
   return policy.refundPayment({
     purpose: 'bid',
     action: 'auction_refund',
+    operationId,
+    ...(opts.seed ? { seed: opts.seed } : {}),
     bid: bid.bid,
     payment: bid.payment!,
     proof: item.proof,
@@ -904,6 +1066,7 @@ export async function recycleAuctionBidPayment(
   winner: MarketplaceAuctionBidValidation,
   targetTradeId: string,
   targetOrderGroupId: string,
+  operationId: string,
 ): Promise<MarketplaceAuctionPaymentSettlementResult> {
   if (!bid.payment) throw new Error('Auction winner requires a payment')
   const item = await resolvedAuctionPaymentItem(opts, bid.bid, bid.payment, request.now)
@@ -913,6 +1076,7 @@ export async function recycleAuctionBidPayment(
   return policy.recyclePayment({
     purpose: 'bid',
     action: 'auction_promote',
+    operationId,
     ...(opts.seed ? { seed: opts.seed } : {}),
     bid: bid.bid,
     payment: bid.payment!,
@@ -945,6 +1109,20 @@ export async function publishAuctionPaymentSettlement(
 ): Promise<Event> {
   const payment = bid.payment
   if (!payment) throw new Error('Auction settlement requires a payment')
+  const { signer } = requireArbitrationPublisher(opts)
+  const senderPubkey = opts.identity?.pubkey ?? await signer.getPublicKey?.()
+  if (!senderPubkey) throw new Error('Auction settlement proof sealing requires the arbiter signer pubkey')
+  const proofRecipients = action === 'auction_refund'
+    ? [senderPubkey, buyerTradePubkey(bid.bid)]
+    : [senderPubkey, ...bid.bid.participants.map(participant => participant.pubkey)]
+  const protectedProof = await buildPaymentProofPayloadWithSigner(
+    { paymentProof: result.proof },
+    {
+      signer,
+      senderPubkey,
+      recipientPubkeys: proofRecipients,
+    },
+  )
   const auctionAnchor = auctionAnchorForRequest(request)
   return publishMarketplaceTemplate(
     opts,
@@ -963,8 +1141,8 @@ export async function publishAuctionPaymentSettlement(
       },
       method: result.proof.driver,
       action,
-      ...(result.inputs ? { inputs: result.inputs } : {}),
-      ...(result.outputs ? { outputs: result.outputs } : {}),
+      sealedProof: protectedProof.proof,
+      paymentProofKeys: protectedProof.paymentProofKeys,
       data: auctionSettlementData({
         action,
         auctionId: auctionIdForRequest(request),
@@ -974,14 +1152,41 @@ export async function publishAuctionPaymentSettlement(
         ...(winner ? { winner } : {}),
         ...(winningChain ? { winningChain } : {}),
         proof: result.proof,
+        receipt: result.receipt,
         ...(payment.content.proof?.paymentProof ? { sourceProof: payment.content.proof.paymentProof } : {}),
         ...(targetTradeId ? { targetTradeId } : {}),
         ...(targetOrderGroupId ? { targetOrderGroupId } : {}),
         ...(request.targetUnlockAt !== undefined ? { targetUnlockAt: request.targetUnlockAt } : {}),
-        ...(result.data ? { data: result.data } : {}),
       }),
+      ...(request.now !== undefined ? { createdAt: request.now } : {}),
     }),
   )
+}
+
+export function auctionCompleteTemplate(
+  request: MarketplaceAuctionSettlementRequest,
+  winner?: MarketplaceAuctionBidValidation,
+  winningChain?: ParsedAuctionBidChain,
+): EventTemplate {
+  const auctionAnchor = auctionAnchorForRequest(request)
+  return generateAuctionCompleteEventTemplate({
+    auctionAnchor,
+    listingAnchor: request.listingAnchor ?? winner?.bid.listingAnchor,
+    status: winner ? 'closed' : 'reserve_not_met',
+    ...(winner ? { winningBidId: winner.bid.event.id } : {}),
+    ...(winner?.payment ? { winningPaymentId: winner.payment.event.id } : {}),
+    ...(winner ? { winnerPubkey: buyerTradePubkey(winner.bid), finalAmount: winningChain?.amount ?? winner.bid.amount } : {}),
+    data: {
+      auctionId: auctionIdForRequest(request),
+      ...(winner ? { winningTradeId: winner.bid.tradeId } : {}),
+      ...(winningChain ? {
+        winningBidChainId: winningChain.id,
+        winningBidChainTotal: winningChain.amount,
+        winningBidChainPaymentIds: winningChain.paymentEventIds,
+      } : {}),
+    },
+    ...(request.now !== undefined ? { createdAt: request.now } : {}),
+  })
 }
 
 export async function publishAuctionComplete(
@@ -990,28 +1195,7 @@ export async function publishAuctionComplete(
   winner?: MarketplaceAuctionBidValidation,
   winningChain?: ParsedAuctionBidChain,
 ): Promise<Event> {
-  const auctionAnchor = auctionAnchorForRequest(request)
-  return publishMarketplaceTemplate(
-    opts,
-    generateAuctionCompleteEventTemplate({
-      auctionAnchor,
-      listingAnchor: request.listingAnchor ?? winner?.bid.listingAnchor,
-      status: winner ? 'closed' : 'reserve_not_met',
-      ...(winner ? { winningBidId: winner.bid.event.id } : {}),
-      ...(winner?.payment ? { winningPaymentId: winner.payment.event.id } : {}),
-      ...(winner ? { winnerPubkey: buyerTradePubkey(winner.bid), finalAmount: winningChain?.amount ?? winner.bid.amount } : {}),
-      data: {
-        auctionId: auctionIdForRequest(request),
-        ...(winner ? { winningTradeId: winner.bid.tradeId } : {}),
-        ...(winningChain ? {
-          winningBidChainId: winningChain.id,
-          winningBidChainTotal: winningChain.amount,
-          winningBidChainPaymentIds: winningChain.paymentEventIds,
-        } : {}),
-      },
-      ...(request.now ? { createdAt: request.now } : {}),
-    }),
-  )
+  return publishMarketplaceTemplate(opts, auctionCompleteTemplate(request, winner, winningChain))
 }
 
 export function promotedPaymentProof(
@@ -1047,6 +1231,9 @@ export async function publishPromotedAuctionOrder(
   winningChain?: ParsedAuctionBidChain,
 ): Promise<{ order: Event; payments: Array<{ bid: MarketplaceAuctionBidValidation; payment: Event; ack: Event; proof: PaymentProofEvidence }> }> {
   if (promotions.length === 0) throw new Error('Auction promotion requires at least one promoted payment')
+  const { signer } = requireArbitrationPublisher(opts)
+  const senderPubkey = opts.identity?.pubkey ?? await signer.getPublicKey?.()
+  if (!senderPubkey) throw new Error('Auction promotion requires the arbiter signer pubkey')
   const auctionAnchor = auctionAnchorForRequest(request)
   const orderTemplate = promotedAuctionOrderTemplate(winner, request, winningChain)
   orderTemplate.extraTags = [
@@ -1059,6 +1246,17 @@ export async function publishPromotedAuctionOrder(
   for (const promotion of promotions) {
     if (!promotion.bid.payment) throw new Error('Auction promoted bid requires a payment')
     const sourceProof = await sourcePaymentProofForPromotion(opts, promotion.bid.payment)
+    const protectedProof = await buildPaymentProofPayloadWithSigner(
+      promotedPaymentProof(sourceProof, promotion.proof),
+      {
+        signer,
+        senderPubkey,
+        recipientPubkeys: [
+          senderPubkey,
+          ...(orderTemplate.participants ?? []).map(participant => participant.pubkey),
+        ],
+      },
+    )
     const payment = await publishMarketplaceTemplate(
       opts,
       generatePaymentEventTemplate({
@@ -1075,8 +1273,9 @@ export async function publishPromotedAuctionOrder(
           auctionCompletes: [auctionCompleteEvent.id],
         },
         amount: promotion.bid.payment.content.amount ?? promotion.bid.validation.amount,
-        proof: promotedPaymentProof(sourceProof, promotion.proof),
-        ...(request.now ? { createdAt: request.now } : {}),
+        proof: protectedProof.proof,
+        paymentProofKeys: protectedProof.paymentProofKeys,
+        ...(request.now !== undefined ? { createdAt: request.now } : {}),
       }),
     )
     const ack = await publishMarketplaceTemplate(
@@ -1092,7 +1291,7 @@ export async function publishPromotedAuctionOrder(
         refs: { orders: [order.id], payments: [payment.id], auctionCompletes: [auctionCompleteEvent.id] },
         status: 'accepted',
         message: 'Auction winning payment promoted into order payment',
-        ...(request.now ? { createdAt: request.now } : {}),
+        ...(request.now !== undefined ? { createdAt: request.now } : {}),
       }),
     )
     payments.push({ bid: promotion.bid, payment, ack, proof: promotion.proof })
@@ -1105,7 +1304,10 @@ export async function* settleMarketplaceAuction(
   request: MarketplaceAuctionSettlementRequest,
 ): AsyncIterable<MarketplaceAuctionSettlementState> {
   requireArbitrationPublisher(opts)
-  const groups = await auctionBidGroupsForSettlement(opts, request)
+  const journal = await settlementJournalContext(opts, request)
+  const publishOpts = journal.options
+  const groups = (await auctionBidGroupsForSettlement(opts, request))
+    .sort((left, right) => left.bid.event.id.localeCompare(right.bid.event.id))
   const bids = groups.map(group => bidValidationFromDecision(group, request))
   for (const bid of bids) yield { type: 'bid_validated', bid }
 
@@ -1136,18 +1338,78 @@ export async function* settleMarketplaceAuction(
   for (const [index, bid] of bids.entries()) {
     if (!bid.payment) continue
     const group = groups[index]
-    if (!group || group.settlement) continue
+    if (!group) continue
     const action: 'auction_refund' | 'auction_promote' = winner && bid.bid.event.id === winner.bid.event.id
       ? 'auction_promote'
       : 'auction_refund'
     const chainAction = winningGroupIds.has(group.id) ? 'auction_promote' : action
-    const result = chainAction === 'auction_promote' && winner && targetOrderTemplate && targetOrderGroupId
-      ? await recycleAuctionBidPayment(opts, bid, request, winner, targetOrderTemplate.tradeId, targetOrderGroupId)
-      : await refundAuctionBid(opts, bid, request, winner)
+    const operationId = auctionSettlementOperationId(request, bid, chainAction)
+    const previousForBid = Object.values(journal.record.actions).find(candidate =>
+      candidate.bidEventId === bid.bid.event.id && candidate.paymentEventId === bid.payment!.event.id,
+    )
+    if (previousForBid && previousForBid.operationId !== operationId) {
+      throw new Error(`Auction settlement decision changed after journaling for bid ${bid.bid.event.id}`)
+    }
+    if (group.settlement && !previousForBid) continue
+    if (!previousForBid) {
+      await journal.save({
+        ...journal.record,
+        actions: {
+          ...journal.record.actions,
+          [operationId]: {
+            operationId,
+            action: chainAction,
+            bidEventId: bid.bid.event.id,
+            paymentEventId: bid.payment.event.id,
+            status: 'pending',
+          },
+        },
+        updatedAt: request.now!,
+      })
+    }
+    // Even after completion, ask the driver to reconstruct the exact result
+    // from its deterministic operation id. The journal intentionally stores no
+    // proof because some drivers return bearer value (for example Cashu).
+    const executed = chainAction === 'auction_promote' && winner && targetOrderTemplate && targetOrderGroupId
+      ? await recycleAuctionBidPayment(
+          opts,
+          bid,
+          request,
+          winner,
+          targetOrderTemplate.tradeId,
+          targetOrderGroupId,
+          operationId,
+        )
+      : await refundAuctionBid(opts, bid, request, operationId, winner)
+    const result = requireCompletedFinancialResult(executed, operationId)
+    const resultCommitment = sha256Hex(sortedJson(result))
+    if (previousForBid?.status === 'completed') {
+      if (!previousForBid.resultCommitment || previousForBid.resultCommitment !== resultCommitment) {
+        throw new Error(`Recovered auction result does not match journal commitment: ${operationId}`)
+      }
+    } else {
+      await journal.save({
+        ...journal.record,
+        actions: {
+          ...journal.record.actions,
+          [operationId]: {
+            operationId,
+            action: chainAction,
+            bidEventId: bid.bid.event.id,
+            paymentEventId: bid.payment.event.id,
+            status: 'completed',
+            receipt: publicFinancialReceipt(result.receipt),
+            resultCommitment,
+          },
+        },
+        updatedAt: request.now!,
+      })
+    }
     plans.push({
       group,
       bid,
       action: chainAction,
+      operationId,
       result,
       ...(targetOrderTemplate ? { targetOrderTemplate } : {}),
       ...(targetOrderTemplate?.tradeId ? { targetTradeId: targetOrderTemplate.tradeId } : {}),
@@ -1155,14 +1417,24 @@ export async function* settleMarketplaceAuction(
     })
   }
 
-  const auctionCompleteEvent = await publishAuctionComplete(opts, request, winner, winningChain)
-  yield { type: 'auction_complete_published', winner, event: auctionCompleteEvent }
+  await journal.save({
+    ...journal.record,
+    status: 'financial_complete',
+    updatedAt: request.now!,
+  })
+
+  // Sign and durably enqueue the terminal event first so dependent events can
+  // reference it, but publish it last. Observers must never see an auction as
+  // complete while financial/action events are still missing.
+  const auctionCompleteEvent = await publishOpts.signer!.signEvent(
+    auctionCompleteTemplate(request, winner, winningChain),
+  )
 
   const promotedPayments: MarketplaceAuctionPromotedPayment[] = []
 
   for (const plan of plans) {
     const event = await publishAuctionPaymentSettlement(
-      opts,
+      publishOpts,
       request,
       plan.bid,
       plan.action,
@@ -1194,7 +1466,7 @@ export async function* settleMarketplaceAuction(
 
   if (winner && promotedPayments.length > 0) {
     const promoted = await publishPromotedAuctionOrder(
-      opts,
+      publishOpts,
       winner,
       request,
       promotedPayments,
@@ -1208,5 +1480,13 @@ export async function* settleMarketplaceAuction(
     }
   }
 
+  await publishOpts.publish!(auctionCompleteEvent)
+  yield { type: 'auction_complete_published', winner, event: auctionCompleteEvent }
+
+  await journal.save({
+    ...journal.record,
+    status: 'completed',
+    updatedAt: request.now!,
+  })
   yield { type: 'completed', winner, bids }
 }
