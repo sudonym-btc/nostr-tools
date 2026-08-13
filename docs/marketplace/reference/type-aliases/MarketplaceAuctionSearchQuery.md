@@ -2,15 +2,11 @@
 
 > **MarketplaceAuctionSearchQuery** = `object`
 
-Defined in: [nostr-tools/marketplace/auction-query.ts:16](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L16)
-
 ## Properties
 
 ### arbiterPubkeys?
 
 > `optional` **arbiterPubkeys?**: `string`[]
-
-Defined in: [nostr-tools/marketplace/auction-query.ts:20](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L20)
 
 ***
 
@@ -18,15 +14,11 @@ Defined in: [nostr-tools/marketplace/auction-query.ts:20](https://github.com/sud
 
 > `optional` **auctionAnchors?**: `string`[]
 
-Defined in: [nostr-tools/marketplace/auction-query.ts:18](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L18)
-
 ***
 
 ### authors?
 
 > `optional` **authors?**: `string`[]
-
-Defined in: [nostr-tools/marketplace/auction-query.ts:19](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L19)
 
 ***
 
@@ -34,15 +26,11 @@ Defined in: [nostr-tools/marketplace/auction-query.ts:19](https://github.com/sud
 
 > `optional` **limit?**: `number`
 
-Defined in: [nostr-tools/marketplace/auction-query.ts:23](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L23)
-
 ***
 
 ### listingAnchor?
 
 > `optional` **listingAnchor?**: `string`
-
-Defined in: [nostr-tools/marketplace/auction-query.ts:17](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L17)
 
 ***
 
@@ -50,12 +38,8 @@ Defined in: [nostr-tools/marketplace/auction-query.ts:17](https://github.com/sud
 
 > `optional` **since?**: `number`
 
-Defined in: [nostr-tools/marketplace/auction-query.ts:21](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L21)
-
 ***
 
 ### until?
 
 > `optional` **until?**: `number`
-
-Defined in: [nostr-tools/marketplace/auction-query.ts:22](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L22)

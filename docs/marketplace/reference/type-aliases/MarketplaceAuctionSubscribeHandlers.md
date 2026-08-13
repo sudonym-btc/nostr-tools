@@ -2,15 +2,11 @@
 
 > **MarketplaceAuctionSubscribeHandlers** = `object`
 
-Defined in: [nostr-tools/marketplace/auction-query.ts:31](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L31)
-
 ## Properties
 
 ### onauction?
 
 > `optional` **onauction?**: (`auction`) => `void`
-
-Defined in: [nostr-tools/marketplace/auction-query.ts:33](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L33)
 
 #### Parameters
 
@@ -28,8 +24,6 @@ Defined in: [nostr-tools/marketplace/auction-query.ts:33](https://github.com/sud
 
 > `optional` **onauctions?**: (`auctions`) => `void`
 
-Defined in: [nostr-tools/marketplace/auction-query.ts:34](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L34)
-
 #### Parameters
 
 ##### auctions
@@ -45,8 +39,6 @@ Defined in: [nostr-tools/marketplace/auction-query.ts:34](https://github.com/sud
 ### onclose?
 
 > `optional` **onclose?**: (`reasons`) => `void`
-
-Defined in: [nostr-tools/marketplace/auction-query.ts:37](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L37)
 
 #### Parameters
 
@@ -64,8 +56,6 @@ Defined in: [nostr-tools/marketplace/auction-query.ts:37](https://github.com/sud
 
 > `optional` **oneose?**: () => `void`
 
-Defined in: [nostr-tools/marketplace/auction-query.ts:36](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L36)
-
 #### Returns
 
 `void`
@@ -75,8 +65,6 @@ Defined in: [nostr-tools/marketplace/auction-query.ts:36](https://github.com/sud
 ### onevent?
 
 > `optional` **onevent?**: (`auction`) => `void`
-
-Defined in: [nostr-tools/marketplace/auction-query.ts:32](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L32)
 
 #### Parameters
 
@@ -93,8 +81,6 @@ Defined in: [nostr-tools/marketplace/auction-query.ts:32](https://github.com/sud
 ### oninvalid?
 
 > `optional` **oninvalid?**: (`event`, `error`) => `void`
-
-Defined in: [nostr-tools/marketplace/auction-query.ts:35](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L35)
 
 #### Parameters
 

@@ -2,15 +2,11 @@
 
 > **OrderGroupSubscribeHandlers** = `object`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:128](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L128)
-
 ## Properties
 
 ### onclose?
 
 > `optional` **onclose?**: (`reasons`) => `void`
-
-Defined in: [nostr-tools/marketplace/order-group-types.ts:134](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L134)
 
 #### Parameters
 
@@ -28,8 +24,6 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:134](https://github.co
 
 > `optional` **oneose?**: () => `void`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:133](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L133)
-
 #### Returns
 
 `void`
@@ -39,8 +33,6 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:133](https://github.co
 ### onevent?
 
 > `optional` **onevent?**: (`event`) => `void`
-
-Defined in: [nostr-tools/marketplace/order-group-types.ts:129](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L129)
 
 #### Parameters
 
@@ -58,8 +50,6 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:129](https://github.co
 
 > `optional` **ongroup?**: (`group`) => `void`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:130](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L130)
-
 #### Parameters
 
 ##### group
@@ -76,8 +66,6 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:130](https://github.co
 
 > `optional` **ongroups?**: (`groups`) => `void`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:131](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L131)
-
 #### Parameters
 
 ##### groups
@@ -93,8 +81,6 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:131](https://github.co
 ### oninvalid?
 
 > `optional` **oninvalid?**: (`event`, `error`) => `void`
-
-Defined in: [nostr-tools/marketplace/order-group-types.ts:132](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L132)
 
 #### Parameters
 

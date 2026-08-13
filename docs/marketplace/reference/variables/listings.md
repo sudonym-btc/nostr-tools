@@ -2,8 +2,6 @@
 
 > `const` **listings**: `object`
 
-Defined in: [nostr-tools/marketplace/listing.ts:375](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/listing.ts#L375)
-
 ## Type Declaration
 
 ### anchor

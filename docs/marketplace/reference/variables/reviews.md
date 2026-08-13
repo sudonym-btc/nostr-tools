@@ -2,8 +2,6 @@
 
 > `const` **reviews**: `object`
 
-Defined in: [nostr-tools/marketplace/review.ts:183](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/review.ts#L183)
-
 ## Type Declaration
 
 ### filter

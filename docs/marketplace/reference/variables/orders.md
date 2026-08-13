@@ -2,8 +2,6 @@
 
 > `const` **orders**: `object`
 
-Defined in: [nostr-tools/marketplace/order.ts:380](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order.ts#L380)
-
 ## Type Declaration
 
 ### cancelTemplate

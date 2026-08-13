@@ -1,14 +1,10 @@
 # Interface: MarketplaceSessionSeedApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1330](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1330)
-
 ## Properties
 
 ### created
 
 > **created**: `boolean`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1331](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1331)
 
 ***
 
@@ -16,15 +12,11 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1331](https://github.com/s
 
 > `optional` **event?**: `NostrEvent`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1332](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1332)
-
 ## Methods
 
 ### ensureCreated()
 
 > **ensureCreated**(`options?`): `Promise`\<[`MarketplaceSessionSeedEnsureResult`](../type-aliases/MarketplaceSessionSeedEnsureResult.md)\>
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1333](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1333)
 
 #### Parameters
 
@@ -41,8 +33,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1333](https://github.com/s
 ### owns()
 
 > **owns**(`pubkey`, `path?`): `boolean`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1334](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1334)
 
 #### Parameters
 

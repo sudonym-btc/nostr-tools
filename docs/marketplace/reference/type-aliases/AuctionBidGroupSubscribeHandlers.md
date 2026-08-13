@@ -2,15 +2,11 @@
 
 > **AuctionBidGroupSubscribeHandlers** = `object`
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:133](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L133)
-
 ## Properties
 
 ### onclose?
 
 > `optional` **onclose?**: (`reasons`) => `void`
-
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:139](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L139)
 
 #### Parameters
 
@@ -28,8 +24,6 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:139](https://github.co
 
 > `optional` **oneose?**: () => `void`
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:138](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L138)
-
 #### Returns
 
 `void`
@@ -39,8 +33,6 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:138](https://github.co
 ### onevent?
 
 > `optional` **onevent?**: (`event`) => `void`
-
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:134](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L134)
 
 #### Parameters
 
@@ -58,8 +50,6 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:134](https://github.co
 
 > `optional` **ongroup?**: (`group`) => `void`
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:135](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L135)
-
 #### Parameters
 
 ##### group
@@ -76,8 +66,6 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:135](https://github.co
 
 > `optional` **ongroups?**: (`groups`) => `void`
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:136](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L136)
-
 #### Parameters
 
 ##### groups
@@ -93,8 +81,6 @@ Defined in: [nostr-tools/marketplace/auction-bid-group.ts:136](https://github.co
 ### oninvalid?
 
 > `optional` **oninvalid?**: (`event`, `error`) => `void`
-
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:137](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L137)
 
 #### Parameters
 

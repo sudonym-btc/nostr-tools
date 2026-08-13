@@ -2,8 +2,6 @@
 
 > `const` **paymentProofs**: `object`
 
-Defined in: [nostr-tools/marketplace/payment-proof.ts:502](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-proof.ts#L502)
-
 ## Type Declaration
 
 ### build
@@ -31,6 +29,26 @@ Defined in: [nostr-tools/marketplace/payment-proof.ts:502](https://github.com/su
 ##### proof
 
 > **proof**: [`PaymentProof`](../type-aliases/PaymentProof.md) \| [`SealedPaymentProof`](../type-aliases/SealedPaymentProof.md)
+
+### buildWithSigner
+
+> **buildWithSigner**: (`proof`, `options`) => `Promise`\<\{ `paymentProofKeys`: `ProofDisclosureKeyTag`[]; `proof`: [`SealedPaymentProof`](../type-aliases/SealedPaymentProof.md); \}\> = `buildPaymentProofPayloadWithSigner`
+
+Seal a complete proof when the publisher is a remote signer.
+
+#### Parameters
+
+##### proof
+
+[`PaymentProof`](../type-aliases/PaymentProof.md)
+
+##### options
+
+[`BuildPaymentProofPayloadWithSignerOptions`](../type-aliases/BuildPaymentProofPayloadWithSignerOptions.md)
+
+#### Returns
+
+`Promise`\<\{ `paymentProofKeys`: `ProofDisclosureKeyTag`[]; `proof`: [`SealedPaymentProof`](../type-aliases/SealedPaymentProof.md); \}\>
 
 ### id
 

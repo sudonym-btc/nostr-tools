@@ -2,23 +2,17 @@
 
 > **PaymentGroupValidationOptions** = `object`
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:127](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L127)
-
 ## Properties
 
 ### arbiterPubkeys?
 
 > `optional` **arbiterPubkeys?**: `Iterable`\<`string` \| `undefined`\>
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:129](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L129)
-
 ***
 
 ### forceDriverValidation?
 
 > `optional` **forceDriverValidation?**: (`group`) => `boolean`
-
-Defined in: [nostr-tools/marketplace/payment-group.ts:132](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L132)
 
 #### Parameters
 
@@ -35,8 +29,6 @@ Defined in: [nostr-tools/marketplace/payment-group.ts:132](https://github.com/su
 ### isTrustedAck?
 
 > `optional` **isTrustedAck?**: (`ack`, `group`) => `boolean`
-
-Defined in: [nostr-tools/marketplace/payment-group.ts:130](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L130)
 
 #### Parameters
 
@@ -58,8 +50,6 @@ Defined in: [nostr-tools/marketplace/payment-group.ts:130](https://github.com/su
 
 > `optional` **isTrustedNack?**: (`nack`, `group`) => `boolean`
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:131](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L131)
-
 #### Parameters
 
 ##### nack
@@ -79,5 +69,3 @@ Defined in: [nostr-tools/marketplace/payment-group.ts:131](https://github.com/su
 ### sellerPubkeys?
 
 > `optional` **sellerPubkeys?**: `Iterable`\<`string` \| `undefined`\>
-
-Defined in: [nostr-tools/marketplace/payment-group.ts:128](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L128)

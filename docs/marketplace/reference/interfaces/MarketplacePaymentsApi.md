@@ -1,14 +1,10 @@
 # Interface: MarketplacePaymentsApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1276](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1276)
-
 ## Properties
 
 ### group
 
 > **group**: (`sources`, `options`) => [`MarketplacePaymentGroupStream`](../type-aliases/MarketplacePaymentGroupStream.md)
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1277](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1277)
 
 #### Parameters
 
@@ -29,8 +25,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1277](https://github.com/s
 ### terms
 
 > **terms**: `object`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1278](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1278)
 
 #### settlementOptions
 
@@ -66,8 +60,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1278](https://github.com/s
 
 > **validateGroup**: (`group`, `options`) => [`PaymentValidation`](../type-aliases/PaymentValidation.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1279](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1279)
-
 #### Parameters
 
 ##### group
@@ -88,8 +80,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1279](https://github.com/s
 
 > **validateGroups**: (`groups`, `options`) => [`MarketplacePaymentValidationStream`](../type-aliases/MarketplacePaymentValidationStream.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1280](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1280)
-
 #### Parameters
 
 ##### groups
@@ -109,8 +99,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1280](https://github.com/s
 ### validate()
 
 > **validate**(`payment`): `Promise`\<[`MarketplacePaymentValidationResult`](../type-aliases/MarketplacePaymentValidationResult.md)\>
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1281](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1281)
 
 #### Parameters
 

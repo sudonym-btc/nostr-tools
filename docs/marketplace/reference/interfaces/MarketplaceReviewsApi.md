@@ -1,14 +1,10 @@
 # Interface: MarketplaceReviewsApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1010](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1010)
-
 ## Properties
 
 ### parse
 
 > **parse**: (`event`) => [`ParsedReview`](../type-aliases/ParsedReview.md)
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1011](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1011)
 
 #### Parameters
 
@@ -26,8 +22,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1011](https://github.com/s
 
 > **resolveProof**: (`review`) => [`ParticipantProofResolution`](../type-aliases/ParticipantProofResolution.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1014](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1014)
-
 #### Parameters
 
 ##### review
@@ -43,8 +37,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1014](https://github.com/s
 ### revealedBuyerPubkey
 
 > **revealedBuyerPubkey**: (`review`) => `string` \| `undefined`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1015](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1015)
 
 #### Parameters
 
@@ -62,8 +54,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1015](https://github.com/s
 
 > **template**: (`review`) => `EventTemplate`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1013](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1013)
-
 #### Parameters
 
 ##### review
@@ -80,8 +70,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1013](https://github.com/s
 
 > **validate**: (`event`) => `boolean`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1012](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1012)
-
 #### Parameters
 
 ##### event
@@ -97,8 +85,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1012](https://github.com/s
 ### search()
 
 > **search**(`query?`, `options?`): `Promise`\<[`ParsedReview`](../type-aliases/ParsedReview.md)[]\>
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1016](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1016)
 
 #### Parameters
 

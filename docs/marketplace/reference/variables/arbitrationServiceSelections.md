@@ -2,8 +2,6 @@
 
 > `const` **arbitrationServiceSelections**: `object`
 
-Defined in: [nostr-tools/marketplace/arbitrationservice.ts:256](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/arbitrationservice.ts#L256)
-
 ## Type Declaration
 
 ### parse

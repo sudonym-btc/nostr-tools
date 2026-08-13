@@ -1,7 +1,5 @@
 # Class: MarketplaceStream\<TEvent, TSnapshot\>
 
-Defined in: [nostr-tools/marketplace/stream.ts:144](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L144)
-
 ## Type Parameters
 
 ### TEvent
@@ -17,8 +15,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:144](https://github.com/sudonym-b
 ### Constructor
 
 > **new MarketplaceStream**\<`TEvent`, `TSnapshot`\>(`options?`): `MarketplaceStream`\<`TEvent`, `TSnapshot`\>
-
-Defined in: [nostr-tools/marketplace/stream.ts:153](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L153)
 
 #### Parameters
 
@@ -36,15 +32,11 @@ Defined in: [nostr-tools/marketplace/stream.ts:153](https://github.com/sudonym-b
 
 > `readonly` **events**: [`ReplayStream`](ReplayStream.md)\<`TEvent`\>
 
-Defined in: [nostr-tools/marketplace/stream.ts:146](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L146)
-
 ***
 
 ### snapshot
 
 > `readonly` **snapshot**: [`ReplayStream`](ReplayStream.md)\<`TSnapshot`\>
-
-Defined in: [nostr-tools/marketplace/stream.ts:148](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L148)
 
 ***
 
@@ -52,15 +44,11 @@ Defined in: [nostr-tools/marketplace/stream.ts:148](https://github.com/sudonym-b
 
 > `readonly` **status**: [`ReplayStream`](ReplayStream.md)\<`StreamState`\>
 
-Defined in: [nostr-tools/marketplace/stream.ts:145](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L145)
-
 ***
 
 ### stream
 
 > `readonly` **stream**: [`ReplayStream`](ReplayStream.md)\<`TEvent`\>
-
-Defined in: [nostr-tools/marketplace/stream.ts:147](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L147)
 
 ## Accessors
 
@@ -69,8 +57,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:147](https://github.com/sudonym-b
 #### Get Signature
 
 > **get** **currentSnapshot**(): `TSnapshot` \| `undefined`
-
-Defined in: [nostr-tools/marketplace/stream.ts:171](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L171)
 
 ##### Returns
 
@@ -84,8 +70,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:171](https://github.com/sudonym-b
 
 > **get** **currentStatus**(): `StreamState` \| `undefined`
 
-Defined in: [nostr-tools/marketplace/stream.ts:167](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L167)
-
 ##### Returns
 
 `StreamState` \| `undefined`
@@ -95,8 +79,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:167](https://github.com/sudonym-b
 ### close()
 
 > **close**(`reason?`): `void`
-
-Defined in: [nostr-tools/marketplace/stream.ts:252](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L252)
 
 #### Parameters
 
@@ -114,8 +96,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:252](https://github.com/sudonym-b
 
 > **emitEvent**(`event`): `void`
 
-Defined in: [nostr-tools/marketplace/stream.ts:179](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L179)
-
 #### Parameters
 
 ##### event
@@ -131,8 +111,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:179](https://github.com/sudonym-b
 ### emitSnapshot()
 
 > **emitSnapshot**(`snapshot`): `void`
-
-Defined in: [nostr-tools/marketplace/stream.ts:183](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L183)
 
 #### Parameters
 
@@ -150,8 +128,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:183](https://github.com/sudonym-b
 
 > **emitStatus**(`state`): `void`
 
-Defined in: [nostr-tools/marketplace/stream.ts:175](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L175)
-
 #### Parameters
 
 ##### state
@@ -167,8 +143,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:175](https://github.com/sudonym-b
 ### fail()
 
 > **fail**(`error`, `options?`): [`StreamError`](StreamError.md)
-
-Defined in: [nostr-tools/marketplace/stream.ts:205](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L205)
 
 #### Parameters
 
@@ -194,8 +168,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:205](https://github.com/sudonym-b
 
 > **filter**\<`TNext`\>(`predicate`, `options?`): `MarketplaceStream`\<`TNext`, `TSnapshot`\>
 
-Defined in: [nostr-tools/marketplace/stream.ts:211](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L211)
-
 ##### Type Parameters
 
 ###### TNext
@@ -220,8 +192,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:211](https://github.com/sudonym-b
 
 > **filter**(`predicate`, `options?`): `MarketplaceStream`\<`TEvent`, `TSnapshot`\>
 
-Defined in: [nostr-tools/marketplace/stream.ts:215](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L215)
-
 ##### Parameters
 
 ###### predicate
@@ -241,8 +211,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:215](https://github.com/sudonym-b
 ### markEose()
 
 > **markEose**(`options?`): [`StreamEose`](StreamEose.md)
-
-Defined in: [nostr-tools/marketplace/stream.ts:193](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L193)
 
 #### Parameters
 
@@ -265,8 +233,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:193](https://github.com/sudonym-b
 ### markLive()
 
 > **markLive**(`options?`): [`StreamLive`](StreamLive.md)
-
-Defined in: [nostr-tools/marketplace/stream.ts:199](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L199)
 
 #### Parameters
 
@@ -294,8 +260,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:199](https://github.com/sudonym-b
 
 > **markQuerying**(`options?`): [`StreamQuerying`](StreamQuerying.md)
 
-Defined in: [nostr-tools/marketplace/stream.ts:187](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L187)
-
 #### Parameters
 
 ##### options?
@@ -317,8 +281,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:187](https://github.com/sudonym-b
 ### until()
 
 > **until**\<`TState`\>(`stateType`): `Promise`\<`TState`\>
-
-Defined in: [nostr-tools/marketplace/stream.ts:237](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L237)
 
 #### Type Parameters
 

@@ -1,7 +1,5 @@
 # Class: ReplayStream\<T\>
 
-Defined in: [nostr-tools/marketplace/stream.ts:21](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L21)
-
 ## Type Parameters
 
 ### T
@@ -13,8 +11,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:21](https://github.com/sudonym-bt
 ### Constructor
 
 > **new ReplayStream**\<`T`\>(`options?`): `ReplayStream`\<`T`\>
-
-Defined in: [nostr-tools/marketplace/stream.ts:26](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L26)
 
 #### Parameters
 
@@ -34,8 +30,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:26](https://github.com/sudonym-bt
 
 > **get** **latest**(): `T` \| `undefined`
 
-Defined in: [nostr-tools/marketplace/stream.ts:35](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L35)
-
 ##### Returns
 
 `T` \| `undefined`
@@ -47,8 +41,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:35](https://github.com/sudonym-bt
 #### Get Signature
 
 > **get** **value**(): `T` \| `undefined`
-
-Defined in: [nostr-tools/marketplace/stream.ts:39](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L39)
 
 ##### Returns
 
@@ -62,8 +54,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:39](https://github.com/sudonym-bt
 
 > **get** **values**(): readonly `T`[]
 
-Defined in: [nostr-tools/marketplace/stream.ts:31](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L31)
-
 ##### Returns
 
 readonly `T`[]
@@ -74,8 +64,6 @@ readonly `T`[]
 
 > **clear**(): `void`
 
-Defined in: [nostr-tools/marketplace/stream.ts:68](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L68)
-
 #### Returns
 
 `void`
@@ -85,8 +73,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:68](https://github.com/sudonym-bt
 ### next()
 
 > **next**(`value`): `void`
-
-Defined in: [nostr-tools/marketplace/stream.ts:43](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L43)
 
 #### Parameters
 
@@ -103,8 +89,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:43](https://github.com/sudonym-bt
 ### subscribe()
 
 > **subscribe**(`handler`, `options?`): [`ReplayStreamSubscription`](../type-aliases/ReplayStreamSubscription.md)
-
-Defined in: [nostr-tools/marketplace/stream.ts:53](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L53)
 
 #### Parameters
 

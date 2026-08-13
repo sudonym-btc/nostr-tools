@@ -1,7 +1,5 @@
 # Class: StreamClosed
 
-Defined in: [nostr-tools/marketplace/stream.ts:112](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L112)
-
 ## Extends
 
 - `StreamState`
@@ -11,8 +9,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:112](https://github.com/sudonym-b
 ### Constructor
 
 > **new StreamClosed**(`options?`): `StreamClosed`
-
-Defined in: [nostr-tools/marketplace/stream.ts:115](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L115)
 
 #### Parameters
 
@@ -40,8 +36,6 @@ Defined in: [nostr-tools/marketplace/stream.ts:115](https://github.com/sudonym-b
 
 > `readonly` **at**: `number`
 
-Defined in: [nostr-tools/marketplace/stream.ts:74](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L74)
-
 #### Inherited from
 
 `StreamState.at`
@@ -51,5 +45,3 @@ Defined in: [nostr-tools/marketplace/stream.ts:74](https://github.com/sudonym-bt
 ### reasons
 
 > `readonly` **reasons**: `string`[]
-
-Defined in: [nostr-tools/marketplace/stream.ts:113](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/stream.ts#L113)

@@ -2,15 +2,11 @@
 
 > **OrderQuery** = `object`
 
-Defined in: [nostr-tools/marketplace/order-query.ts:21](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L21)
-
 ## Properties
 
 ### authors?
 
 > `optional` **authors?**: `string`[]
-
-Defined in: [nostr-tools/marketplace/order-query.ts:25](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L25)
 
 ***
 
@@ -18,15 +14,11 @@ Defined in: [nostr-tools/marketplace/order-query.ts:25](https://github.com/sudon
 
 > `optional` **identity?**: [`MarketplaceOrderIdentity`](MarketplaceOrderIdentity.md)
 
-Defined in: [nostr-tools/marketplace/order-query.ts:27](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L27)
-
 ***
 
 ### limit?
 
 > `optional` **limit?**: `number`
-
-Defined in: [nostr-tools/marketplace/order-query.ts:30](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L30)
 
 ***
 
@@ -34,15 +26,11 @@ Defined in: [nostr-tools/marketplace/order-query.ts:30](https://github.com/sudon
 
 > `optional` **listingAnchors?**: `string`[]
 
-Defined in: [nostr-tools/marketplace/order-query.ts:24](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L24)
-
 ***
 
 ### orderGroupIds?
 
 > `optional` **orderGroupIds?**: `string`[]
-
-Defined in: [nostr-tools/marketplace/order-query.ts:23](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L23)
 
 ***
 
@@ -50,15 +38,11 @@ Defined in: [nostr-tools/marketplace/order-query.ts:23](https://github.com/sudon
 
 > `optional` **participantPubkeys?**: `string`[]
 
-Defined in: [nostr-tools/marketplace/order-query.ts:26](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L26)
-
 ***
 
 ### since?
 
 > `optional` **since?**: `number`
-
-Defined in: [nostr-tools/marketplace/order-query.ts:28](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L28)
 
 ***
 
@@ -66,12 +50,8 @@ Defined in: [nostr-tools/marketplace/order-query.ts:28](https://github.com/sudon
 
 > `optional` **tradeIds?**: `string`[]
 
-Defined in: [nostr-tools/marketplace/order-query.ts:22](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L22)
-
 ***
 
 ### until?
 
 > `optional` **until?**: `number`
-
-Defined in: [nostr-tools/marketplace/order-query.ts:29](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-query.ts#L29)

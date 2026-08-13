@@ -1,14 +1,10 @@
 # Interface: MarketplaceAuctionBidGroupsApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1262](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1262)
-
 ## Properties
 
 ### chains
 
 > **chains**: (`groups`) => [`ParsedAuctionBidChain`](../type-aliases/ParsedAuctionBidChain.md)[]
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1267](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1267)
 
 #### Parameters
 
@@ -26,8 +22,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1267](https://github.com/s
 
 > **filter**: (`query`) => `Filter`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1263](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1263)
-
 #### Parameters
 
 ##### query
@@ -43,8 +37,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1263](https://github.com/s
 ### filters
 
 > **filters**: (`query`) => `Filter`[]
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1264](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1264)
 
 #### Parameters
 
@@ -62,8 +54,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1264](https://github.com/s
 
 > **group**: (`events`) => [`ParsedAuctionBidGroup`](../type-aliases/ParsedAuctionBidGroup.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1266](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1266)
-
 #### Parameters
 
 ##### events
@@ -80,8 +70,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1266](https://github.com/s
 
 > **reduce**: (`events`) => [`ParsedAuctionBidGroup`](../type-aliases/ParsedAuctionBidGroup.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1265](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1265)
-
 #### Parameters
 
 ##### events
@@ -97,8 +85,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1265](https://github.com/s
 ### fetch()
 
 > **fetch**(`query`, `options?`): `Promise`\<[`ParsedAuctionBidGroup`](../type-aliases/ParsedAuctionBidGroup.md)[]\>
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1268](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1268)
 
 #### Parameters
 
@@ -119,8 +105,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1268](https://github.com/s
 ### subscribe()
 
 > **subscribe**(`query`, `handlers`, `options?`): `SubCloser`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1269](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1269)
 
 #### Parameters
 

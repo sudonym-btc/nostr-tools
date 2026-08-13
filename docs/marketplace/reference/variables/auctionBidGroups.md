@@ -2,8 +2,6 @@
 
 > `const` **auctionBidGroups**: `object`
 
-Defined in: [nostr-tools/marketplace/auction-bid-group.ts:628](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-bid-group.ts#L628)
-
 ## Type Declaration
 
 ### chains

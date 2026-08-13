@@ -1,14 +1,10 @@
 # Interface: MarketplaceArbitrationServicesApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:942](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L942)
-
 ## Properties
 
 ### calculateFee
 
 > **calculateFee**: (`fee`, `amount`, `asset`) => `bigint`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:949](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L949)
 
 #### Parameters
 
@@ -34,8 +30,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:949](https://github.com/su
 
 > **filter**: (`query`) => `Filter`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:946](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L946)
-
 #### Parameters
 
 ##### query?
@@ -51,8 +45,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:946](https://github.com/su
 ### parse
 
 > **parse**: (`event`) => [`ParsedArbitrationService`](../type-aliases/ParsedArbitrationService.md)
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:943](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L943)
 
 #### Parameters
 
@@ -70,8 +62,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:943](https://github.com/su
 
 > **template**: (`service`) => `EventTemplate`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:945](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L945)
-
 #### Parameters
 
 ##### service
@@ -88,8 +78,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:945](https://github.com/su
 
 > **validate**: (`event`) => `boolean`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:944](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L944)
-
 #### Parameters
 
 ##### event
@@ -105,8 +93,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:944](https://github.com/su
 ### findOne()
 
 > **findOne**(`query?`, `options?`): `Promise`\<[`ParsedArbitrationService`](../type-aliases/ParsedArbitrationService.md) \| `null`\>
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:948](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L948)
 
 #### Parameters
 
@@ -127,8 +113,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:948](https://github.com/su
 ### search()
 
 > **search**(`query?`, `options?`): `Promise`\<[`ParsedArbitrationService`](../type-aliases/ParsedArbitrationService.md)[]\>
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:947](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L947)
 
 #### Parameters
 

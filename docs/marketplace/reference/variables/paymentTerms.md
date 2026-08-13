@@ -2,8 +2,6 @@
 
 > `const` **paymentTerms**: `object`
 
-Defined in: [nostr-tools/marketplace/payment-terms.ts:128](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-terms.ts#L128)
-
 ## Type Declaration
 
 ### settlementOptions

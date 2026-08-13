@@ -2,20 +2,14 @@
 
 > **MarketplaceAuctionSearchOptions** = `object`
 
-Defined in: [nostr-tools/marketplace/auction-query.ts:26](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L26)
-
 ## Properties
 
 ### maxWait?
 
 > `optional` **maxWait?**: `number`
 
-Defined in: [nostr-tools/marketplace/auction-query.ts:27](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L27)
-
 ***
 
 ### oninvalid?
 
 > `optional` **oninvalid?**: [`MarketplaceInvalidEventHandler`](MarketplaceInvalidEventHandler.md)
-
-Defined in: [nostr-tools/marketplace/auction-query.ts:28](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/auction-query.ts#L28)

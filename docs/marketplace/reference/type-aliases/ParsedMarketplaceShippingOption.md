@@ -2,15 +2,11 @@
 
 > **ParsedMarketplaceShippingOption** = `object`
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:38](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L38)
-
 ## Properties
 
 ### carrier?
 
 > `optional` **carrier?**: `string`
-
-Defined in: [nostr-tools/marketplace/shipping-option.ts:46](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L46)
 
 ***
 
@@ -18,15 +14,11 @@ Defined in: [nostr-tools/marketplace/shipping-option.ts:46](https://github.com/s
 
 > **countries**: `string`[]
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:44](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L44)
-
 ***
 
 ### d
 
 > **d**: `string`
-
-Defined in: [nostr-tools/marketplace/shipping-option.ts:40](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L40)
 
 ***
 
@@ -34,15 +26,11 @@ Defined in: [nostr-tools/marketplace/shipping-option.ts:40](https://github.com/s
 
 > **description**: `string`
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:42](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L42)
-
 ***
 
 ### dimMax?
 
 > `optional` **dimMax?**: [`ShippingOptionDimensions`](ShippingOptionDimensions.md)
-
-Defined in: [nostr-tools/marketplace/shipping-option.ts:54](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L54)
 
 ***
 
@@ -50,15 +38,11 @@ Defined in: [nostr-tools/marketplace/shipping-option.ts:54](https://github.com/s
 
 > `optional` **dimMin?**: [`ShippingOptionDimensions`](ShippingOptionDimensions.md)
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:53](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L53)
-
 ***
 
 ### duration?
 
 > `optional` **duration?**: [`ShippingOptionDuration`](ShippingOptionDuration.md)
-
-Defined in: [nostr-tools/marketplace/shipping-option.ts:48](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L48)
 
 ***
 
@@ -66,15 +50,11 @@ Defined in: [nostr-tools/marketplace/shipping-option.ts:48](https://github.com/s
 
 > **event**: `Event`
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:39](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L39)
-
 ***
 
 ### geohash?
 
 > `optional` **geohash?**: `string`
-
-Defined in: [nostr-tools/marketplace/shipping-option.ts:50](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L50)
 
 ***
 
@@ -82,15 +62,11 @@ Defined in: [nostr-tools/marketplace/shipping-option.ts:50](https://github.com/s
 
 > `optional` **location?**: `string`
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:49](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L49)
-
 ***
 
 ### price
 
 > **price**: [`ShippingOptionPrice`](ShippingOptionPrice.md)
-
-Defined in: [nostr-tools/marketplace/shipping-option.ts:43](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L43)
 
 ***
 
@@ -98,15 +74,11 @@ Defined in: [nostr-tools/marketplace/shipping-option.ts:43](https://github.com/s
 
 > `optional` **priceDistance?**: [`ShippingOptionRate`](ShippingOptionRate.md)
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:57](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L57)
-
 ***
 
 ### priceVolume?
 
 > `optional` **priceVolume?**: [`ShippingOptionRate`](ShippingOptionRate.md)
-
-Defined in: [nostr-tools/marketplace/shipping-option.ts:56](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L56)
 
 ***
 
@@ -114,15 +86,11 @@ Defined in: [nostr-tools/marketplace/shipping-option.ts:56](https://github.com/s
 
 > `optional` **priceWeight?**: [`ShippingOptionRate`](ShippingOptionRate.md)
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:55](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L55)
-
 ***
 
 ### regions
 
 > **regions**: `string`[]
-
-Defined in: [nostr-tools/marketplace/shipping-option.ts:47](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L47)
 
 ***
 
@@ -130,15 +98,11 @@ Defined in: [nostr-tools/marketplace/shipping-option.ts:47](https://github.com/s
 
 > **service**: [`ShippingOptionService`](ShippingOptionService.md)
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:45](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L45)
-
 ***
 
 ### title
 
 > **title**: `string`
-
-Defined in: [nostr-tools/marketplace/shipping-option.ts:41](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L41)
 
 ***
 
@@ -146,12 +110,8 @@ Defined in: [nostr-tools/marketplace/shipping-option.ts:41](https://github.com/s
 
 > `optional` **weightMax?**: [`ShippingOptionMeasurement`](ShippingOptionMeasurement.md)
 
-Defined in: [nostr-tools/marketplace/shipping-option.ts:52](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L52)
-
 ***
 
 ### weightMin?
 
 > `optional` **weightMin?**: [`ShippingOptionMeasurement`](ShippingOptionMeasurement.md)
-
-Defined in: [nostr-tools/marketplace/shipping-option.ts:51](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/shipping-option.ts#L51)

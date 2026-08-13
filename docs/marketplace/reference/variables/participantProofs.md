@@ -2,8 +2,6 @@
 
 > `const` **participantProofs**: `object`
 
-Defined in: [nostr-tools/marketplace/participant-proof.ts:366](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/participant-proof.ts#L366)
-
 ## Type Declaration
 
 ### disclosureKeyWrap
@@ -33,6 +31,38 @@ Defined in: [nostr-tools/marketplace/participant-proof.ts:366](https://github.co
 #### Returns
 
 `ProofDisclosureKeyTag`
+
+### disclosureKeyWrapWithSigner
+
+> **disclosureKeyWrapWithSigner**: (`opts`) => `Promise`\<`ProofDisclosureKeyTag`\> = `proofDisclosureKeyWrapWithSigner`
+
+#### Parameters
+
+##### opts
+
+###### disclosureKey
+
+`Uint8Array`
+
+###### proofId
+
+`string`
+
+###### recipientPubkey
+
+`string`
+
+###### senderPubkey?
+
+`string`
+
+###### signer
+
+[`ParticipantProofEncryptSigner`](../type-aliases/ParticipantProofEncryptSigner.md)
+
+#### Returns
+
+`Promise`\<`ProofDisclosureKeyTag`\>
 
 ### hashPayload
 

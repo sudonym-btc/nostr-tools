@@ -1,14 +1,10 @@
 # Interface: MarketplaceAuctionCompletesApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1249](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1249)
-
 ## Properties
 
 ### filter
 
 > **filter**: (`query`) => `Filter`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1250](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1250)
 
 #### Parameters
 
@@ -25,8 +21,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1250](https://github.com/s
 ### search()
 
 > **search**(`query?`, `options?`): `Promise`\<[`ParsedMarketplaceAuctionComplete`](../type-aliases/ParsedMarketplaceAuctionComplete.md)[]\>
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1251](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1251)
 
 #### Parameters
 
@@ -47,8 +41,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1251](https://github.com/s
 ### subscribe()
 
 > **subscribe**(`query`, `handlers`, `options?`): `SubCloser`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1255](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1255)
 
 #### Parameters
 

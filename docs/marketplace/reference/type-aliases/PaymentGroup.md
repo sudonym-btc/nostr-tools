@@ -2,15 +2,11 @@
 
 > **PaymentGroup** = `object`
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:36](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L36)
-
 ## Properties
 
 ### anchors?
 
 > `optional` **anchors?**: [`PaymentLifecycleAnchors`](PaymentLifecycleAnchors.md)
-
-Defined in: [nostr-tools/marketplace/payment-group.ts:49](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L49)
 
 ***
 
@@ -18,15 +14,11 @@ Defined in: [nostr-tools/marketplace/payment-group.ts:49](https://github.com/sud
 
 > **complete**: `boolean`
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:46](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L46)
-
 ***
 
 ### events
 
 > **events**: [`PaymentGroupEvent`](PaymentGroupEvent.md)[]
-
-Defined in: [nostr-tools/marketplace/payment-group.ts:43](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L43)
 
 ***
 
@@ -34,15 +26,11 @@ Defined in: [nostr-tools/marketplace/payment-group.ts:43](https://github.com/sud
 
 > **id**: `string`
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:37](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L37)
-
 ***
 
 ### listingAnchor?
 
 > `optional` **listingAnchor?**: `string`
-
-Defined in: [nostr-tools/marketplace/payment-group.ts:50](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L50)
 
 ***
 
@@ -50,15 +38,11 @@ Defined in: [nostr-tools/marketplace/payment-group.ts:50](https://github.com/sud
 
 > `optional` **orderGroupId?**: `string`
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:47](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L47)
-
 ***
 
 ### payment?
 
 > `optional` **payment?**: [`ParsedPayment`](ParsedPayment.md)
-
-Defined in: [nostr-tools/marketplace/payment-group.ts:51](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L51)
 
 ***
 
@@ -66,15 +50,11 @@ Defined in: [nostr-tools/marketplace/payment-group.ts:51](https://github.com/sud
 
 > `optional` **paymentAck?**: [`ParsedPaymentAck`](ParsedPaymentAck.md)
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:52](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L52)
-
 ***
 
 ### paymentAcks
 
 > **paymentAcks**: [`ParsedPaymentAck`](ParsedPaymentAck.md)[]
-
-Defined in: [nostr-tools/marketplace/payment-group.ts:40](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L40)
 
 ***
 
@@ -82,15 +62,11 @@ Defined in: [nostr-tools/marketplace/payment-group.ts:40](https://github.com/sud
 
 > **paymentIds**: `string`[]
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:38](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L38)
-
 ***
 
 ### paymentNack?
 
 > `optional` **paymentNack?**: [`ParsedPaymentNack`](ParsedPaymentNack.md)
-
-Defined in: [nostr-tools/marketplace/payment-group.ts:53](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L53)
 
 ***
 
@@ -98,15 +74,11 @@ Defined in: [nostr-tools/marketplace/payment-group.ts:53](https://github.com/sud
 
 > **paymentNacks**: [`ParsedPaymentNack`](ParsedPaymentNack.md)[]
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:41](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L41)
-
 ***
 
 ### payments
 
 > **payments**: [`ParsedPayment`](ParsedPayment.md)[]
-
-Defined in: [nostr-tools/marketplace/payment-group.ts:39](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L39)
 
 ***
 
@@ -114,15 +86,11 @@ Defined in: [nostr-tools/marketplace/payment-group.ts:39](https://github.com/sud
 
 > `optional` **settlement?**: [`ParsedPaymentSettlement`](ParsedPaymentSettlement.md)
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:54](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L54)
-
 ***
 
 ### settlements
 
 > **settlements**: [`ParsedPaymentSettlement`](ParsedPaymentSettlement.md)[]
-
-Defined in: [nostr-tools/marketplace/payment-group.ts:42](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L42)
 
 ***
 
@@ -130,20 +98,14 @@ Defined in: [nostr-tools/marketplace/payment-group.ts:42](https://github.com/sud
 
 > **stage**: [`PaymentGroupStage`](PaymentGroupStage.md)
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:44](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L44)
-
 ***
 
 ### tradeId?
 
 > `optional` **tradeId?**: `string`
 
-Defined in: [nostr-tools/marketplace/payment-group.ts:48](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L48)
-
 ***
 
 ### updatedAt
 
 > **updatedAt**: `number`
-
-Defined in: [nostr-tools/marketplace/payment-group.ts:45](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-group.ts#L45)

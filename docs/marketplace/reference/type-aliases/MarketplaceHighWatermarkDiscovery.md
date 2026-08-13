@@ -2,15 +2,11 @@
 
 > **MarketplaceHighWatermarkDiscovery** = `object`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:298](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L298)
-
 ## Properties
 
 ### converged
 
 > **converged**: `boolean`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:306](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L306)
 
 ***
 
@@ -18,15 +14,11 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:306](https://github.com/su
 
 > **maxUsedIndex**: `number`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:300](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L300)
-
 ***
 
 ### nextUnusedIndex
 
 > **nextUnusedIndex**: `number`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:301](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L301)
 
 ***
 
@@ -34,15 +26,11 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:301](https://github.com/su
 
 > **passes**: [`MarketplaceHighWatermarkPass`](MarketplaceHighWatermarkPass.md)[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:303](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L303)
-
 ***
 
 ### policyResults
 
 > **policyResults**: [`MarketplacePolicyWatermarkDiscovery`](MarketplacePolicyWatermarkDiscovery.md)[]
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:304](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L304)
 
 ***
 
@@ -50,20 +38,14 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:304](https://github.com/su
 
 > **recoveryActions**: `unknown`[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:305](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L305)
-
 ***
 
 ### seed
 
 > **seed**: `string`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:299](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L299)
-
 ***
 
 ### unusedWindow
 
 > **unusedWindow**: `number`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:302](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L302)

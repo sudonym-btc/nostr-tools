@@ -1,14 +1,10 @@
 # Interface: MarketplaceMeBidRoleApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1077](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1077)
-
 ## Methods
 
 ### list()
 
 > **list**(`query?`, `options?`): `Promise`\<[`ParsedAuctionBidGroup`](../type-aliases/ParsedAuctionBidGroup.md)[]\>
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1078](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1078)
 
 #### Parameters
 
@@ -29,8 +25,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:1078](https://github.com/s
 ### watch()
 
 > **watch**(`query?`, `options?`): [`MarketplaceMeBidRoleStream`](../type-aliases/MarketplaceMeBidRoleStream.md)
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:1082](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L1082)
 
 #### Parameters
 

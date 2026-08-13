@@ -1,14 +1,10 @@
 # Interface: MarketplaceSessionPaymentMethodApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:338](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L338)
-
 ## Properties
 
 ### canonicalAssetId
 
 > **canonicalAssetId**: (`assetId`) => `string`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:344](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L344)
 
 #### Parameters
 
@@ -26,8 +22,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:344](https://github.com/su
 
 > **filter**: (`query`) => `Filter`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:342](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L342)
-
 #### Parameters
 
 ##### query?
@@ -43,8 +37,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:342](https://github.com/su
 ### parse
 
 > **parse**: (`event`) => [`ParsedPaymentMethod`](../type-aliases/ParsedPaymentMethod.md)
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:339](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L339)
 
 #### Parameters
 
@@ -62,8 +54,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:339](https://github.com/su
 
 > **template**: (`method`) => `EventTemplate`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:341](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L341)
-
 #### Parameters
 
 ##### method
@@ -79,8 +69,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:341](https://github.com/su
 ### validate
 
 > **validate**: (`event`) => `boolean`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:340](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L340)
 
 #### Parameters
 
@@ -98,8 +86,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:340](https://github.com/su
 
 > **ensureUpToDate**(`options?`): `Promise`\<[`MarketplacePaymentMethodEnsureResult`](../type-aliases/MarketplacePaymentMethodEnsureResult.md)\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:346](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L346)
-
 #### Parameters
 
 ##### options?
@@ -116,8 +102,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:346](https://github.com/su
 
 > **find**(): `Promise`\<[`ParsedPaymentMethod`](../type-aliases/ParsedPaymentMethod.md) \| `null`\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:345](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L345)
-
 #### Returns
 
 `Promise`\<[`ParsedPaymentMethod`](../type-aliases/ParsedPaymentMethod.md) \| `null`\>
@@ -127,8 +111,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:345](https://github.com/su
 ### findOne()
 
 > **findOne**(`query?`): `Promise`\<[`ParsedPaymentMethod`](../type-aliases/ParsedPaymentMethod.md) \| `null`\>
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:343](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L343)
 
 #### Parameters
 

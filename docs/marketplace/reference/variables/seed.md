@@ -2,9 +2,25 @@
 
 > `const` **seed**: `object`
 
-Defined in: [nostr-tools/marketplace/seed.ts:275](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/seed.ts#L275)
-
 ## Type Declaration
+
+### compareEvents
+
+> **compareEvents**: (`left`, `right`) => `number` = `compareMarketplaceSeedEvents`
+
+#### Parameters
+
+##### left
+
+`NostrEvent`
+
+##### right
+
+`NostrEvent`
+
+#### Returns
+
+`number`
 
 ### createEvent
 
@@ -115,6 +131,28 @@ Defined in: [nostr-tools/marketplace/seed.ts:275](https://github.com/sudonym-btc
 #### Returns
 
 `Promise`\<[`MarketplaceSeedResolution`](../type-aliases/MarketplaceSeedResolution.md)\>
+
+### fetchCandidates
+
+> **fetchCandidates**: (`pool`, `relays`, `pubkey`) => `Promise`\<`NostrEvent`[]\> = `fetchMarketplaceSeedCandidates`
+
+#### Parameters
+
+##### pool
+
+`Pick`\<`AbstractSimplePool`, `"querySync"`\>
+
+##### relays
+
+`string`[]
+
+##### pubkey
+
+`string`
+
+#### Returns
+
+`Promise`\<`NostrEvent`[]\>
 
 ### fetchEvent
 
@@ -271,3 +309,21 @@ Defined in: [nostr-tools/marketplace/seed.ts:275](https://github.com/sudonym-btc
 #### Returns
 
 `boolean`
+
+### validCandidates
+
+> **validCandidates**: (`events`, `pubkey`) => `NostrEvent`[] = `validMarketplaceSeedCandidates`
+
+#### Parameters
+
+##### events
+
+`Iterable`\<`NostrEvent`\>
+
+##### pubkey
+
+`string`
+
+#### Returns
+
+`NostrEvent`[]

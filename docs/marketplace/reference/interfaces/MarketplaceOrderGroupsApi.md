@@ -1,14 +1,10 @@
 # Interface: MarketplaceOrderGroupsApi
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:958](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L958)
-
 ## Properties
 
 ### filter
 
 > **filter**: (`query`) => `Filter`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:965](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L965)
 
 #### Parameters
 
@@ -25,8 +21,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:965](https://github.com/su
 ### group
 
 > **group**: (`events`, `options`) => [`ParsedOrderGroup`](../type-aliases/ParsedOrderGroup.md)[]
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:968](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L968)
 
 #### Parameters
 
@@ -48,8 +42,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:968](https://github.com/su
 
 > **id**: (`tradeId`, `participants`) => `string`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:959](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L959)
-
 #### Parameters
 
 ##### tradeId
@@ -70,8 +62,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:959](https://github.com/su
 
 > **idForEvent**: (`event`) => `string`
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:961](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L961)
-
 #### Parameters
 
 ##### event
@@ -87,8 +77,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:961](https://github.com/su
 ### idForOrder
 
 > **idForOrder**: (`order`) => `string`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:960](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L960)
 
 #### Parameters
 
@@ -106,8 +94,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:960](https://github.com/su
 
 > **parseParticipantEvent**: (`event`) => [`ParticipantGroupEvent`](../type-aliases/ParticipantGroupEvent.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:966](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L966)
-
 #### Parameters
 
 ##### event
@@ -123,8 +109,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:966](https://github.com/su
 ### participantEntries
 
 > **participantEntries**: (`event`) => [`MarketplaceParticipantEntry`](../type-aliases/MarketplaceParticipantEntry.md)[]
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:964](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L964)
 
 #### Parameters
 
@@ -142,8 +126,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:964](https://github.com/su
 
 > **participantPubkeys**: (`event`) => `string`[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:963](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L963)
-
 #### Parameters
 
 ##### event
@@ -160,8 +142,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:963](https://github.com/su
 
 > **participants**: (`order`) => `string`[]
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:962](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L962)
-
 #### Parameters
 
 ##### order
@@ -177,8 +157,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:962](https://github.com/su
 ### reduce
 
 > **reduce**: (`events`, `options`) => [`ParsedOrderGroup`](../type-aliases/ParsedOrderGroup.md)
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:967](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L967)
 
 #### Parameters
 
@@ -200,8 +178,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:967](https://github.com/su
 
 > **resolveParticipants**: (`group`, `options`) => `Promise`\<[`ResolvedOrderGroup`](../type-aliases/ResolvedOrderGroup.md)\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:969](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L969)
-
 #### Parameters
 
 ##### group
@@ -221,8 +197,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:969](https://github.com/su
 ### fetch()
 
 > **fetch**(`query?`, `options?`): `Promise`\<[`ParsedOrderGroup`](../type-aliases/ParsedOrderGroup.md)[]\>
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:975](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L975)
 
 #### Parameters
 
@@ -244,8 +218,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:975](https://github.com/su
 
 > **resolveAndValidate**(`group`, `options?`): `Promise`\<[`ValidatedOrderGroup`](../type-aliases/ValidatedOrderGroup.md)\>
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:971](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L971)
-
 #### Parameters
 
 ##### group
@@ -265,8 +237,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:971](https://github.com/su
 ### search()
 
 > **search**(`query?`, `options?`): `Promise`\<[`ParsedOrderGroup`](../type-aliases/ParsedOrderGroup.md)[]\>
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:976](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L976)
 
 #### Parameters
 
@@ -288,8 +258,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:976](https://github.com/su
 
 > **stream**(`query?`, `options?`): [`MarketplaceOrderGroupStream`](../type-aliases/MarketplaceOrderGroupStream.md)
 
-Defined in: [nostr-tools/marketplace/runtime-types.ts:982](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L982)
-
 #### Parameters
 
 ##### query?
@@ -309,8 +277,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:982](https://github.com/su
 ### subscribe()
 
 > **subscribe**(`query`, `handlers`, `options?`): `SubCloser`
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:977](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L977)
 
 #### Parameters
 
@@ -335,8 +301,6 @@ Defined in: [nostr-tools/marketplace/runtime-types.ts:977](https://github.com/su
 ### validatePayments()
 
 > **validatePayments**(`group`, `options?`): `Promise`\<[`ValidatedOrderGroup`](../type-aliases/ValidatedOrderGroup.md)\>
-
-Defined in: [nostr-tools/marketplace/runtime-types.ts:970](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/runtime-types.ts#L970)
 
 #### Parameters
 

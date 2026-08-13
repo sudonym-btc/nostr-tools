@@ -2,15 +2,11 @@
 
 > **PaymentSettlementContent** = `object`
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:140](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L140)
-
 ## Properties
 
 ### action
 
 > **action**: [`PaymentSettlementAction`](PaymentSettlementAction.md)
-
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:142](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L142)
 
 ***
 
@@ -18,15 +14,11 @@ Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:142](https://github.co
 
 > `optional` **data?**: `Record`\<`string`, `unknown`\>
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:145](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L145)
-
 ***
 
 ### inputs?
 
 > `optional` **inputs?**: `Record`\<`string`, `unknown`\>[]
-
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:143](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L143)
 
 ***
 
@@ -34,12 +26,24 @@ Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:143](https://github.co
 
 > **method**: [`PaymentMethod`](PaymentMethod.md)
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:141](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L141)
-
 ***
 
 ### outputs?
 
 > `optional` **outputs?**: [`PaymentSettlementOutput`](PaymentSettlementOutput.md)[]
 
-Defined in: [nostr-tools/marketplace/payment-lifecycle.ts:144](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/payment-lifecycle.ts#L144)
+***
+
+### proof?
+
+> `optional` **proof?**: [`PaymentProof`](PaymentProof.md)
+
+Public settlement proof, when the driver explicitly permits disclosure.
+
+***
+
+### sealedProof?
+
+> `optional` **sealedProof?**: [`SealedPaymentProof`](SealedPaymentProof.md)
+
+Whole-proof ciphertext for confidential or bearer settlement results.

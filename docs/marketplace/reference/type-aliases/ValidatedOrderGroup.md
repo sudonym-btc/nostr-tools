@@ -2,15 +2,11 @@
 
 > **ValidatedOrderGroup** = `object`
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:103](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L103)
-
 ## Properties
 
 ### group
 
 > **group**: [`ParsedOrderGroup`](ParsedOrderGroup.md)
-
-Defined in: [nostr-tools/marketplace/order-group-types.ts:104](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L104)
 
 ***
 
@@ -18,20 +14,14 @@ Defined in: [nostr-tools/marketplace/order-group-types.ts:104](https://github.co
 
 > `optional` **order?**: [`MarketplaceOrderValidationResult`](MarketplaceOrderValidationResult.md)
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:106](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L106)
-
 ***
 
 ### payment
 
 > **payment**: [`MarketplacePaymentValidationResult`](MarketplacePaymentValidationResult.md)
 
-Defined in: [nostr-tools/marketplace/order-group-types.ts:105](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L105)
-
 ***
 
 ### resolved?
 
 > `optional` **resolved?**: [`ResolvedOrderGroup`](ResolvedOrderGroup.md)
-
-Defined in: [nostr-tools/marketplace/order-group-types.ts:107](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/order-group-types.ts#L107)

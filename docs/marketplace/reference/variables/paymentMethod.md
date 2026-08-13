@@ -2,8 +2,6 @@
 
 > `const` **paymentMethod**: `object`
 
-Defined in: [nostr-tools/marketplace/paymentmethod.ts:216](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/paymentmethod.ts#L216)
-
 ## Type Declaration
 
 ### canonicalAssetId

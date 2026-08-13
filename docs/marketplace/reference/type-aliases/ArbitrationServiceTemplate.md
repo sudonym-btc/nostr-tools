@@ -1,8 +1,6 @@
 # Type Alias: ArbitrationServiceTemplate
 
-> **ArbitrationServiceTemplate** = [`ArbitrationServiceContent`](ArbitrationServiceContent.md) & `object`
-
-Defined in: [nostr-tools/marketplace/arbitrationservice.ts:49](https://github.com/sudonym-btc/nostr-tools/blob/52d76bf15b8149e63ac6be6e6cf36bf7dca572e9/marketplace/arbitrationservice.ts#L49)
+> **ArbitrationServiceTemplate** = `Omit`\<[`ArbitrationServiceContent`](ArbitrationServiceContent.md), `"policy"`\> & `object`
 
 ## Type Declaration
 
@@ -17,3 +15,9 @@ Defined in: [nostr-tools/marketplace/arbitrationservice.ts:49](https://github.co
 ### extraTags?
 
 > `optional` **extraTags?**: `string`[][]
+
+### policy
+
+> **policy**: `string`
+
+New service advertisements MUST identify exactly one machine policy.
