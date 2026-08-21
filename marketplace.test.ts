@@ -265,15 +265,6 @@ describe('marketplace listings', () => {
       async get(): Promise<Event | null> {
         return null
       },
-      subscribeMap(
-        requests: Array<{ filter: Record<string, any> }>,
-        handlers: { onevent: (event: Event) => void; oneose?: () => void },
-      ) {
-        filters.push(...requests.map(request => request.filter))
-        handlers.onevent(order)
-        handlers.oneose?.()
-        return { close() {} }
-      },
     }
     const api = marketplace.bind(pool, ['wss://relay.example'], {
       locationProvider: {
@@ -300,15 +291,6 @@ describe('marketplace listings', () => {
       },
       async get(): Promise<Event | null> {
         return null
-      },
-      subscribeMap(
-        requests: Array<{ filter: Record<string, any> }>,
-        handlers: { onevent: (event: Event) => void; oneose?: () => void },
-      ) {
-        filters.push(...requests.map(request => request.filter))
-        handlers.onevent(order)
-        handlers.oneose?.()
-        return { close() {} }
       },
     }
     const api = marketplace.bind(pool, ['wss://relay.example'])
@@ -1881,7 +1863,7 @@ describe('marketplace seeds', () => {
 })
 
 describe('marketplace reviews and runtime facade', () => {
-	  test('generates, validates, and parses reviews', () => {
+    test('generates, validates, and parses reviews', () => {
     const listingAnchor = `${30402}:${'a'.repeat(64)}:villa-bali`
     const orderGroupId = 'b'.repeat(64)
     const buyerSecretKey = generateSecretKey()
@@ -1927,122 +1909,122 @@ describe('marketplace reviews and runtime facade', () => {
       realPubkey: buyerPubkey,
       authorizationEventId: authorization.id,
     })
-	    expect(marketplace.reviews.revealedBuyerPubkey(parsed)).toBe(buyerPubkey)
-	  })
+      expect(marketplace.reviews.revealedBuyerPubkey(parsed)).toBe(buyerPubkey)
+    })
 
-	  test('publishes negotiation offers through the session orders API', async () => {
-	    const sellerSecretKey = generateSecretKey()
-	    const buyerSecretKey = generateSecretKey()
-	    const buyerPubkey = getPublicKey(buyerSecretKey)
-	    const listing = listingEvent(sellerSecretKey)
-	    const published: Event[] = []
-	    const pool = {
-	      async querySync(): Promise<Event[]> {
-	        return []
-	      },
-	      async get(): Promise<Event | null> {
-	        return null
-	      },
-	    }
-	    const api = marketplace.bind(pool, ['wss://relay.example'], {
-	      seed: '8'.repeat(64),
-	      identity: { pubkey: buyerPubkey },
-	      publish: event => published.push(event),
-	      signer: {
-	        async getPublicKey() {
-	          return buyerPubkey
-	        },
-	        async nip44Encrypt(pubkey: string, plaintext: string) {
-	          return encryptNip44(plaintext, getConversationKey(buyerSecretKey, pubkey))
-	        },
-	        async nip44Decrypt() {
-	          throw new Error('not used')
-	        },
-	        async signEvent(template: EventTemplate) {
-	          return sign(template, buyerSecretKey)
-	        },
-	      },
-	    })
+    test('publishes negotiation offers through the session orders API', async () => {
+      const sellerSecretKey = generateSecretKey()
+      const buyerSecretKey = generateSecretKey()
+      const buyerPubkey = getPublicKey(buyerSecretKey)
+      const listing = listingEvent(sellerSecretKey)
+      const published: Event[] = []
+      const pool = {
+        async querySync(): Promise<Event[]> {
+          return []
+        },
+        async get(): Promise<Event | null> {
+          return null
+        },
+      }
+      const api = marketplace.bind(pool, ['wss://relay.example'], {
+        seed: '8'.repeat(64),
+        identity: { pubkey: buyerPubkey },
+        publish: event => published.push(event),
+        signer: {
+          async getPublicKey() {
+            return buyerPubkey
+          },
+          async nip44Encrypt(pubkey: string, plaintext: string) {
+            return encryptNip44(plaintext, getConversationKey(buyerSecretKey, pubkey))
+          },
+          async nip44Decrypt() {
+            throw new Error('not used')
+          },
+          async signEvent(template: EventTemplate) {
+            return sign(template, buyerSecretKey)
+          },
+        },
+      })
 
-	    const result = await api.orders.negotiate(listing, {
-	      amount: { value: '10000', denomination: 'BTC', decimals: 8 },
-	      start: '2026-07-01',
-	      end: '2026-07-02',
-	      now: createdAt,
-	    })
+      const result = await api.orders.negotiate(listing, {
+        amount: { value: '10000', denomination: 'BTC', decimals: 8 },
+        start: '2026-07-01',
+        end: '2026-07-02',
+        now: createdAt,
+      })
 
-	    expect(result.accountIndex).toBe(0)
-	    expect(result.tradeId).toBe(marketplace.seed.deriveTradeId('8'.repeat(64), { index: 0 }))
-	    expect(result.order.kind).toBe(MarketplaceOrder)
-	    expect(result.message.kind).toBe(StructuredMessage)
-	    expect(result.giftWraps).toHaveLength(2)
-	    expect(published).toEqual(result.giftWraps)
-	    expect(published.map(event => event.kind)).toEqual([GiftWrap, GiftWrap])
-	    expect(new Set(published.map(event => event.tags.find(tag => tag[0] === 'p')?.[1]))).toEqual(new Set([
-	      buyerPubkey,
-	      listing.pubkey,
-	    ]))
-	  })
+      expect(result.accountIndex).toBe(0)
+      expect(result.tradeId).toBe(marketplace.seed.deriveTradeId('8'.repeat(64), { index: 0 }))
+      expect(result.order.kind).toBe(MarketplaceOrder)
+      expect(result.message.kind).toBe(StructuredMessage)
+      expect(result.giftWraps).toHaveLength(2)
+      expect(published).toEqual(result.giftWraps)
+      expect(published.map(event => event.kind)).toEqual([GiftWrap, GiftWrap])
+      expect(new Set(published.map(event => event.tags.find(tag => tag[0] === 'p')?.[1]))).toEqual(new Set([
+        buyerPubkey,
+        listing.pubkey,
+      ]))
+    })
 
-	  test('discovers negotiation trade ids from sent inbox messages', async () => {
-	    const sellerSecretKey = generateSecretKey()
-	    const buyerSecretKey = generateSecretKey()
-	    const buyerPubkey = getPublicKey(buyerSecretKey)
-	    const listing = listingEvent(sellerSecretKey)
-	    const published: Event[] = []
-	    const pool = {
-	      async querySync(_relays: string[], filter: Record<string, unknown>): Promise<Event[]> {
-	        return published.filter(event => {
-	          const kinds = filter.kinds as number[] | undefined
-	          if (kinds && !kinds.includes(event.kind)) return false
-	          const pTags = filter['#p'] as string[] | undefined
-	          if (pTags && !event.tags.some(tag => tag[0] === 'p' && pTags.includes(tag[1]))) return false
-	          const authors = filter.authors as string[] | undefined
-	          if (authors && !authors.includes(event.pubkey)) return false
-	          return true
-	        })
-	      },
-	      async get(): Promise<Event | null> {
-	        return null
-	      },
-	    }
-	    const signer = {
-	      async getPublicKey() {
-	        return buyerPubkey
-	      },
-	      async nip44Encrypt(pubkey: string, plaintext: string) {
-	        return encryptNip44(plaintext, getConversationKey(buyerSecretKey, pubkey))
-	      },
-	      async nip44Decrypt(pubkey: string, ciphertext: string) {
-	        return decryptNip44(ciphertext, getConversationKey(buyerSecretKey, pubkey))
-	      },
-	      async signEvent(template: EventTemplate) {
-	        return sign(template, buyerSecretKey)
-	      },
-	    }
-	    const runtimeOptions = {
-	      seed: '8'.repeat(64),
-	      identity: { pubkey: buyerPubkey },
-	      publish: (event: Event) => published.push(event),
-	      signer,
-	    }
+    test('discovers negotiation trade ids from sent inbox messages', async () => {
+      const sellerSecretKey = generateSecretKey()
+      const buyerSecretKey = generateSecretKey()
+      const buyerPubkey = getPublicKey(buyerSecretKey)
+      const listing = listingEvent(sellerSecretKey)
+      const published: Event[] = []
+      const pool = {
+        async querySync(_relays: string[], filter: Record<string, unknown>): Promise<Event[]> {
+          return published.filter(event => {
+            const kinds = filter.kinds as number[] | undefined
+            if (kinds && !kinds.includes(event.kind)) return false
+            const pTags = filter['#p'] as string[] | undefined
+            if (pTags && !event.tags.some(tag => tag[0] === 'p' && pTags.includes(tag[1]))) return false
+            const authors = filter.authors as string[] | undefined
+            if (authors && !authors.includes(event.pubkey)) return false
+            return true
+          })
+        },
+        async get(): Promise<Event | null> {
+          return null
+        },
+      }
+      const signer = {
+        async getPublicKey() {
+          return buyerPubkey
+        },
+        async nip44Encrypt(pubkey: string, plaintext: string) {
+          return encryptNip44(plaintext, getConversationKey(buyerSecretKey, pubkey))
+        },
+        async nip44Decrypt(pubkey: string, ciphertext: string) {
+          return decryptNip44(ciphertext, getConversationKey(buyerSecretKey, pubkey))
+        },
+        async signEvent(template: EventTemplate) {
+          return sign(template, buyerSecretKey)
+        },
+      }
+      const runtimeOptions = {
+        seed: '8'.repeat(64),
+        identity: { pubkey: buyerPubkey },
+        publish: (event: Event) => published.push(event),
+        signer,
+      }
 
-	    const firstApi = marketplace.bind(pool, ['wss://relay.example'], runtimeOptions)
-	    const first = await firstApi.orders.negotiate(listing, {
-	      amount: { value: '10000', denomination: 'BTC', decimals: 8 },
-	      now: createdAt,
-	    })
-	    const secondApi = marketplace.bind(pool, ['wss://relay.example'], runtimeOptions)
-	    const second = await secondApi.orders.negotiate(listing, {
-	      amount: { value: '11000', denomination: 'BTC', decimals: 8 },
-	      now: createdAt + 1,
-	    })
+      const firstApi = marketplace.bind(pool, ['wss://relay.example'], runtimeOptions)
+      const first = await firstApi.orders.negotiate(listing, {
+        amount: { value: '10000', denomination: 'BTC', decimals: 8 },
+        now: createdAt,
+      })
+      const secondApi = marketplace.bind(pool, ['wss://relay.example'], runtimeOptions)
+      const second = await secondApi.orders.negotiate(listing, {
+        amount: { value: '11000', denomination: 'BTC', decimals: 8 },
+        now: createdAt + 1,
+      })
 
-	    expect(first.accountIndex).toBe(0)
-	    expect(second.accountIndex).toBe(1)
-	    expect(first.tradeId).toBe(marketplace.seed.deriveTradeId('8'.repeat(64), { index: 0 }))
-	    expect(second.tradeId).toBe(marketplace.seed.deriveTradeId('8'.repeat(64), { index: 1 }))
-	  })
+      expect(first.accountIndex).toBe(0)
+      expect(second.accountIndex).toBe(1)
+      expect(first.tradeId).toBe(marketplace.seed.deriveTradeId('8'.repeat(64), { index: 0 }))
+      expect(second.tradeId).toBe(marketplace.seed.deriveTradeId('8'.repeat(64), { index: 1 }))
+    })
 
   test('auto-selects an implemented payment policy for pay stream', async () => {
     const sellerSecretKey = generateSecretKey()
