@@ -176,6 +176,47 @@ if (auction) {
 }
 ```
 
+## Monitor escrow records and actions
+
+A signed-in arbiter can read orders and auction bids involving that identity
+through one facade. Each record carries the latest validated lifecycle state,
+the matching driver's live state, and only the financial actions the runtime
+can currently execute.
+
+```ts
+const stream = api.escrow.records.watch()
+
+const subscription = stream.snapshot.subscribe(records => {
+  renderEscrowDashboard(records.map(record => ({
+    id: record.id,
+    kind: record.kind,
+    stage: record.stage,
+    driver: record.driver?.status,
+    actions: record.actions,
+    unavailable: record.actionReason?.message,
+  })))
+})
+
+// `execute` refetches and revalidates the record, so a stale UI cannot make an
+// action available. Consume the returned progress stream until completion.
+const record = stream.currentSnapshot?.find(item => item.actions.includes('release'))
+if (record) {
+  for await (const state of api.escrow.execute(record, 'release')) {
+    renderSettlementProgress(state)
+  }
+}
+
+subscription.unsubscribe()
+stream.close('dashboard disposed')
+```
+
+The action list is intentionally fail-closed. It remains empty unless the
+payment is valid, the order is committed and nonterminal, the matching driver
+is ready, a settlement hook exists, and that driver explicitly declares
+`settlementActions`. Auction-bid records are monitor-only here because refund
+and promotion require canonical whole-auction winner and end-time context; use
+`api.auctions.settle()` for that workflow.
+
 ## Fetch reviews
 
 Reviews are indexed by the listing anchor and can also be filtered by order

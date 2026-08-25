@@ -48,6 +48,12 @@
 
 ***
 
+### escrow
+
+> **escrow**: [`MarketplaceEscrowApi`](MarketplaceEscrowApi.md)
+
+***
+
 ### identity
 
 > **identity**: `object`

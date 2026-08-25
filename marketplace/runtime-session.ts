@@ -14,6 +14,7 @@ import {
   type MarketplaceSeedSigner,
 } from './seed.ts'
 import { ensurePaymentMethodUpToDate } from './runtime-payment-method.ts'
+import { createMarketplaceEscrowApi } from './runtime-escrow.ts'
 import { policyName } from './runtime-common.ts'
 import { MarketplaceStream, ReplayStream } from './stream.ts'
 import type {
@@ -525,6 +526,7 @@ export async function createMarketplaceSession(
     seed: seedApi,
     paymentMethod,
     drivers: sessionDrivers.api,
+    escrow: createMarketplaceEscrowApi(runtimeOptions, market, sessionDrivers.api),
   } satisfies MarketplaceSession
 
   return sessionApi

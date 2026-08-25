@@ -757,6 +757,82 @@ export type MarketplaceSessionDriversApi = {
   each(callback: (driver: MarketplaceSessionDriver) => void): void
 }
 
+/** Financial actions the signed-in escrow can safely execute from a record. */
+export type MarketplaceEscrowAction = 'release' | 'refund'
+
+export type MarketplaceEscrowActionUnavailableCode =
+  | 'terminal'
+  | 'not_committed'
+  | 'no_payment'
+  | 'payment_unverifiable'
+  | 'payment_invalid'
+  | 'driver_unavailable'
+  | 'driver_not_ready'
+  | 'settlement_unsupported'
+  | 'auction_requires_settlement_context'
+  | 'record_error'
+
+export type MarketplaceEscrowActionUnavailable = {
+  code: MarketplaceEscrowActionUnavailableCode
+  message: string
+}
+
+export type MarketplaceEscrowRecordBase = {
+  id: string
+  kind: 'order' | 'auction_bid'
+  tradeId: string
+  listingAnchor: string
+  stage: string
+  updatedAt: number
+  payment?: ParsedPayment
+  validation?: MarketplacePaymentValidationResult
+  driver?: MarketplaceSessionDriverState
+  actions: MarketplaceEscrowAction[]
+  actionReason?: MarketplaceEscrowActionUnavailable
+}
+
+export type MarketplaceEscrowOrderRecord = MarketplaceEscrowRecordBase & {
+  kind: 'order'
+  source: ParsedOrderGroup
+}
+
+export type MarketplaceEscrowAuctionBidRecord = MarketplaceEscrowRecordBase & {
+  kind: 'auction_bid'
+  source: ParsedAuctionBidGroup
+}
+
+export type MarketplaceEscrowRecord = MarketplaceEscrowOrderRecord | MarketplaceEscrowAuctionBidRecord
+
+export type MarketplaceEscrowRecordsQuery = {
+  orders?: MarketplaceMeOrdersQuery
+  bids?: MarketplaceMeBidsQuery
+  /** Deterministic validation time, expressed as Unix seconds. */
+  now?: number
+}
+
+export type MarketplaceEscrowRecordStream = MarketplaceStream<MarketplaceEscrowRecord, MarketplaceEscrowRecord[]>
+
+export type MarketplaceEscrowExecuteOptions = {
+  reason?: string
+  data?: Record<string, unknown>
+  /** Deterministic validation time, expressed as Unix seconds. */
+  now?: number
+}
+
+export interface MarketplaceEscrowRecordsApi {
+  list(query?: MarketplaceEscrowRecordsQuery): Promise<MarketplaceEscrowRecord[]>
+  watch(query?: MarketplaceEscrowRecordsQuery): MarketplaceEscrowRecordStream
+}
+
+export interface MarketplaceEscrowApi {
+  records: MarketplaceEscrowRecordsApi
+  execute(
+    record: MarketplaceEscrowRecord,
+    action: MarketplaceEscrowAction,
+    options?: MarketplaceEscrowExecuteOptions,
+  ): AsyncIterable<MarketplacePaymentArbitrationRuntimeState>
+}
+
 export type MarketplaceDriverRuntimeReporter = {
   starting(policy: MarketplacePaymentPolicyImplementation): void
   started(policy: MarketplacePaymentPolicyImplementation, result?: MarketplacePolicyStartResult): void
@@ -1385,4 +1461,5 @@ export interface MarketplaceSession extends Omit<MarketplaceClient, 'orders' | '
   seed: MarketplaceSessionSeedApi
   paymentMethod: MarketplaceSessionPaymentMethodApi
   drivers: MarketplaceSessionDriversApi
+  escrow: MarketplaceEscrowApi
 }

@@ -5299,6 +5299,148 @@ describe('marketplace reviews and runtime facade', () => {
     ])
   })
 
+  test('escrow records update fail-closed actions from validated driver state', async () => {
+    const sellerSecretKey = generateSecretKey()
+    const buyerSecretKey = generateSecretKey()
+    const arbiterSecretKey = generateSecretKey()
+    const sellerPubkey = getPublicKey(sellerSecretKey)
+    const buyerPubkey = getPublicKey(buyerSecretKey)
+    const arbiterPubkey = getPublicKey(arbiterSecretKey)
+    const listing = listingEvent(sellerSecretKey)
+    const listingAnchor = `${listing.kind}:${listing.pubkey}:villa-bali`
+    const tradeId = 'escrow-dashboard-order'
+    const participants = [
+      { pubkey: sellerPubkey, role: 'seller' as const },
+      { pubkey: buyerPubkey, role: 'buyer' as const },
+      { pubkey: arbiterPubkey, role: 'arbiter' as const },
+    ]
+    const order = sign(marketplace.orders.template({
+      tradeId,
+      listingAnchor,
+      listing,
+      participants,
+      amount: { value: '50000', denomination: 'BTC', decimals: 8 },
+      createdAt,
+    }), buyerSecretKey)
+    const payment = sign(marketplace.orders.paymentTemplate({
+      tradeId,
+      anchors: [{ value: listingAnchor, marker: 'listing' }],
+      participants,
+      refs: { orders: [order.id] },
+      amount: { value: '50000', denomination: 'BTC', decimals: 8 },
+      proof: {
+        paymentProof: mockPaymentProof('evm-dashboard', { txHash: `0x${'d'.repeat(64)}` }),
+      },
+      createdAt: createdAt + 1,
+    }), buyerSecretKey)
+    const events = [order, payment]
+    const pool = {
+      async querySync(_relays: string[], filter: { kinds?: number[] }): Promise<Event[]> {
+        return events.filter(event => !filter.kinds || filter.kinds.includes(event.kind))
+      },
+      async get(): Promise<Event | null> {
+        return null
+      },
+      subscribeMap(
+        requests: Array<{ filter: { kinds?: number[] } }>,
+        handlers: { onevent: (event: Event) => void; oneose?: () => void },
+      ) {
+        const kinds = new Set(requests.flatMap(request => request.filter.kinds ?? []))
+        for (const event of events) {
+          if (kinds.size === 0 || kinds.has(event.kind)) handlers.onevent(event)
+        }
+        handlers.oneose?.()
+        return { close() {} }
+      },
+    }
+    const published: Event[] = []
+    const intents: marketplace.MarketplacePaymentSettlementIntent[] = []
+    const policy: marketplace.MarketplaceOrderPolicy = {
+      method: 'evm',
+      id: 'evm-dashboard',
+      purpose: 'order',
+      family: 'escrow',
+      settlementActions: ['release', 'refund'],
+      policies: () => [{ method: 'evm', id: 'evm-dashboard' }],
+      assets: () => [],
+      async *pay() {
+        yield { type: 'completed' as const }
+      },
+      async validatePayment(request) {
+        return {
+          driver: request.driver,
+          status: 'valid' as const,
+          proofEventId: payment.id,
+          amount: request.expected.amount,
+          amountMatched: true,
+          assetMatched: true,
+          recipientMatched: true,
+          arbiterMatched: true,
+        }
+      },
+      async *settlePayment(intent) {
+        intents.push(intent)
+        yield {
+          type: 'settlement_ready' as const,
+          proof: mockPaymentProof('evm-dashboard', { action: intent.action }),
+        }
+      },
+    }
+    const session = await marketplace.bind(pool, ['wss://relay.example']).session(
+      testSessionSigner(arbiterSecretKey).signer,
+      {
+        seed: '9'.repeat(64),
+        ensurePaymentMethod: false,
+        publish: event => published.push(event),
+        orderDrivers: [policy],
+      },
+    )
+    const stream = session.escrow.records.watch({ now: createdAt + 2 })
+
+    await waitFor(
+      () => stream.currentSnapshot?.[0]?.actionReason?.code === 'driver_not_ready',
+      'idle escrow record',
+    )
+    expect(stream.currentSnapshot?.[0]).toMatchObject({
+      kind: 'order',
+      tradeId,
+      stage: 'commit',
+      actions: [],
+      driver: { id: 'evm-dashboard', status: 'idle' },
+    })
+
+    await session.start({ now: createdAt + 2 })
+    await waitFor(
+      () => stream.currentSnapshot?.[0]?.actions.join(',') === 'release,refund',
+      'ready escrow actions',
+    )
+    const record = stream.currentSnapshot![0]
+    expect(record.driver?.status).toBe('ready')
+
+    published.length = 0
+    const states: marketplace.MarketplacePaymentArbitrationRuntimeState[] = []
+    for await (const state of session.escrow.execute(record, 'release', { now: createdAt + 2 })) {
+      states.push(state)
+    }
+    expect(intents).toHaveLength(1)
+    expect(intents[0].action).toBe('release')
+    expect(states.some(state => state.type === 'settlement_published')).toBe(true)
+    expect(published.some(event => event.kind === MarketplacePaymentSettlement)).toBe(true)
+
+    policy.settlementActions = undefined
+    const monitorOnly = await session.escrow.records.list({ now: createdAt + 2 })
+    expect(monitorOnly[0].actions).toEqual([])
+    expect(monitorOnly[0].actionReason?.code).toBe('settlement_unsupported')
+    let staleActionError: Error | undefined
+    try {
+      for await (const _state of session.escrow.execute(record, 'release', { now: createdAt + 2 })) {}
+    } catch (error) {
+      staleActionError = error as Error
+    }
+    expect(staleActionError?.message).toContain('explicitly support dashboard settlement actions')
+    stream.close()
+  })
+
   test('watches my payments directly and retriggers sweep after settlement refetches payment', async () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
