@@ -247,6 +247,7 @@ import type {
   MarketplaceDriverPaymentSettlementIntent,
   MarketplaceDriverPaymentSettlementState,
   MarketplaceDriverPaymentProof,
+  MarketplaceDriverPaymentProofParamsDecryptor,
   MarketplaceDriverPaymentProgressData,
   MarketplaceDriverPaymentProgressStage,
   MarketplaceDriverPaymentState,
@@ -409,6 +410,7 @@ export type MarketplacePaymentArbitrationIntent = {
   group: ParsedOrderGroup
   payment: ParsedPayment
   proof: PaymentProofEvidence
+  decryptParams?: MarketplaceDriverPaymentProofParamsDecryptor
   expected?: MarketplacePaymentValidationExpected
   action: PaymentSettlementAction
   outputs?: PaymentSettlementOutput[]
@@ -769,6 +771,7 @@ export type MarketplaceEscrowActionUnavailableCode =
   | 'driver_unavailable'
   | 'driver_not_ready'
   | 'settlement_unsupported'
+  | 'settlement_unauthorized'
   | 'auction_requires_settlement_context'
   | 'record_error'
 

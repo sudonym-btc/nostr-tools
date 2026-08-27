@@ -16,6 +16,12 @@
 
 ***
 
+### decryptParams?
+
+> `optional` **decryptParams?**: `MarketplaceDriverPaymentProofParamsDecryptor`
+
+***
+
 ### expected?
 
 > `optional` **expected?**: [`MarketplacePaymentValidationExpected`](MarketplacePaymentValidationExpected.md)

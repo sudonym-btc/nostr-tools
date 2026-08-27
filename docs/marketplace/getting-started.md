@@ -213,9 +213,22 @@ stream.close('dashboard disposed')
 The action list is intentionally fail-closed. It remains empty unless the
 payment is valid, the order is committed and nonterminal, the matching driver
 is ready, a settlement hook exists, and that driver explicitly declares
-`settlementActions`. Auction-bid records are monitor-only here because refund
+`settlementActions`. When the driver implements
+`settlementActionsForPayment()`, the runtime also decrypts protected params for
+that check and intersects its result with the static capability list. This is
+how a driver suppresses controls for a payment assigned to another signer.
+The same check runs again at the financial execution boundary, including calls
+made through the lower-level arbitration API. Multi-payment orders preflight
+every payment before any driver is invoked.
+Auction-bid records are monitor-only here because refund
 and promotion require canonical whole-auction winner and end-time context; use
 `api.auctions.settle()` for that workflow.
+
+Settlement publication preserves the original payment's disclosure level. A
+public proof stays public, encrypted params stay encrypted with their existing
+key tags, and a whole sealed proof stays sealed. Driver-local inputs, outputs,
+resolved proof params, and arbitrary result data are never copied into the
+public settlement event.
 
 ## Fetch reviews
 

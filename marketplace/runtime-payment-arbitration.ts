@@ -154,7 +154,8 @@ import type {
 } from './payment-validation.ts'
 import { isPaymentValidationAccepted } from './payment-validation.ts'
 import { resolvePaymentAmount } from './payment-amount.ts'
-import { resolvePaymentProof } from './payment-proof.ts'
+import { paymentProofParamsDecryptor, resolvePaymentProof } from './payment-proof.ts'
+import { authorizedMarketplaceEscrowActions } from './runtime-escrow.ts'
 import type {
   MarketplacePolicyWatermarkRecoveryAction,
   MarketplacePolicyWatermarkContext,
@@ -387,6 +388,7 @@ function settlementIntentForPayment(
   request: MarketplacePaymentArbitrationRequest,
   entry: ArbitrationPaymentItem,
   outputs: PaymentSettlementOutput[] | undefined,
+  opts: MarketplaceRuntimeOptions,
 ): MarketplacePaymentSettlementIntent {
   return {
     paymentId: entry.payment.event.id,
@@ -396,12 +398,50 @@ function settlementIntentForPayment(
     createdAt: entry.payment.event.created_at,
     action: request.action,
     proof: entry.item.proof,
+    decryptParams: paymentProofParamsDecryptor({
+      keys: entry.payment.paymentProofKeys,
+      signer: opts.signer,
+      signerPubkey: opts.identity?.pubkey,
+    }),
     amount: entry.amount,
     ...(entry.item.expected ? { expected: entry.item.expected } : {}),
     ...(outputs ? { outputs } : {}),
     ...(request.reason ? { reason: request.reason } : {}),
     ...(request.data ? { data: request.data } : {}),
   }
+}
+
+function settlementParamsDecryptor(opts: MarketplaceRuntimeOptions, entry: ArbitrationPaymentItem) {
+  return paymentProofParamsDecryptor({
+    keys: entry.payment.paymentProofKeys,
+    signer: opts.signer,
+    signerPubkey: opts.identity?.pubkey,
+  })
+}
+
+function publicSettlementOutputs(outputs: PaymentSettlementOutput[] | undefined): PaymentSettlementOutput[] | undefined {
+  if (!outputs) return undefined
+  return outputs.map(output => ({
+    ...(output.role ? { role: output.role } : {}),
+    ...(output.pubkey ? { pubkey: output.pubkey } : {}),
+    ...(output.amount ? { amount: output.amount } : {}),
+  }))
+}
+
+function originalPaymentProofDisclosure(payment: ParsedPayment) {
+  if (payment.content.proof) {
+    return {
+      proof: payment.content.proof,
+      ...(payment.paymentProofKeys.length > 0 ? { paymentProofKeys: payment.paymentProofKeys } : {}),
+    }
+  }
+  if (payment.content.sealedProof) {
+    return {
+      sealedProof: payment.content.sealedProof,
+      ...(payment.paymentProofKeys.length > 0 ? { paymentProofKeys: payment.paymentProofKeys } : {}),
+    }
+  }
+  return {}
 }
 
 export function hasPaymentAckFrom(group: ParsedOrderGroup, payment: ParsedPayment, pubkey: string): boolean {
@@ -651,19 +691,45 @@ export async function* arbitrateMarketplacePayment(
   requireArbitrationPublisher(opts)
   const items = await arbitrationPaymentItems(opts, request)
   const outputAllocations = allocateSettlementOutputs(items, request.outputs)
+  const prepared: Array<{
+    entry: ArbitrationPaymentItem
+    policy: MarketplacePaymentPolicyImplementation
+    outputs: PaymentSettlementOutput[] | undefined
+  }> = []
 
+  // Authorize every payment before the first external financial effect. This
+  // avoids partially settling a multi-payment order when a later payment is
+  // unsupported or assigned to another arbiter.
   for (const entry of items) {
     const policy = policyForPayment(opts, entry.item)
     if (!policy) throw new Error('No matching payment policy')
     const outputs = outputAllocations.get(entry.payment.event.id)
+    if (request.action === 'release' || request.action === 'refund') {
+      const actions = await authorizedMarketplaceEscrowActions({
+        opts,
+        policy,
+        item: entry.item,
+        payment: entry.payment,
+        ...(request.now !== undefined ? { now: request.now } : {}),
+      })
+      if (!actions.includes(request.action)) {
+        throw new Error(`Payment policy does not authorize ${request.action} settlement for this payment`)
+      }
+    }
+    prepared.push({ entry, policy, outputs })
+  }
+
+  for (const { entry, policy, outputs } of prepared) {
+    const decryptParams = settlementParamsDecryptor(opts, entry)
     const stream = policy.settlePayment
-      ? await policy.settlePayment(settlementIntentForPayment(request, entry, outputs))
+      ? await policy.settlePayment(settlementIntentForPayment(request, entry, outputs, opts))
       : policy.arbitrate
         ? await policy.arbitrate({
             purpose: 'order',
             group: request.group,
             payment: entry.payment,
             proof: entry.item.proof,
+            decryptParams,
             action: request.action,
             ...(entry.item.expected ? { expected: entry.item.expected } : {}),
             ...(outputs ? { outputs } : {}),
@@ -676,7 +742,7 @@ export async function* arbitrateMarketplacePayment(
     for await (const state of stream) {
       yield state
       if ((state.type === 'settlement_ready' || state.type === 'completed') && state.proof) {
-        const settledOutputs = state.outputs ?? outputs
+        const settledOutputs = publicSettlementOutputs(outputs)
         const event = await publishMarketplaceTemplate(
           opts,
           generatePaymentSettlementEventTemplate({
@@ -687,11 +753,10 @@ export async function* arbitrateMarketplacePayment(
             refs: { payments: [entry.payment.event.id] },
             method: entry.item.proof.driver,
             action: request.action,
-            ...(state.inputs ? { inputs: state.inputs } : {}),
             ...(settledOutputs ? { outputs: settledOutputs } : {}),
+            ...originalPaymentProofDisclosure(entry.payment),
             data: {
               ...(request.reason ? { reason: request.reason } : {}),
-              ...(request.data ?? {}),
               ...(items.length > 1
                 ? {
                     paymentSet: {
@@ -701,8 +766,6 @@ export async function* arbitrateMarketplacePayment(
                     },
                   }
                 : {}),
-              ...(state.data ?? {}),
-              proof: state.proof,
             },
           }),
         )

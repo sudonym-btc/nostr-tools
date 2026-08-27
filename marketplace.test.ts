@@ -73,9 +73,10 @@ function memorySettlementJournal(): marketplace.MarketplaceSettlementJournal {
 }
 
 async function waitFor(predicate: () => boolean, label = 'condition'): Promise<void> {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
+  const deadline = Date.now() + 10_000
+  while (Date.now() < deadline) {
     if (predicate()) return
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await new Promise(resolve => setTimeout(resolve, 5))
   }
   throw new Error(`Timed out waiting for ${label}`)
 }
@@ -5077,6 +5078,27 @@ describe('marketplace reviews and runtime facade', () => {
     expect(published.every(event => event.kind === MarketplacePaymentSettlement)).toBe(true)
     expect(hasTag(published[0], ['e', firstPayment.id, '', 'payment'])).toBe(true)
     expect(hasTag(published[1], ['e', secondPayment.id, '', 'payment'])).toBe(true)
+
+    intents.length = 0
+    published.length = 0
+    policy.settlementActions = ['release']
+    policy.settlementActionsForPayment = async request => {
+      const params = await request.decryptParams?.(request.proof)
+      return params?.txHash === `0x${'a'.repeat(64)}` ? ['release'] : []
+    }
+    let preflightError: Error | undefined
+    try {
+      for await (const _state of api.arbitration.arbitrate({
+        group,
+        payments: [marketplace.orders.parsePayment(firstPayment), marketplace.orders.parsePayment(secondPayment)],
+        action: 'release',
+      })) {}
+    } catch (error) {
+      preflightError = error as Error
+    }
+    expect(preflightError?.message).toContain('does not authorize release settlement')
+    expect(intents).toHaveLength(0)
+    expect(published).toHaveLength(0)
   })
 
   test('payment terms expose nested split options', () => {
@@ -5322,15 +5344,24 @@ describe('marketplace reviews and runtime facade', () => {
       amount: { value: '50000', denomination: 'BTC', decimals: 8 },
       createdAt,
     }), buyerSecretKey)
+    const paymentProof = marketplace.paymentProofs.build({
+      paymentProof: mockPaymentProof('evm-dashboard', {
+        txHash: `0x${'d'.repeat(64)}`,
+        arbiterAddress: '0x0000000000000000000000000000000000000001',
+      }),
+    }, {
+      mode: 'params',
+      senderSecretKey: buyerSecretKey,
+      recipientPubkeys: [arbiterPubkey],
+    })
     const payment = sign(marketplace.orders.paymentTemplate({
       tradeId,
       anchors: [{ value: listingAnchor, marker: 'listing' }],
       participants,
       refs: { orders: [order.id] },
       amount: { value: '50000', denomination: 'BTC', decimals: 8 },
-      proof: {
-        paymentProof: mockPaymentProof('evm-dashboard', { txHash: `0x${'d'.repeat(64)}` }),
-      },
+      proof: paymentProof.proof,
+      paymentProofKeys: paymentProof.paymentProofKeys,
       createdAt: createdAt + 1,
     }), buyerSecretKey)
     const events = [order, payment]
@@ -5361,12 +5392,20 @@ describe('marketplace reviews and runtime facade', () => {
       purpose: 'order',
       family: 'escrow',
       settlementActions: ['release', 'refund'],
+      async settlementActionsForPayment(request) {
+        const params = await request.decryptParams?.(request.proof)
+        return params?.arbiterAddress === '0x0000000000000000000000000000000000000001'
+          ? ['release', 'refund']
+          : []
+      },
       policies: () => [{ method: 'evm', id: 'evm-dashboard' }],
       assets: () => [],
       async *pay() {
         yield { type: 'completed' as const }
       },
       async validatePayment(request) {
+        const params = await request.decryptParams?.(request.proof)
+        expect(params?.txHash).toBe(`0x${'d'.repeat(64)}`)
         return {
           driver: request.driver,
           status: 'valid' as const,
@@ -5379,15 +5418,23 @@ describe('marketplace reviews and runtime facade', () => {
         }
       },
       async *settlePayment(intent) {
+        const params = await intent.decryptParams?.(intent.proof)
+        expect(params?.txHash).toBe(`0x${'d'.repeat(64)}`)
         intents.push(intent)
         yield {
           type: 'settlement_ready' as const,
           proof: mockPaymentProof('evm-dashboard', { action: intent.action }),
+          inputs: [{ decryptedInput: `0x${'d'.repeat(64)}` }],
+          outputs: [{ role: 'seller', data: { decryptedOutput: `0x${'d'.repeat(64)}` } }],
+          data: { decryptedTxHash: `0x${'d'.repeat(64)}` },
         }
       },
     }
+    const arbiterSigner = testSessionSigner(arbiterSecretKey).signer
+    arbiterSigner.nip44Decrypt = async (pubkey: string, ciphertext: string) =>
+      decryptNip44(ciphertext, getConversationKey(arbiterSecretKey, pubkey))
     const session = await marketplace.bind(pool, ['wss://relay.example']).session(
-      testSessionSigner(arbiterSecretKey).signer,
+      arbiterSigner,
       {
         seed: '9'.repeat(64),
         ensurePaymentMethod: false,
@@ -5424,8 +5471,43 @@ describe('marketplace reviews and runtime facade', () => {
     }
     expect(intents).toHaveLength(1)
     expect(intents[0].action).toBe('release')
+    expect(intents[0].proof.params).toMatchObject({ encrypted: true, scheme: 'nip44' })
     expect(states.some(state => state.type === 'settlement_published')).toBe(true)
-    expect(published.some(event => event.kind === MarketplacePaymentSettlement)).toBe(true)
+    const settlementEvent = published.find(event => event.kind === MarketplacePaymentSettlement)
+    expect(settlementEvent).toBeDefined()
+    const parsedSettlement = marketplace.orders.parsePaymentSettlement(settlementEvent!)
+    expect(parsedSettlement.content.proof?.paymentProof?.params).toMatchObject({ encrypted: true, scheme: 'nip44' })
+    expect(parsedSettlement.paymentProofKeys).toHaveLength(paymentProof.paymentProofKeys.length)
+    expect(parsedSettlement.content.data?.proof).toBeUndefined()
+    expect(JSON.stringify(parsedSettlement.content)).not.toContain(`0x${'d'.repeat(64)}`)
+    expect(JSON.stringify(parsedSettlement.content)).not.toContain('decryptedInput')
+    expect(JSON.stringify(parsedSettlement.content)).not.toContain('decryptedOutput')
+
+    policy.settlementActionsForPayment = async () => []
+    const unauthorized = await session.escrow.records.list({ now: createdAt + 2 })
+    expect(unauthorized[0].actions).toEqual([])
+    expect(unauthorized[0].actionReason?.code).toBe('settlement_unauthorized')
+    let dynamicStaleError: Error | undefined
+    try {
+      for await (const _state of session.escrow.execute(record, 'release', { now: createdAt + 2 })) {}
+    } catch (error) {
+      dynamicStaleError = error as Error
+    }
+    expect(dynamicStaleError?.message).toContain('does not authorize this escrow identity')
+
+    let directBypassError: Error | undefined
+    try {
+      for await (const _state of session.arbitration.arbitrate({
+        group: record.source,
+        ...(record.payment ? { payment: record.payment } : {}),
+        action: 'release',
+        now: createdAt + 2,
+      })) {}
+    } catch (error) {
+      directBypassError = error as Error
+    }
+    expect(directBypassError?.message).toContain('does not authorize release settlement')
+    expect(intents).toHaveLength(1)
 
     policy.settlementActions = undefined
     const monitorOnly = await session.escrow.records.list({ now: createdAt + 2 })

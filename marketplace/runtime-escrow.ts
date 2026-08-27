@@ -1,8 +1,9 @@
 import type { ParsedAuctionBidGroup } from './auction-bid-group.ts'
 import type { ParsedOrderGroup } from './order-group.ts'
+import type { ParsedPayment } from './payment-lifecycle.ts'
 import { validateOrderGroupPayments } from './order-group.ts'
 import { resolvePaymentAmount } from './payment-amount.ts'
-import { resolvePaymentProof } from './payment-proof.ts'
+import { paymentProofParamsDecryptor, resolvePaymentProof } from './payment-proof.ts'
 import { isPaymentValidationAccepted } from './payment-validation.ts'
 import {
   paymentPolicies,
@@ -31,6 +32,8 @@ import type {
   MarketplaceEscrowRecord,
   MarketplaceEscrowRecordsQuery,
   MarketplacePaymentPolicyImplementation,
+  MarketplacePaymentValidationItem,
+  MarketplaceOrderPolicy,
   MarketplaceRuntimeOptions,
   MarketplaceSessionDriversApi,
 } from './runtime-types.ts'
@@ -62,10 +65,38 @@ function policyCanSettle(policy: MarketplacePaymentPolicyImplementation): boolea
     (typeof policy.settlePayment === 'function' || typeof policy.arbitrate === 'function')
 }
 
-function declaredActions(policy: MarketplacePaymentPolicyImplementation): MarketplaceEscrowAction[] {
+export function declaredMarketplaceEscrowActions(
+  policy: MarketplacePaymentPolicyImplementation,
+): MarketplaceEscrowAction[] {
   if (policy.purpose !== 'order' || !policyCanSettle(policy)) return []
   return [...new Set(policy.settlementActions ?? [])]
     .filter((action): action is MarketplaceEscrowAction => executableActions.has(action as MarketplaceEscrowAction))
+}
+
+export async function authorizedMarketplaceEscrowActions(options: {
+  opts: MarketplaceRuntimeOptions
+  policy: MarketplacePaymentPolicyImplementation
+  item: MarketplacePaymentValidationItem
+  payment: ParsedPayment
+  now?: number
+}): Promise<MarketplaceEscrowAction[]> {
+  const supported = declaredMarketplaceEscrowActions(options.policy)
+  if (options.policy.purpose !== 'order' || options.policy.family !== 'escrow') return []
+  const policy = options.policy as MarketplaceOrderPolicy
+  if (supported.length === 0 || !policy.settlementActionsForPayment) return supported
+  const permitted = await policy.settlementActionsForPayment({
+    driver: options.item.proof.driver,
+    proof: options.item.proof,
+    ...(options.item.expected ? { expected: options.item.expected } : {}),
+    decryptParams: paymentProofParamsDecryptor({
+      keys: options.payment.paymentProofKeys,
+      signer: options.opts.signer,
+      signerPubkey: options.opts.identity?.pubkey,
+    }),
+    ...(options.now !== undefined ? { now: options.now } : {}),
+  })
+  const available = new Set(permitted)
+  return supported.filter(action => available.has(action))
 }
 
 async function orderRecord(
@@ -79,6 +110,7 @@ async function orderRecord(
   let validation
   let driver
   let policy: MarketplacePaymentPolicyImplementation | undefined
+  let item: MarketplacePaymentValidationItem | undefined
 
   try {
     const validated = await validateOrderGroupPayments(input, {
@@ -97,7 +129,7 @@ async function orderRecord(
         signer: opts.signer,
         signerPubkey: opts.identity?.pubkey,
       })
-      const item = amount.status === 'resolved' && amount.amount && proof.status === 'resolved' && proof.proof
+      item = amount.status === 'resolved' && amount.amount && proof.status === 'resolved' && proof.proof
         ? paymentValidationItemForGroup(source, payment, now, amount.amount, proof.proof)
         : undefined
       policy = item ? policyForPayment(opts, item) : undefined
@@ -166,8 +198,8 @@ async function orderRecord(
     }
 
     const withDriver = { ...base, ...(driver ? { driver } : {}) }
-    const actions = declaredActions(policy)
-    if (actions.length === 0) {
+    const supportedActions = declaredMarketplaceEscrowActions(policy)
+    if (supportedActions.length === 0) {
       return {
         ...withDriver,
         actions: [],
@@ -189,6 +221,19 @@ async function orderRecord(
         ...withDriver,
         actions: [],
         actionReason: unavailable('driver_not_ready', `The matching driver is ${driver.status}.`),
+      }
+    }
+    const actions = item
+      ? await authorizedMarketplaceEscrowActions({ opts, policy, item, payment, ...(now !== undefined ? { now } : {}) })
+      : []
+    if (actions.length === 0) {
+      return {
+        ...withDriver,
+        actions: [],
+        actionReason: unavailable(
+          'settlement_unauthorized',
+          'The matching driver does not authorize this escrow identity for the payment.',
+        ),
       }
     }
     return { ...withDriver, actions }
