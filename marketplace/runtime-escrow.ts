@@ -1,4 +1,5 @@
 import type { ParsedAuctionBidGroup } from './auction-bid-group.ts'
+import type { MarketplaceDriverOrderSettlementAction } from '@sudonym-btc/marketplace-driver-interface'
 import type { ParsedOrderGroup } from './order-group.ts'
 import type { ParsedPayment } from './payment-lifecycle.ts'
 import { validateOrderGroupPayments } from './order-group.ts'
@@ -39,6 +40,12 @@ import type {
 } from './runtime-types.ts'
 
 const executableActions = new Set<MarketplaceEscrowAction>(['release', 'refund'])
+const orderSettlementActions = new Set<MarketplaceDriverOrderSettlementAction>([
+  'release',
+  'refund',
+  'split',
+  'timeout_claim',
+])
 
 function unavailable(
   code: MarketplaceEscrowActionUnavailable['code'],
@@ -65,22 +72,24 @@ function policyCanSettle(policy: MarketplacePaymentPolicyImplementation): boolea
     (typeof policy.settlePayment === 'function' || typeof policy.arbitrate === 'function')
 }
 
-export function declaredMarketplaceEscrowActions(
+export function declaredMarketplaceOrderSettlementActions(
   policy: MarketplacePaymentPolicyImplementation,
-): MarketplaceEscrowAction[] {
+): MarketplaceDriverOrderSettlementAction[] {
   if (policy.purpose !== 'order' || !policyCanSettle(policy)) return []
   return [...new Set(policy.settlementActions ?? [])]
-    .filter((action): action is MarketplaceEscrowAction => executableActions.has(action as MarketplaceEscrowAction))
+    .filter((action): action is MarketplaceDriverOrderSettlementAction =>
+      orderSettlementActions.has(action as MarketplaceDriverOrderSettlementAction),
+    )
 }
 
-export async function authorizedMarketplaceEscrowActions(options: {
+export async function authorizedMarketplaceOrderSettlementActions(options: {
   opts: MarketplaceRuntimeOptions
   policy: MarketplacePaymentPolicyImplementation
   item: MarketplacePaymentValidationItem
   payment: ParsedPayment
   now?: number
-}): Promise<MarketplaceEscrowAction[]> {
-  const supported = declaredMarketplaceEscrowActions(options.policy)
+}): Promise<MarketplaceDriverOrderSettlementAction[]> {
+  const supported = declaredMarketplaceOrderSettlementActions(options.policy)
   if (options.policy.purpose !== 'order' || options.policy.family !== 'escrow') return []
   const policy = options.policy as MarketplaceOrderPolicy
   if (supported.length === 0 || !policy.settlementActionsForPayment) return supported
@@ -97,6 +106,24 @@ export async function authorizedMarketplaceEscrowActions(options: {
   })
   const available = new Set(permitted)
   return supported.filter(action => available.has(action))
+}
+
+export function declaredMarketplaceEscrowActions(
+  policy: MarketplacePaymentPolicyImplementation,
+): MarketplaceEscrowAction[] {
+  return declaredMarketplaceOrderSettlementActions(policy)
+    .filter((action): action is MarketplaceEscrowAction => executableActions.has(action as MarketplaceEscrowAction))
+}
+
+export async function authorizedMarketplaceEscrowActions(options: {
+  opts: MarketplaceRuntimeOptions
+  policy: MarketplacePaymentPolicyImplementation
+  item: MarketplacePaymentValidationItem
+  payment: ParsedPayment
+  now?: number
+}): Promise<MarketplaceEscrowAction[]> {
+  return (await authorizedMarketplaceOrderSettlementActions(options))
+    .filter((action): action is MarketplaceEscrowAction => executableActions.has(action as MarketplaceEscrowAction))
 }
 
 async function orderRecord(

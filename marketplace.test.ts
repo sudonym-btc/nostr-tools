@@ -3837,6 +3837,7 @@ describe('marketplace reviews and runtime facade', () => {
         id: policyId,
         purpose: 'order',
         family: 'escrow',
+        settlementActions: ['split'],
         policies: () => [{ method, id: policyId }],
         assets: () => [],
         async *pay() {
@@ -4109,7 +4110,7 @@ describe('marketplace reviews and runtime facade', () => {
     ])
   })
 
-  test('arbitration runtime validates seen payments and publishes an ack', async () => {
+  test('arbitration runtime resolves sealed proofs, validates seen payments, and publishes an ack', async () => {
     const sellerSecretKey = generateSecretKey()
     const buyerSecretKey = generateSecretKey()
     const arbiterSecretKey = generateSecretKey()
@@ -4143,6 +4144,16 @@ describe('marketplace reviews and runtime facade', () => {
         recipientPubkeys: [buyerPubkey, sellerPubkey, arbiterPubkey],
       },
     )
+    const paymentProofPayload = marketplace.paymentProofs.build(
+      {
+        paymentProof: mockPaymentProof('evm-escrow', { txHash: `0x${'d'.repeat(64)}` }),
+      },
+      {
+        mode: 'sealed',
+        senderSecretKey: buyerSecretKey,
+        recipientPubkeys: [buyerPubkey, sellerPubkey, arbiterPubkey],
+      },
+    )
     const payment = sign(
       marketplace.orders.paymentTemplate({
         tradeId,
@@ -4150,13 +4161,15 @@ describe('marketplace reviews and runtime facade', () => {
         participants,
         refs: { orders: [order.id] },
         ...paymentAmountPayload,
-        proof: {
-          paymentProof: mockPaymentProof('evm-escrow', { txHash: `0x${'d'.repeat(64)}` }),
-        },
+        proof: paymentProofPayload.proof,
+        paymentProofKeys: paymentProofPayload.paymentProofKeys,
         createdAt: createdAt + 1,
       }),
       buyerSecretKey,
     )
+    const parsedPayment = marketplace.orders.parsePayment(payment)
+    expect(parsedPayment.content.proof).toBeUndefined()
+    expect(parsedPayment.content.sealedProof).toBeDefined()
     const subscriptions: Array<{ onevent: (event: Event) => void }> = []
     const pool = {
       async querySync(): Promise<Event[]> {
@@ -4172,6 +4185,8 @@ describe('marketplace reviews and runtime facade', () => {
     }
     const published: Event[] = []
     const states: marketplace.MarketplaceArbitrationStartEvent[] = []
+    let validationCalls = 0
+    let validatedTxHash: unknown
     const policy: marketplace.MarketplaceOrderPolicy = {
       method: 'evm',
       id: 'evm-escrow',
@@ -4183,6 +4198,8 @@ describe('marketplace reviews and runtime facade', () => {
         yield { type: 'completed' as const }
       },
       async validatePayment(request: marketplace.MarketplacePaymentValidationRequest) {
+        validationCalls += 1
+        validatedTxHash = (request.proof.params as Record<string, unknown>).txHash
         return {
           driver: request.driver,
           status: 'valid',
@@ -4235,6 +4252,8 @@ describe('marketplace reviews and runtime facade', () => {
     expect(published[0].kind).toBe(MarketplacePaymentAck)
     expect(published[0].pubkey).toBe(arbiterPubkey)
     expect(hasTag(published[0], ['e', payment.id, '', 'payment'])).toBe(true)
+    expect(validationCalls).toBe(1)
+    expect(validatedTxHash).toBe(`0x${'d'.repeat(64)}`)
     expect(states.some(state => state.type === 'payment_validated')).toBe(true)
     expect(states.some(state => state.type === 'payment_ack_published')).toBe(true)
   })
@@ -4892,6 +4911,7 @@ describe('marketplace reviews and runtime facade', () => {
       id: 'evm-escrow',
       purpose: 'order',
       family: 'escrow',
+      settlementActions: ['split'],
       policies: () => [{ method: 'evm', id: 'evm-escrow' }],
       assets: () => [],
       async *pay() {
@@ -5015,6 +5035,7 @@ describe('marketplace reviews and runtime facade', () => {
       id: 'evm-escrow',
       purpose: 'order',
       family: 'escrow',
+      settlementActions: ['split'],
       policies: () => [{ method: 'evm', id: 'evm-escrow' }],
       assets: () => [],
       async *pay() {
@@ -5482,6 +5503,20 @@ describe('marketplace reviews and runtime facade', () => {
     expect(JSON.stringify(parsedSettlement.content)).not.toContain(`0x${'d'.repeat(64)}`)
     expect(JSON.stringify(parsedSettlement.content)).not.toContain('decryptedInput')
     expect(JSON.stringify(parsedSettlement.content)).not.toContain('decryptedOutput')
+
+    let undeclaredActionError: Error | undefined
+    try {
+      for await (const _state of session.arbitration.arbitrate({
+        group: record.source,
+        ...(record.payment ? { payment: record.payment } : {}),
+        action: 'split',
+        now: createdAt + 2,
+      })) {}
+    } catch (error) {
+      undeclaredActionError = error as Error
+    }
+    expect(undeclaredActionError?.message).toContain('does not authorize split settlement')
+    expect(intents).toHaveLength(1)
 
     policy.settlementActionsForPayment = async () => []
     const unauthorized = await session.escrow.records.list({ now: createdAt + 2 })

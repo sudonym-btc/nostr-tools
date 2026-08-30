@@ -271,9 +271,16 @@ export class AbstractRelay {
   public async send(message: string) {
     if (!this.connectionPromise) throw new SendingOnClosedConnection(message, this.url)
 
-    this.connectionPromise.then(() => {
-      this.ws?.send(message)
-    })
+    if (this._connected && this.ws?.readyState === this._WebSocket.OPEN) {
+      this.ws.send(message)
+      return
+    }
+
+    await this.connectionPromise
+    if (!this._connected || this.ws?.readyState !== this._WebSocket.OPEN) {
+      throw new SendingOnClosedConnection(message, this.url)
+    }
+    this.ws.send(message)
   }
 
   public async auth(signAuthEvent: (evt: EventTemplate) => Promise<VerifiedEvent>): Promise<string> {
@@ -373,8 +380,8 @@ export class AbstractRelay {
       clearInterval(this.pingIntervalHandle)
       this.pingIntervalHandle = undefined
     }
-    this.closeAllSubscriptions('relay connection closed by us')
     this._connected = false
+    this.closeAllSubscriptions('relay connection closed by us')
     this.idleSince = undefined
     this.onclose?.()
     if (this.ws?.readyState === this._WebSocket.OPEN) {
@@ -565,17 +572,15 @@ export class Subscription {
   }
 
   public close(reason: string = 'closed by caller') {
-    if (!this.closed && this.relay.connected) {
-      // if the connection was closed by the user calling .close() we will send a CLOSE message
-      // otherwise this._open will be already set to false so we will skip this
-      try {
-        this.relay.send('["CLOSE",' + JSON.stringify(this.id) + ']')
-      } catch (err) {
-        if (err instanceof SendingOnClosedConnection) {
-          /* doesn't matter, it's ok */
-        } else {
-          throw err
-        }
+    if (!this.closed) {
+      if (this.relay.connected) {
+        // Send CLOSE only while the relay itself remains open. A whole-relay
+        // shutdown closes the socket and marks subscriptions locally instead.
+        void this.relay.send('["CLOSE",' + JSON.stringify(this.id) + ']').catch(err => {
+          if (!(err instanceof SendingOnClosedConnection)) {
+            console.warn(`Unable to close subscription '${this.id}' on relay ${this.relay.url}`, err)
+          }
+        })
       }
       this.closed = true
     }

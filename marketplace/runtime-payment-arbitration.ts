@@ -155,7 +155,7 @@ import type {
 import { isPaymentValidationAccepted } from './payment-validation.ts'
 import { resolvePaymentAmount } from './payment-amount.ts'
 import { paymentProofParamsDecryptor, resolvePaymentProof } from './payment-proof.ts'
-import { authorizedMarketplaceEscrowActions } from './runtime-escrow.ts'
+import { authorizedMarketplaceOrderSettlementActions } from './runtime-escrow.ts'
 import type {
   MarketplacePolicyWatermarkRecoveryAction,
   MarketplacePolicyWatermarkContext,
@@ -549,7 +549,25 @@ export async function processArbitrationGroupPayment(
     })
     return
   }
-  const item = paymentValidationItemForGroup(group, payment, options.now, amount.amount)
+  let proof = payment.content.proof
+  if (!proof && payment.content.sealedProof) {
+    const resolution = await resolvePaymentProof(payment, {
+      keys: payment.paymentProofKeys,
+      signer: opts.signer,
+      signerPubkey: arbiterPubkey,
+    })
+    if (resolution.status !== 'resolved' || !resolution.proof) {
+      await emitArbitrationState(options, {
+        type: 'ignored',
+        group,
+        payment,
+        reason: resolution.error ?? 'payment proof could not be resolved',
+      })
+      return
+    }
+    proof = resolution.proof
+  }
+  const item = paymentValidationItemForGroup(group, payment, options.now, amount.amount, proof)
   if (!item) {
     await emitArbitrationState(options, { type: 'ignored', group, payment, reason: 'payment has no recoverable proof' })
     return
@@ -704,17 +722,15 @@ export async function* arbitrateMarketplacePayment(
     const policy = policyForPayment(opts, entry.item)
     if (!policy) throw new Error('No matching payment policy')
     const outputs = outputAllocations.get(entry.payment.event.id)
-    if (request.action === 'release' || request.action === 'refund') {
-      const actions = await authorizedMarketplaceEscrowActions({
-        opts,
-        policy,
-        item: entry.item,
-        payment: entry.payment,
-        ...(request.now !== undefined ? { now: request.now } : {}),
-      })
-      if (!actions.includes(request.action)) {
-        throw new Error(`Payment policy does not authorize ${request.action} settlement for this payment`)
-      }
+    const actions = await authorizedMarketplaceOrderSettlementActions({
+      opts,
+      policy,
+      item: entry.item,
+      payment: entry.payment,
+      ...(request.now !== undefined ? { now: request.now } : {}),
+    })
+    if (!actions.includes(request.action as 'release' | 'refund' | 'split' | 'timeout_claim')) {
+      throw new Error(`Payment policy does not authorize ${request.action} settlement for this payment`)
     }
     prepared.push({ entry, policy, outputs })
   }

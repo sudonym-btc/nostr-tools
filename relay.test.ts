@@ -7,6 +7,15 @@ import { MockRelay, MockWebSocketClient } from './test-helpers.ts'
 
 useWebSocketImplementation(MockWebSocketClient)
 
+async function waitUntil(predicate: () => boolean, timeoutMs = 2_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (predicate()) return
+    await new Promise(resolve => setTimeout(resolve, 10))
+  }
+  throw new Error(`Condition was not met within ${timeoutMs}ms`)
+}
+
 test('connectivity', async () => {
   const mockRelay = new MockRelay()
 
@@ -23,6 +32,23 @@ test('connectivity, with Relay.connect()', async () => {
   const relay = await Relay.connect(mockRelay.url)
   expect(relay.connected).toBeTrue()
   relay.close()
+})
+
+test('closing a relay does not enqueue subscription messages on the closing socket', async () => {
+  const mockRelay = new MockRelay()
+  const relay = await Relay.connect(mockRelay.url)
+  const sub = relay.subscribe([{ kinds: [1] }], { onevent() {} })
+  let sendsDuringClose = 0
+  relay.send = async () => {
+    sendsDuringClose += 1
+  }
+
+  relay.close()
+  await Promise.resolve()
+
+  expect(relay.connected).toBeFalse()
+  expect(sub.closed).toBeTrue()
+  expect(sendsDuringClose).toBe(0)
 })
 
 test('querying', async done => {
@@ -292,7 +318,7 @@ test('reconnect on disconnect', async () => {
   const relay = new Relay(mockRelay.url, { enablePing: true, enableReconnect: true })
   relay.pingTimeout = 50
   relay.pingFrequency = 50
-  relay.resubscribeBackoff = [50, 100] // short backoff for testing
+  relay.resubscribeBackoff = [200] // leave a deterministic observable disconnected window
 
   let closes = 0
   relay.onclose = () => {
@@ -309,33 +335,21 @@ test('reconnect on disconnect', async () => {
   // now make it unresponsive
   mockRelay.unresponsive = true
 
-  // wait for the second ping to fail, which will trigger a close
-  await new Promise(resolve => {
-    const interval = setInterval(() => {
-      if (closes > 0) {
-        clearInterval(interval)
-        resolve(null)
-      }
-    }, 10)
-  })
-  expect(closes).toBe(1)
+  // Wait for the second ping to fail. Transient reconnects intentionally do
+  // not call the terminal onclose callback or discard subscriptions.
+  await waitUntil(() => !relay.connected)
+  expect(closes).toBe(0)
   expect(relay.connected).toBeFalse()
 
   // now make it responsive again
   mockRelay.unresponsive = false
 
   // wait for reconnect
-  await new Promise(resolve => {
-    const interval = setInterval(() => {
-      if (relay.connected) {
-        clearInterval(interval)
-        resolve(null)
-      }
-    }, 10)
-  })
+  await waitUntil(() => relay.connected)
 
   expect(relay.connected).toBeTrue()
-  expect(closes).toBe(1) // should not have closed again
+  expect(closes).toBe(0)
+  relay.close()
 })
 
 test('oninvalidevent is called for malformed events', async done => {
